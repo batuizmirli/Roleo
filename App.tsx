@@ -17,6 +17,7 @@ import StageResultScreen from './src/screens/StageResultScreen';
 import FirstSessionReadyScreen from './src/screens/FirstSessionReadyScreen';
 import FirstSessionNextScreen from './src/screens/FirstSessionNextScreen';
 import DebugPanelScreen from './src/screens/DebugPanelScreen';
+import InstantLearnScreen from './src/screens/InstantLearnScreen';
 import { getFirstSessionScenario, getTodaysMissionScenario } from './src/data/scenarios';
 import { trackEvent } from './src/services/telemetry';
 
@@ -34,6 +35,7 @@ type Screen =
   | 'stage-result'
   | 'first-session-ready'
   | 'first-session-next'
+  | 'instant-learn'
   | 'debug';
 
 export default function App() {
@@ -140,6 +142,8 @@ export default function App() {
               targetLang: prof?.language?.code,
               nativeLang: prof?.nativeLanguage?.code,
               goal: prof?.goal?.id,
+              identityGoal: prof?.identity?.goal,
+              identityEmotion: prof?.identity?.emotion,
             });
             setRunType('first');
             goTo('first-session-ready');
@@ -166,7 +170,11 @@ export default function App() {
     }
 
     if (screen === 'home') {
-      return <HomeScreen onModeSelect={handleModeSelect} onDebug={() => goTo('debug')} />;
+      return <HomeScreen onModeSelect={handleModeSelect} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} />;
+    }
+
+    if (screen === 'instant-learn') {
+      return <InstantLearnScreen onBack={() => goTo('home')} />;
     }
 
     if (screen === 'scenarios') {

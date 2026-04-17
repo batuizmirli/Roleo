@@ -61,10 +61,18 @@ const HOME_SECTIONS: HomeSection[] = [
 
 const SUPPORT_CARDS: HomeCard[] = [
   {
+    id: 'instant-learn',
+    title: 'Instant Learn',
+    description: 'Duyduğun ifadeyi anında çöz',
+    emoji: '⚡',
+    color: '#22C55E',
+    vibe: 'Gerçek an',
+  },
+  {
     id: 'daily-mission',
     title: 'Bugünün Görevi',
     description: '60 saniyelik mini sahne',
-    emoji: '⚡',
+    emoji: '🎯',
     color: '#F59E0B',
     vibe: 'Hızlı görev',
   },
@@ -81,9 +89,10 @@ const SUPPORT_CARDS: HomeCard[] = [
 type Props = {
   onModeSelect: (mode: 'scenarios' | 'stories' | 'phrasebook') => void;
   onDebug?: () => void;
+  onOpenInstantLearn?: () => void;
 };
 
-export default function HomeScreen({ onModeSelect, onDebug }: Props) {
+export default function HomeScreen({ onModeSelect, onDebug, onOpenInstantLearn }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [langModalVisible, setLangModalVisible] = useState(false);
 
@@ -140,6 +149,9 @@ export default function HomeScreen({ onModeSelect, onDebug }: Props) {
           <View style={styles.dreamCard}>
             <Text style={styles.dreamLabel}>HEDEFIN</Text>
             <Text style={styles.dreamText}>"{profile.goalDescription}"</Text>
+            {profile.identity ? (
+              <Text style={styles.dreamMeta}>{profile.identity.context} · {profile.identity.emotion}</Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -178,7 +190,12 @@ export default function HomeScreen({ onModeSelect, onDebug }: Props) {
 
         <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Yan sistemler</Text>
         {SUPPORT_CARDS.map((item, i) => (
-          <AnimatedPressable key={item.id} style={styles.supportCard} delay={180 + i * 60} onPress={() => onModeSelect('scenarios')}>
+          <AnimatedPressable
+            key={item.id}
+            style={styles.supportCard}
+            delay={180 + i * 60}
+            onPress={() => item.id === 'instant-learn' ? onOpenInstantLearn?.() : onModeSelect('scenarios')}
+          >
             <Text style={styles.supportEmoji}>{item.emoji}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.supportTitle}>{item.title}</Text>
@@ -228,6 +245,7 @@ const styles = StyleSheet.create({
   dreamCard: { backgroundColor: '#1A1A2E', borderRadius: 16, padding: 16, marginBottom: 28, borderLeftWidth: 3, borderLeftColor: '#FF4D6D', borderWidth: 1, borderColor: '#2A2A3E' },
   dreamLabel: { fontSize: 10, fontWeight: '700', color: '#FF4D6D', letterSpacing: 1.5, marginBottom: 6 },
   dreamText: { fontSize: 13, color: '#AAA', fontStyle: 'italic', lineHeight: 20 },
+  dreamMeta: { fontSize: 12, color: '#7BC67E', lineHeight: 18, marginTop: 8 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#FFF', marginBottom: 16 },
   sparkCard: { backgroundColor: '#1A1A2E', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#2A2A3E' },
   sparkTitle: { color: '#FF4D6D', fontSize: 11, fontWeight: '800', letterSpacing: 1 },

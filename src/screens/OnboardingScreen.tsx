@@ -45,7 +45,7 @@ const GOALS: UserGoal[] = [
   { id: 'exam', label: 'Exam', emoji: '📚', description: 'Get a language certificate' },
 ];
 
-type Step = 'native' | 'language' | 'goal' | 'dream';
+type Step = 'native' | 'language' | 'goal' | 'dream' | 'context' | 'emotion';
 
 type Props = {
   onComplete: () => void;
@@ -57,6 +57,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
   const [dreamText, setDreamText] = useState('');
+  const [contextText, setContextText] = useState('');
+  const [emotionText, setEmotionText] = useState('');
 
   const handleNativeSelect = (lang: Language) => {
     setSelectedNative(lang);
@@ -77,11 +79,29 @@ export default function OnboardingScreen({ onComplete }: Props) {
     if (step === 'language') setStep('native');
     else if (step === 'goal') setStep('language');
     else if (step === 'dream') setStep('goal');
+    else if (step === 'context') setStep('dream');
+    else if (step === 'emotion') setStep('context');
   };
 
   const handleDreamContinue = () => {
     if (!dreamText.trim()) {
       Alert.alert('Write your dream', 'Write something that motivates you.');
+      return;
+    }
+    setStep('context');
+  };
+
+  const handleContextContinue = () => {
+    if (!contextText.trim()) {
+      Alert.alert('Add the scene', 'Where are you and who are you talking to?');
+      return;
+    }
+    setStep('emotion');
+  };
+
+  const handleEmotionContinue = () => {
+    if (!emotionText.trim()) {
+      Alert.alert('Add the feeling', 'How do you want to feel in that moment?');
       return;
     }
     handleComplete();
@@ -93,6 +113,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
       nativeLanguage: selectedNative!,
       goal: selectedGoal!,
       goalDescription: dreamText,
+      identity: {
+        goal: dreamText.trim(),
+        context: contextText.trim(),
+        emotion: emotionText.trim(),
+      },
       streak: 0,
       completedScenarios: [],
       xp: 0,
@@ -103,7 +128,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     onComplete();
   };
 
-  const stepIndicator = ['native', 'language', 'goal', 'dream'];
+  const stepIndicator = ['native', 'language', 'goal', 'dream', 'context', 'emotion'];
   const currentStepIndex = stepIndicator.indexOf(step);
 
   return (
@@ -219,6 +244,58 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </View>
             <TouchableOpacity style={styles.button} onPress={handleDreamContinue}>
               <Text style={styles.buttonText}>Continue →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {step === 'context' && (
+          <View style={styles.stepContainer}>
+            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.logo}>roleo</Text>
+            <Text style={styles.title}>Set the exact scene.</Text>
+            <Text style={styles.subtitle}>Where are you, and who are you speaking with?</Text>
+            <View style={styles.dreamBox}>
+              <Text style={styles.dreamHint}>e.g. “La Rambla'da bir kafedeyim ve garson siparişimi bekliyor.”</Text>
+              <TextInput
+                style={styles.dreamInput}
+                placeholder="Describe the setting and person..."
+                placeholderTextColor="#555"
+                multiline
+                numberOfLines={4}
+                value={contextText}
+                onChangeText={setContextText}
+              />
+            </View>
+            <TouchableOpacity style={styles.button} onPress={handleContextContinue}>
+              <Text style={styles.buttonText}>Continue →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {step === 'emotion' && (
+          <View style={styles.stepContainer}>
+            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.logo}>roleo</Text>
+            <Text style={styles.title}>How do you want to feel?</Text>
+            <Text style={styles.subtitle}>This becomes the emotional goal behind your practice.</Text>
+            <View style={styles.dreamBox}>
+              <Text style={styles.dreamHint}>e.g. “cool, relaxed and natural” / “confident in the meeting”</Text>
+              <TextInput
+                style={styles.dreamInput}
+                placeholder="Describe the feeling you want..."
+                placeholderTextColor="#555"
+                multiline
+                numberOfLines={4}
+                value={emotionText}
+                onChangeText={setEmotionText}
+              />
+            </View>
+            <TouchableOpacity style={styles.button} onPress={handleEmotionContinue}>
+              <Text style={styles.buttonText}>Start My Journey →</Text>
             </TouchableOpacity>
           </View>
         )}

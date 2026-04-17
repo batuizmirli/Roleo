@@ -11,6 +11,12 @@ export type UserGoal = {
   description: string;
 };
 
+export type UserIdentity = {
+  goal: string;
+  context: string;
+  emotion: string;
+};
+
 export type VocabHint = {
   word: string;
   meaning: string;
@@ -49,6 +55,7 @@ export type UserProfile = {
   nativeLanguage: Language;
   goal: UserGoal;
   goalDescription: string;
+  identity?: UserIdentity;
   streak: number;
   completedScenarios: string[];
   level?: UserLevel;

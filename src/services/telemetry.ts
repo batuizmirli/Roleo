@@ -7,6 +7,7 @@ export type TelemetryEventName =
   | 'first_session_ready_seen'
   | 'first_stage_started'
   | 'first_user_message_sent'
+  | 'instant_learn_used'
   | 'stage_started'
   | 'stage_completed'
   | 'stage_retried'

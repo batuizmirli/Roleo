@@ -52,7 +52,18 @@ export default function ScenarioScreen({ scenario, onBack, onStageComplete, firs
   const [loading, setLoading] = useState(false);
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
   const [userMessageCount, setUserMessageCount] = useState(0);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const profileData = await AsyncStorage.getItem('userProfile');
+      const parsed = profileData ? tryParseJson<UserProfile>(profileData) : null;
+      setProfile(parsed);
+    };
+
+    loadProfile();
+  }, []);
 
   useEffect(() => {
     trackEvent('stage_started', {
@@ -97,9 +108,10 @@ export default function ScenarioScreen({ scenario, onBack, onStageComplete, firs
     setLoading(true);
 
     try {
-      const profileData = await AsyncStorage.getItem('userProfile');
-      const profile = profileData ? tryParseJson<UserProfile>(profileData) : null;
       const nativeLang = profile?.nativeLanguage?.name ?? 'English';
+      const identityGoal = profile?.identity?.goal ?? profile?.goalDescription;
+      const identityContext = profile?.identity?.context;
+      const identityEmotion = profile?.identity?.emotion;
 
       const detectedLevel = userLevel ?? detectLevelFromText(userMessage.content);
       if (!userLevel) {
@@ -137,7 +149,12 @@ The user's native language is ${nativeLang}.
 User level is ${detectedLevel}.
 Scenario mode is ${scenario.modeType ?? 'normal'} and stage type is ${scenario.stageType ?? 'social'}.
 First session mode: ${firstSessionMode ? 'ON' : 'OFF'}.
+User motivation goal: ${identityGoal ?? 'not provided'}.
+User personal context: ${identityContext ?? 'not provided'}.
+Desired feeling after this scene: ${identityEmotion ?? 'not provided'}.
 If first session mode is ON, keep whole interaction 2-3 turns and super simple.
+Use the personal goal/context/emotion to make the scene feel specific and motivating.
+Subtly remind the user of the version of themselves they want to become.
 Adapt response style:
 - beginner: very short and simple
 - intermediate: natural and brief
@@ -195,6 +212,13 @@ Always provide corrections in ${nativeLang} with prefix "💡 Düzeltme:".
           <Text style={styles.firstIntroBadge}>FIRST STAGE</Text>
           <Text style={styles.firstIntroTitle}>Barcelona'da bir kafedesin.</Text>
           <Text style={styles.firstIntroSub}>{persona.name} sana yaklaşır:</Text>
+          {profile?.identity ? (
+            <View style={styles.identityIntroCard}>
+              <Text style={styles.identityIntroLabel}>SENİN HEDEFİN</Text>
+              <Text style={styles.identityIntroText}>{profile.identity.goal}</Text>
+              <Text style={styles.identityIntroMeta}>{profile.identity.context} · {profile.identity.emotion}</Text>
+            </View>
+          ) : null}
           <View style={styles.firstQuote}>
             <Text style={styles.firstQuoteText}>“Hey! What can I get for you?”</Text>
           </View>
@@ -277,7 +301,12 @@ Always provide corrections in ${nativeLang} with prefix "💡 Düzeltme:".
       </View>
 
       <View style={styles.stageMetaRow}>
-        <Text style={styles.stageMetaText}>{persona.name} · {(userLevel ?? 'algılanıyor').toUpperCase()}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.stageMetaText}>{persona.name} · {(userLevel ?? 'algılanıyor').toUpperCase()}</Text>
+          {profile?.identity ? (
+            <Text style={styles.identityMetaText}>{profile.identity.goal} · {profile.identity.emotion}</Text>
+          ) : null}
+        </View>
         <TouchableOpacity onPress={completeStage} style={styles.finishBtn}>
           <Text style={styles.finishBtnText}>Stage Bitir</Text>
         </TouchableOpacity>
@@ -404,6 +433,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.4,
+  },
+  identityMetaText: {
+    color: '#7BC67E',
+    fontSize: 11,
+    marginTop: 3,
   },
   finishBtn: {
     backgroundColor: '#1A1A2E',
@@ -534,6 +568,33 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 24,
     fontSize: 13,
+  },
+  identityIntroCard: {
+    marginTop: 14,
+    marginBottom: 12,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2A2A3E',
+    padding: 14,
+  },
+  identityIntroLabel: {
+    color: '#FF4D6D',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  identityIntroText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  identityIntroMeta: {
+    color: '#AAA',
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 18,
   },
   // CHAT PHASE
   messages: {
