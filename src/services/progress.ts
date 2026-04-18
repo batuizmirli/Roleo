@@ -8,6 +8,7 @@ export type ProgressState = {
   streak: number;
   lastPlayedDate: string | null;
   completedScenarioIds: string[];
+  scenarioPlayCounts: Record<string, number>;
 };
 
 export type UnlockState = {
@@ -29,6 +30,7 @@ const defaultProgress: ProgressState = {
   streak: 0,
   lastPlayedDate: null,
   completedScenarioIds: [],
+  scenarioPlayCounts: {},
 };
 
 const emptyCounts: UnlockState['stageCounts'] = {
@@ -84,20 +86,29 @@ export const getProgress = async (): Promise<ProgressState> => {
     return defaultProgress;
   }
 
+  // migrate old toDateString() format to ISO date
+  let lastPlayedDate = parsed.lastPlayedDate;
+  if (lastPlayedDate && lastPlayedDate.includes(' ')) {
+    const d = new Date(lastPlayedDate);
+    lastPlayedDate = isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  }
+
   return {
     ...defaultProgress,
     ...parsed,
+    lastPlayedDate,
+    scenarioPlayCounts: parsed.scenarioPlayCounts ?? {},
   };
 };
 
 export const completeStage = async (result: StageResult): Promise<StageCompletionSummary> => {
   const progress = await getProgress();
   const beforeUnlock = getUnlockState(progress);
-  const today = new Date();
-  const todayStr = today.toDateString();
-  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000).toDateString();
+  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+  const todayStr = toISODate(new Date());
+  const yesterdayStr = toISODate(new Date(Date.now() - 86400000));
 
-  if (progress.lastPlayedDate === yesterday) {
+  if (progress.lastPlayedDate === yesterdayStr) {
     progress.streak += 1;
   } else if (progress.lastPlayedDate !== todayStr) {
     progress.streak = 1;
@@ -109,6 +120,9 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
   if (!progress.completedScenarioIds.includes(result.scenarioId)) {
     progress.completedScenarioIds.push(result.scenarioId);
   }
+
+  if (!progress.scenarioPlayCounts) progress.scenarioPlayCounts = {};
+  progress.scenarioPlayCounts[result.scenarioId] = (progress.scenarioPlayCounts[result.scenarioId] ?? 0) + 1;
 
   await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
@@ -134,6 +148,29 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
     unlockState: afterUnlock,
     newlyUnlocked,
   };
+};
+
+export const awardActivityXP = async (xp: number): Promise<void> => {
+  const progress = await getProgress();
+  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+  const todayStr = toISODate(new Date());
+  const yesterdayStr = toISODate(new Date(Date.now() - 86400000));
+
+  if (progress.lastPlayedDate === yesterdayStr) {
+    progress.streak += 1;
+  } else if (progress.lastPlayedDate !== todayStr) {
+    progress.streak = 1;
+  }
+  progress.lastPlayedDate = todayStr;
+  progress.xp += xp;
+
+  await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+
+  const profileRaw = await AsyncStorage.getItem('userProfile');
+  const profile = profileRaw ? tryParseJson<UserProfile>(profileRaw) : null;
+  if (profile) {
+    await AsyncStorage.setItem('userProfile', JSON.stringify({ ...profile, xp: progress.xp, streak: progress.streak }));
+  }
 };
 
 export const getLevelFromXp = (xp: number) => Math.floor(xp / 100) + 1;

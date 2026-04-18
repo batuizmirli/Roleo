@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
+import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, StageResult } from './src/types';
@@ -18,7 +18,10 @@ import FirstSessionReadyScreen from './src/screens/FirstSessionReadyScreen';
 import FirstSessionNextScreen from './src/screens/FirstSessionNextScreen';
 import DebugPanelScreen from './src/screens/DebugPanelScreen';
 import InstantLearnScreen from './src/screens/InstantLearnScreen';
-import { getFirstSessionScenario, getTodaysMissionScenario } from './src/data/scenarios';
+import ProgressScreen from './src/screens/ProgressScreen';
+import ScenarioPrepModal from './src/components/ScenarioPrepModal';
+import { UserProfile } from './src/types';
+import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario } from './src/data/scenarios';
 import { trackEvent } from './src/services/telemetry';
 
 type Screen =
@@ -36,6 +39,7 @@ type Screen =
   | 'first-session-ready'
   | 'first-session-next'
   | 'instant-learn'
+  | 'progress'
   | 'debug';
 
 export default function App() {
@@ -44,6 +48,11 @@ export default function App() {
   const [stageResult, setStageResult] = useState<StageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [runType, setRunType] = useState<'normal' | 'first' | 'daily-mission'>('normal');
+  const [showPrepModal, setShowPrepModal] = useState(false);
+  const [prepBonus, setPrepBonus] = useState(0);
+  const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
+  const [currentPlayCount, setCurrentPlayCount] = useState(0);
+  const [firstSessionScenario, setFirstSessionScenario] = useState<Scenario | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -57,9 +66,11 @@ export default function App() {
       }
 
       try {
-        JSON.parse(p);
+        const profile = JSON.parse(p);
         const firstSessionState = await AsyncStorage.getItem('firstSessionState');
         if (firstSessionState === 'pending') {
+          const scenario = getPersonalizedScenario(profile?.language?.code ?? 'es', profile?.identity);
+          setFirstSessionScenario(scenario);
           setRunType('first');
           setScreen('first-session-ready');
         } else {
@@ -100,7 +111,7 @@ export default function App() {
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
     const languageCode = profile?.language?.code ?? 'es';
-    const firstScenario = getFirstSessionScenario(languageCode);
+    const firstScenario = getPersonalizedScenario(languageCode, profile?.identity);
 
     setSelectedScenario(firstScenario);
     setRunType('first');
@@ -117,7 +128,7 @@ export default function App() {
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
     const languageCode = profile?.language?.code ?? 'es';
-    const missionScenario = getTodaysMissionScenario(languageCode);
+    const missionScenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
 
     setSelectedScenario(missionScenario);
     setRunType('daily-mission');
@@ -145,6 +156,8 @@ export default function App() {
               identityGoal: prof?.identity?.goal,
               identityEmotion: prof?.identity?.emotion,
             });
+            const scenario = getPersonalizedScenario(prof?.language?.code ?? 'es', prof?.identity);
+            setFirstSessionScenario(scenario);
             setRunType('first');
             goTo('first-session-ready');
           }}
@@ -162,7 +175,7 @@ export default function App() {
     }
 
     if (screen === 'first-session-ready') {
-      return <FirstSessionReadyScreen onStart={startFirstSession} />;
+      return <FirstSessionReadyScreen onStart={startFirstSession} scenario={firstSessionScenario} />;
     }
 
     if (screen === 'first-session-next') {
@@ -170,7 +183,7 @@ export default function App() {
     }
 
     if (screen === 'home') {
-      return <HomeScreen onModeSelect={handleModeSelect} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} />;
+      return <HomeScreen onModeSelect={handleModeSelect} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
     }
 
     if (screen === 'instant-learn') {
@@ -180,10 +193,17 @@ export default function App() {
     if (screen === 'scenarios') {
       return (
         <ScenariosScreen
-          onScenarioSelect={s => {
+          onScenarioSelect={async s => {
+            const profileRaw = await AsyncStorage.getItem('userProfile');
+            const profile = profileRaw ? JSON.parse(profileRaw) : null;
+            setCurrentProfile(profile);
             setSelectedScenario(s);
             setRunType('normal');
-            goTo('scenario');
+            setPrepBonus(0);
+            const progressRaw = await AsyncStorage.getItem('userProgress');
+            const progress = progressRaw ? JSON.parse(progressRaw) : null;
+            setCurrentPlayCount(progress?.scenarioPlayCounts?.[s.id] ?? 0);
+            setShowPrepModal(true);
           }}
           onBack={() => goTo('home')}
         />
@@ -195,23 +215,28 @@ export default function App() {
         <ScenarioScreen
           scenario={selectedScenario}
           firstSessionMode={runType === 'first'}
+          prepBonus={prepBonus}
           onBack={() => goTo(runType === 'first' ? 'first-session-ready' : 'scenarios')}
           onStageComplete={async result => {
+            const finalResult = prepBonus > 0
+              ? { ...result, xpEarned: result.xpEarned + prepBonus }
+              : result;
             await trackEvent('stage_completed', {
-              scenarioId: result.scenarioId,
-              stageType: result.stageType,
-              xpEarned: result.xpEarned,
-              userLevel: result.userLevel,
-              messageCount: result.userMessageCount,
+              scenarioId: finalResult.scenarioId,
+              stageType: finalResult.stageType,
+              xpEarned: finalResult.xpEarned,
+              userLevel: finalResult.userLevel,
+              messageCount: finalResult.userMessageCount,
               runType,
+              prepBonusUsed: prepBonus > 0,
             });
             if (runType === 'daily-mission') {
-              await trackEvent('daily_mission_completed', { scenarioId: result.scenarioId });
+              await trackEvent('daily_mission_completed', { scenarioId: finalResult.scenarioId });
             }
             if (runType === 'first') {
               await AsyncStorage.setItem('firstSessionState', 'done');
             }
-            setStageResult(result);
+            setStageResult(finalResult);
             goTo('stage-result');
           }}
         />
@@ -237,24 +262,68 @@ export default function App() {
       );
     }
 
-    if (screen === 'vocab') return <VocabScreen onBack={() => goTo('home')} />;
-    if (screen === 'grammar') return <GrammarScreen onBack={() => goTo('home')} />;
-    if (screen === 'quiz') return <QuizScreen onBack={() => goTo('home')} />;
+    if (screen === 'vocab') return <VocabScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    if (screen === 'grammar') return <GrammarScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    if (screen === 'quiz') return <QuizScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'stories') return <StoriesScreen onBack={() => goTo('home')} />;
     if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo('home')} />;
+    if (screen === 'progress') return <ProgressScreen onBack={() => goTo('home')} />;
     if (screen === 'debug') return <DebugPanelScreen onBack={() => goTo('home')} />;
 
     return null;
   };
 
+  const FAB_HIDDEN_SCREENS: Screen[] = [
+    'onboarding', 'startup-language', 'first-session-ready',
+    'first-session-next', 'instant-learn', 'stage-result', 'debug',
+  ];
+  const showFab = !loading && !FAB_HIDDEN_SCREENS.includes(screen);
+
   if (loading) return null;
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: '#0A0A12' }}>
       <StatusBar style="light" />
-      <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <Animated.View style={{ flex: 1, backgroundColor: '#0A0A12', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         {renderScreen()}
       </Animated.View>
-    </>
+      {showFab && (
+        <TouchableOpacity style={fabStyles.fab} onPress={() => goTo('instant-learn')} activeOpacity={0.85}>
+          <Text style={fabStyles.fabIcon}>⚡</Text>
+        </TouchableOpacity>
+      )}
+      {selectedScenario && (
+        <ScenarioPrepModal
+          visible={showPrepModal}
+          scenario={selectedScenario}
+          profile={currentProfile}
+          playCount={currentPlayCount}
+          onSkip={() => { setShowPrepModal(false); goTo('scenario'); }}
+          onEnter={(bonus) => { setPrepBonus(bonus); setShowPrepModal(false); goTo('scenario'); }}
+        />
+      )}
+    </View>
   );
 }
+
+const fabStyles = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    bottom: 36,
+    right: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#E8324A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#E8324A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 22,
+  },
+});

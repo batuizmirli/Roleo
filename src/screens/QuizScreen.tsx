@@ -6,9 +6,9 @@ import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
 
 type Question = { question: string; options: string[]; correct: number; explanation: string; };
-type Props = { onBack: () => void; };
+type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; };
 
-export default function QuizScreen({ onBack }: Props) {
+export default function QuizScreen({ onBack, scenarioTitle, stageType }: Props) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
@@ -36,9 +36,10 @@ export default function QuizScreen({ onBack }: Props) {
       const langName = p.language?.name ?? 'Spanish';
       const goalDesc = p.goalDescription ?? '';
 
+      const sceneContext = scenarioTitle ? `Base the questions on vocabulary and phrases from a "${scenarioTitle}" scene (${stageType ?? 'general'} context).` : 'Mix vocabulary, simple grammar, fill-in-blank, translation questions.';
       const prompt = `Create 5 multiple choice quiz questions for a ${langName} beginner learner.
 Goal: "${goalDesc}". Explain in ${nativeLang}.
-Mix vocabulary, simple grammar, fill-in-blank, translation questions.
+${sceneContext}
 Return ONLY valid JSON array:
 [{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"(why, in ${nativeLang})"}]
 correct is the index (0-3) of the correct answer.`;
@@ -81,7 +82,7 @@ correct is the index (0-3) of the correct answer.`;
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>← Geri</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color="#F59E0B" />
+      <ActivityIndicator size="large" color="#F5B800" />
       <Text style={styles.loadingText}>Quiz hazırlanıyor...</Text>
     </View>
   );
@@ -160,40 +161,40 @@ correct is the index (0-3) of the correct answer.`;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D1A' },
+  container: { flex: 1, backgroundColor: '#0A0A12' },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: '#0D0D1A', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: { flex: 1, backgroundColor: '#0A0A12', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   topBack: { position: 'absolute', top: 60, left: 24 },
   topBackText: { fontSize: 15, color: '#888', fontWeight: '600' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#16162A', alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 20, color: '#FFF' },
   title: { flex: 1, fontSize: 22, fontWeight: '800', color: '#FFF' },
-  progress: { fontSize: 14, color: '#F59E0B', fontWeight: '700' },
-  progressBar: { height: 4, backgroundColor: '#1A1A2E', borderRadius: 2, marginBottom: 28 },
-  progressFill: { height: 4, backgroundColor: '#F59E0B', borderRadius: 2 },
-  questionCard: { backgroundColor: '#1A1A2E', borderRadius: 18, padding: 24, marginBottom: 20, borderWidth: 1.5, borderColor: '#2A2A3E' },
+  progress: { fontSize: 14, color: '#F5B800', fontWeight: '700' },
+  progressBar: { height: 4, backgroundColor: '#16162A', borderRadius: 2, marginBottom: 28 },
+  progressFill: { height: 4, backgroundColor: '#F5B800', borderRadius: 2 },
+  questionCard: { backgroundColor: '#16162A', borderRadius: 18, padding: 24, marginBottom: 20, borderWidth: 1.5, borderColor: '#252540' },
   questionText: { fontSize: 18, color: '#FFF', fontWeight: '700', lineHeight: 28 },
   options: { gap: 10, marginBottom: 16 },
-  option: { backgroundColor: '#1A1A2E', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderColor: '#2A2A3E' },
-  optionCorrect: { borderColor: '#4CAF50', backgroundColor: '#0D2010' },
-  optionWrong: { borderColor: '#FF4D6D', backgroundColor: '#200D10' },
+  option: { backgroundColor: '#16162A', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderColor: '#252540' },
+  optionCorrect: { borderColor: '#3DD68C', backgroundColor: '#0A1A0D' },
+  optionWrong: { borderColor: '#E8324A', backgroundColor: '#1A0A0E' },
   optionDimmed: { opacity: 0.4 },
-  optionLetter: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#0D0D1A', color: '#888', fontWeight: '800', fontSize: 13, textAlign: 'center', lineHeight: 28 },
+  optionLetter: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#0A0A12', color: '#888', fontWeight: '800', fontSize: 13, textAlign: 'center', lineHeight: 28 },
   optionText: { flex: 1, fontSize: 15, color: '#FFF' },
-  tick: { fontSize: 18, color: '#4CAF50', fontWeight: '800' },
-  cross: { fontSize: 18, color: '#FF4D6D', fontWeight: '800' },
+  tick: { fontSize: 18, color: '#3DD68C', fontWeight: '800' },
+  cross: { fontSize: 18, color: '#E8324A', fontWeight: '800' },
   explanationBox: { backgroundColor: '#1A2A1A', borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2A3A2A' },
   explanationText: { fontSize: 14, color: '#7BC67E', lineHeight: 22 },
-  btn: { backgroundColor: '#F59E0B', borderRadius: 16, padding: 18, alignItems: 'center' },
+  btn: { backgroundColor: '#F5B800', borderRadius: 16, padding: 18, alignItems: 'center' },
   btnText: { color: '#000', fontSize: 16, fontWeight: '800' },
   loadingText: { color: '#888', fontSize: 14 },
-  errorText: { color: '#FF4D6D', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#FF4D6D', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  errorText: { color: '#E8324A', fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: '#E8324A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   doneEmoji: { fontSize: 64 },
   doneScore: { fontSize: 48, fontWeight: '900', color: '#FFF' },
   doneLabel: { fontSize: 18, color: '#888', marginBottom: 16 },
-  backBtnLarge: { backgroundColor: '#1A1A2E', borderRadius: 16, padding: 16, alignItems: 'center', width: '100%' },
+  backBtnLarge: { backgroundColor: '#16162A', borderRadius: 16, padding: 16, alignItems: 'center', width: '100%' },
   backBtnLargeText: { color: '#888', fontWeight: '700', fontSize: 15 },
 });

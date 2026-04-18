@@ -6,9 +6,9 @@ import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
 
 type VocabWord = { word: string; meaning: string; example: string; exampleMeaning: string; };
-type Props = { onBack: () => void; };
+type Props = { onBack: () => void; scenarioId?: string; scenarioTitle?: string; stageType?: string; };
 
-export default function VocabScreen({ onBack }: Props) {
+export default function VocabScreen({ onBack, scenarioTitle, stageType }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [words, setWords] = useState<VocabWord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,8 @@ export default function VocabScreen({ onBack }: Props) {
       const langName = p.language?.name ?? 'Spanish';
       const goalDesc = p.goalDescription ?? '';
 
-      const cacheKey = `vocab_${p.language?.code}_${new Date().toDateString()}`;
+      const scenarioSlug = scenarioTitle ? `_${scenarioTitle.replace(/\s+/g, '-').toLowerCase()}` : '';
+      const cacheKey = `vocab_${p.language?.code}_${new Date().toDateString()}${scenarioSlug}`;
       const cached = await AsyncStorage.getItem(cacheKey);
       if (cached) {
         const cachedWords = tryParseJson<VocabWord[]>(cached);
@@ -49,8 +50,11 @@ export default function VocabScreen({ onBack }: Props) {
         await AsyncStorage.removeItem(cacheKey);
       }
 
+      const sceneContext = scenarioTitle ? `Scene just completed: "${scenarioTitle}" (${stageType ?? 'general'} stage).` : '';
       const prompt = `Generate exactly 5 vocabulary words for a ${langName} learner.
+${sceneContext}
 Goal: "${goalDesc}". Native language: ${nativeLang}.
+If a scene was provided, pick words relevant to that scene.
 Return ONLY valid JSON array:
 [{"word":"...","meaning":"(${nativeLang} translation)","example":"(${langName} sentence)","exampleMeaning":"(${nativeLang} translation)"}]`;
 
@@ -97,11 +101,11 @@ Return ONLY valid JSON array:
         </TouchableOpacity>
         <Text style={styles.title}>💬 Günlük Kelime</Text>
       </View>
-      <Text style={styles.subtitle}>Bugünün 5 kelimesi — hedefe göre seçildi</Text>
+      <Text style={styles.subtitle}>{scenarioTitle ? `"${scenarioTitle}" sahnesinden kelimeler` : 'Bugünün 5 kelimesi — hedefe göre seçildi'}</Text>
 
       {loading && (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4ECDC4" />
+          <ActivityIndicator size="large" color="#F5B800" />
           <Text style={styles.loadingText}>Kelimeler hazırlanıyor...</Text>
         </View>
       )}
@@ -150,7 +154,10 @@ Return ONLY valid JSON array:
       {words.length > 0 && (
         <TouchableOpacity style={styles.refreshBtn} onPress={async () => {
           const p = profile;
-          if (p) await AsyncStorage.removeItem(`vocab_${p.language?.code}_${new Date().toDateString()}`);
+          if (p) {
+            const slug = scenarioTitle ? `_${scenarioTitle.replace(/\s+/g, '-').toLowerCase()}` : '';
+            await AsyncStorage.removeItem(`vocab_${p.language?.code}_${new Date().toDateString()}${slug}`);
+          }
           loadVocab();
         }}>
           <Text style={styles.refreshText}>🔄 Yeni Kelimeler</Text>
@@ -162,17 +169,17 @@ Return ONLY valid JSON array:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D1A' },
+  container: { flex: 1, backgroundColor: '#0A0A12' },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#16162A', alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 20, color: '#FFF' },
   title: { fontSize: 22, fontWeight: '800', color: '#FFF' },
   subtitle: { fontSize: 14, color: '#666', marginBottom: 28 },
   center: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   loadingText: { color: '#888', fontSize: 14 },
   cardWrap: { minHeight: 160, marginBottom: 14, position: 'relative' },
-  card: { backgroundColor: '#1A1A2E', borderRadius: 20, padding: 24, borderWidth: 1.5, borderColor: '#2A2A3E', minHeight: 160 },
+  card: { backgroundColor: '#16162A', borderRadius: 20, padding: 24, borderWidth: 1.5, borderColor: '#252540', minHeight: 160 },
   cardFace: {
     position: 'absolute',
     width: '100%',
@@ -183,18 +190,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   front: { alignItems: 'center', justifyContent: 'center', gap: 12 },
-  wordNum: { fontSize: 11, color: '#4ECDC4', fontWeight: '700', letterSpacing: 1 },
+  wordNum: { fontSize: 11, color: '#F5B800', fontWeight: '700', letterSpacing: 1 },
   word: { fontSize: 32, fontWeight: '900', color: '#FFF', textAlign: 'center' },
   tapHint: { fontSize: 12, color: '#555' },
   back: { gap: 10 },
-  meaning: { fontSize: 22, fontWeight: '800', color: '#4ECDC4' },
-  divider: { height: 1, backgroundColor: '#2A2A3E' },
+  meaning: { fontSize: 22, fontWeight: '800', color: '#F5B800' },
+  divider: { height: 1, backgroundColor: '#252540' },
   example: { fontSize: 15, color: '#DDD', fontStyle: 'italic', lineHeight: 22 },
   exampleMeaning: { fontSize: 13, color: '#666', lineHeight: 20 },
   errorBox: { alignItems: 'center', padding: 24, gap: 12 },
-  errorText: { color: '#FF4D6D', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#FF4D6D', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  errorText: { color: '#E8324A', fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: '#E8324A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
-  refreshBtn: { backgroundColor: '#1A1A2E', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#2A2A3E', marginTop: 8 },
-  refreshText: { color: '#4ECDC4', fontWeight: '700', fontSize: 15 },
+  refreshBtn: { backgroundColor: '#16162A', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#252540', marginTop: 8 },
+  refreshText: { color: '#F5B800', fontWeight: '700', fontSize: 15 },
 });
