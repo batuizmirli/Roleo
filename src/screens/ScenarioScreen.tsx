@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated, Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Scenario, StageResult, UserLevel, UserProfile } from '../types';
+import { Scenario, StageResult, UserLevel, UserProfile, ModuleResult } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
-import { getPersonaByStage } from '../services/personas';
+import { getPersonaByStage, getGoalContext } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -40,6 +40,8 @@ type SavedGameState = {
   savedAt: string;
 };
 
+type TurnCache = Record<string, GameTurn>;
+
 type Phase = 'init' | 'intro' | 'vocab' | 'resume' | 'game' | 'lost' | 'done';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ type Phase = 'init' | 'intro' | 'vocab' | 'resume' | 'game' | 'lost' | 'done';
 const CONV_KEY = (id: string) => `conversation_${id}`;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_TURNS = 6;
-const REACTION_DELAY_MS = 420;
+const REACTION_DELAY_MS = 160;
 
 const MOOD_EMOJI: Record<NpcMood, string> = {
   happy: '😊', neutral: '😐', confused: '😕', impatient: '😤',
@@ -117,23 +119,28 @@ type Props = {
   scenario: Scenario;
   onBack: () => void;
   onStageComplete: (result: StageResult) => void;
+  onRunComplete?: (result: ModuleResult) => void;
   firstSessionMode?: boolean;
   prepBonus?: number;
+  easyStart?: boolean;
+  /** Goal id from home screen target selector */
+  goalId?: string;
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export default function ScenarioScreen({
-  scenario, onBack, onStageComplete, firstSessionMode = false, prepBonus = 0,
+  scenario, onBack, onStageComplete, onRunComplete, firstSessionMode = false, prepBonus = 0, easyStart = false, goalId,
 }: Props) {
   const stageKey = scenario.stageType ?? 'social';
   const persona = getPersonaByStage(stageKey);
+  const goalCtx = getGoalContext(goalId);
 
   const [phase, setPhase] = useState<Phase>(firstSessionMode ? 'intro' : 'init');
   const [savedState, setSavedState] = useState<SavedGameState | null>(null);
 
   // NPC personality — fixed for this session
-  const [personality] = useState<NpcPersonality>(pickPersonality);
+  const [personality] = useState<NpcPersonality>(easyStart ? 'friendly' : pickPersonality());
 
   // Game state
   const [npcMessage, setNpcMessage] = useState(scenario.openingMessage);
@@ -152,9 +159,56 @@ export default function ScenarioScreen({
   const [consecutiveGood, setConsecutiveGood] = useState(0);
   const [consecutiveBad, setConsecutiveBad] = useState(0);
   const [hintIdx, setHintIdx] = useState<number | null>(null); // smart hint
+  const [thinkingCountdown, setThinkingCountdown] = useState<number | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const npcEntrance = useRef(new Animated.Value(1)).current;
+  const npcReplyEntrance = useRef(new Animated.Value(1)).current;
+  const optionsEntrance = useRef(new Animated.Value(1)).current;
+  const optionsOpacity = useRef(new Animated.Value(1)).current;
+  const feedbackEntrance = useRef(new Animated.Value(0)).current;
+  const turnCacheRef = useRef<TurnCache>({});
+
+  const animateNpcEntrance = () => {
+    npcEntrance.setValue(0);
+    Animated.parallel([
+      Animated.timing(npcEntrance, { toValue: 1, duration: 320, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const animateNpcReplyEntrance = () => {
+    npcReplyEntrance.setValue(0);
+    Animated.timing(npcReplyEntrance, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  };
+
+  const animateOptionsIn = () => {
+    optionsEntrance.setValue(0);
+    optionsOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(optionsEntrance, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(optionsOpacity, { toValue: 1, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  };
+
+  const animateOptionsOut = () =>
+    new Promise<void>(resolve => {
+      Animated.parallel([
+        Animated.timing(optionsEntrance, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.bezier(0.22, 0.8, 0.18, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(optionsOpacity, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => resolve());
+    });
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -185,7 +239,10 @@ export default function ScenarioScreen({
     if (phase === 'game') {
       trackEvent('stage_started', { scenarioId: scenario.id, stageType: stageKey, firstSessionMode });
     }
-    return () => { if (reactionTimer.current) clearTimeout(reactionTimer.current); };
+    return () => {
+      if (reactionTimer.current) clearTimeout(reactionTimer.current);
+      if (thinkingTimer.current) clearInterval(thinkingTimer.current);
+    };
   }, [phase]);
 
   // ── AI ────────────────────────────────────────────────────────────────────
@@ -201,46 +258,206 @@ export default function ScenarioScreen({
     return 'NPC personality: Rude. Impatient, blunt, visibly annoyed by mistakes.';
   };
 
-  const loadTurn = async (history: TurnRecord[], openingMsg: string) => {
-    setOptionsLoading(true);
-    setOptions(null);
-    setCurrentReactions(null);
-    setNpcReaction(null);
-    setReactionVisible(false);
-    setHintIdx(null);
-    try {
-      const p = await getProfile();
-      const nativeLang = p?.nativeLanguage?.name ?? 'Turkish';
-      const langName = p?.language?.name ?? 'Spanish';
-      const identityGoal = p?.identity?.goal ?? p?.goalDescription ?? '';
-      const isFirst = history.length === 0;
+  const historyKey = (history: TurnRecord[]) => {
+    if (!history.length) return 'root';
+    return history.map(h => h.quality).join('|');
+  };
 
-      const historyText = history
-        .map((t, i) => `Turn ${i + 1}: NPC: "${t.npcMessage}" → User: "${t.selectedText}" (${t.quality})`)
-        .join('\n');
+  const startThinkingCountdown = () => {
+    if (thinkingTimer.current) clearInterval(thinkingTimer.current);
+    let current = 3;
+    setThinkingCountdown(current);
+    setNpcMessage(`${persona.name}'dan cümle geliyor... ${current}`);
+    thinkingTimer.current = setInterval(() => {
+      current -= 1;
+      if (current <= 0) {
+        if (thinkingTimer.current) clearInterval(thinkingTimer.current);
+        thinkingTimer.current = null;
+        setThinkingCountdown(null);
+        return;
+      }
+      setThinkingCountdown(current);
+      setNpcMessage(`${persona.name}'dan cümle geliyor... ${current}`);
+    }, 1000);
+  };
 
-      const reactionFmt = `"reactions":{"good":"(warm NPC reply in ${langName}, 1 sentence)","ok":"(brief/neutral reply in ${langName}, 1 sentence)","awkward":"(confused/impatient reply in ${langName}, 1 sentence)"}`;
+  const stopThinkingCountdown = () => {
+    if (thinkingTimer.current) {
+      clearInterval(thinkingTimer.current);
+      thinkingTimer.current = null;
+    }
+    setThinkingCountdown(null);
+  };
 
-      // Adaptive hints based on struggle/streak
-      // ok = yavaş ölüm: NPC ilerlemek yerine açıklama ister
-      const okSlowHint = history.length > 0 && history[history.length - 1].quality === 'ok'
-        ? `\nThe user's last response was "ok" quality (understood but blunt/minimal). NPC should ask a short clarifying follow-up instead of progressing — show that "ok" choices create friction and slow the scene down.`
-        : '';
+  const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
-      const difficultyHint = consecutiveBad >= 2
-        ? '\nUser is struggling. Make the "good" option distinctly more natural so it stands out.'
-        : consecutiveBad === 1
-        ? '\nUser made an error. Keep options realistic but make the natural option somewhat clearer.'
-        : consecutiveGood >= 3
-        ? '\nUser is on a fluency streak. Options can be slightly more nuanced and subtle.'
-        : '';
+  const pickByIndex = (arr: string[], idx: number) => arr[idx % arr.length];
 
-      const prompt = isFirst
-        ? `Turn-based language roleplay game.
+  const getLanguagePack = (lang: string) => {
+    const baseByLang: Record<string, {
+      good: string[];
+      ok: string[];
+      awkward: string[];
+      followUp: { good: string[]; ok: string[]; awkward: string[] };
+      reactions: { good: string[]; ok: string[]; awkward: string[] };
+    }> = {
+      es: {
+        good: ['Me gustaría', '¿Podría pedir', 'Quisiera'],
+        ok: ['Quiero', 'Necesito', 'Vale,'],
+        awkward: ['Yo querer', 'Dame', 'Eh... yo'],
+        followUp: {
+          good: ['Perfecto, ¿algo más?', 'Genial. ¿Quieres añadir algo?', 'Muy bien, seguimos.'],
+          ok: ['Entiendo. ¿Puedes concretar un poco?', 'Vale. Dame un poco más de detalle.', 'Sí, pero necesito más información.'],
+          awkward: ['No te sigo bien. ¿Puedes repetir?', 'Hmm... eso suena raro. ¿Otra forma?', 'No queda claro, intenta de nuevo.'],
+        },
+        reactions: {
+          good: ['Muy natural 👌', 'Suena perfecto ✅', 'Excelente elección ✨'],
+          ok: ['Se entiende, ama suena corto 👍', 'Correcto, pero poco natural.', 'Funciona, aunque puede sonar mejor.'],
+          awkward: ['Se entiende poco 😅', 'Suena raro en esta situación.', 'Mejor reformular esa frase.'],
+        },
+      },
+      fr: {
+        good: ['Je voudrais', 'Est-ce que je peux avoir', 'J’aimerais'],
+        ok: ['Je veux', 'D’accord,', 'Bon,'],
+        awkward: ['Moi vouloir', 'Donne-moi', 'Euh... moi'],
+        followUp: {
+          good: ['Parfait, autre chose ?', 'Très bien, on continue.', 'Super, et ensuite ?'],
+          ok: ['Je comprends, mais sois plus précis.', 'OK, donne un peu plus de détail.', 'Oui, mais formule un peu mieux.'],
+          awkward: ['Je ne comprends pas bien. Réessaie ?', 'Hmm... c’est étrange.', 'Ce n’est pas naturel ici.'],
+        },
+        reactions: {
+          good: ['Très naturel 👌', 'Parfait ✅', 'Excellent choix ✨'],
+          ok: ['Compréhensible 👍', 'Ça passe, mais c’est court.', 'Correct, mais peu naturel.'],
+          awkward: ['Un peu bizarre 😅', 'Formulation maladroite.', 'Mieux vaut reformuler.'],
+        },
+      },
+      de: {
+        good: ['Ich hätte gern', 'Könnte ich bitte', 'Ich möchte'],
+        ok: ['Ich will', 'Okay,', 'Gut,'],
+        awkward: ['Ich wollen', 'Gib mir', 'Äh... ich'],
+        followUp: {
+          good: ['Perfekt, noch etwas?', 'Sehr gut, wir machen weiter.', 'Top, was noch?'],
+          ok: ['Verstanden, aber bitte etwas genauer.', 'Okay, gib mir mehr Details.', 'Ja, aber es klingt etwas knapp.'],
+          awkward: ['Ich verstehe nicht ganz. Nochmal?', 'Hm... das klingt seltsam.', 'Das passt hier nicht gut.'],
+        },
+        reactions: {
+          good: ['Sehr natürlich 👌', 'Perfekt ✅', 'Starke Wahl ✨'],
+          ok: ['Verständlich 👍', 'Geht, aber klingt knapp.', 'Richtig, aber nicht natürlich genug.'],
+          awkward: ['Etwas seltsam 😅', 'Klingt unnatürlich.', 'Besser neu formulieren.'],
+        },
+      },
+      en: {
+        good: ['I’d like', 'Could I please get', 'I would like'],
+        ok: ['I want', 'Okay,', 'Fine,'],
+        awkward: ['Me want', 'Give me', 'Uh... me'],
+        followUp: {
+          good: ['Perfect, anything else?', 'Great, let’s continue.', 'Nice. What next?'],
+          ok: ['I understand, can you be more specific?', 'Okay, give me a bit more detail.', 'Works, but make it clearer.'],
+          awkward: ['I can’t follow that well. Try again?', 'Hmm... that sounds odd here.', 'That phrasing feels off.'],
+        },
+        reactions: {
+          good: ['Very natural 👌', 'Perfect choice ✅', 'Excellent ✨'],
+          ok: ['Understandable 👍', 'Works, but a bit blunt.', 'Correct, not very natural though.'],
+          awkward: ['A bit awkward 😅', 'Sounds unnatural in this context.', 'Try a cleaner phrasing.'],
+        },
+      },
+    };
+
+    return baseByLang[lang] ?? baseByLang.en;
+  };
+
+  const buildLocalTurn = (history: TurnRecord[], openingMsg: string): GameTurn => {
+    const pack = getLanguagePack(scenario.language);
+    const idx = history.length;
+    const baseWord = scenario.vocabHints?.[idx % (scenario.vocabHints?.length || 1)]?.word ?? persona.name;
+    const punctuation = idx % 2 === 0 ? '.' : '?';
+
+    const good = `${pickByIndex(pack.good, idx)} ${baseWord}${punctuation}`;
+    const ok = `${pickByIndex(pack.ok, idx)} ${baseWord}${punctuation}`;
+    const awkward = `${pickByIndex(pack.awkward, idx)} ${baseWord}${punctuation}`;
+
+    const lastQuality = history[history.length - 1]?.quality ?? 'good';
+    const npcLine = history.length === 0
+      ? openingMsg
+      : pickByIndex(pack.followUp[lastQuality], idx);
+
+    return {
+      npc_message: npcLine,
+      npc_mood: lastQuality === 'awkward' ? 'confused' : lastQuality === 'good' ? 'happy' : 'neutral',
+      options: [
+        { text: good, quality: 'good' },
+        { text: ok, quality: 'ok' },
+        { text: awkward, quality: 'awkward' },
+      ].sort(() => Math.random() - 0.5),
+      reactions: {
+        good: pickByIndex(pack.reactions.good, idx),
+        ok: pickByIndex(pack.reactions.ok, idx),
+        awkward: pickByIndex(pack.reactions.awkward, idx),
+      },
+      scene_complete: history.length >= 4,
+    };
+  };
+
+  const applyTurnToUi = (turn: GameTurn, history: TurnRecord[], openingMsg: string) => {
+    stopThinkingCountdown();
+    feedbackEntrance.setValue(0);
+    const shuffled = [...turn.options].sort(() => Math.random() - 0.5);
+    const isFirst = history.length === 0;
+    if (!isFirst && turn.npc_message) {
+      setNpcMessage(turn.npc_message);
+      animateNpcEntrance();
+    } else if (isFirst) {
+      setNpcMessage(openingMsg);
+    }
+    setOptions(shuffled);
+    setCurrentReactions(turn.reactions ?? null);
+    setNpcMood(turn.npc_mood ?? 'neutral');
+    if (turn.scene_complete && history.length >= 3) setSceneComplete(true);
+
+    if (consecutiveBad >= 1) {
+      const goodPos = shuffled.findIndex(o => o.quality === 'good');
+      if (goodPos !== -1) setHintIdx(goodPos);
+    }
+
+    animateOptionsIn();
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+  };
+
+  const requestTurn = async (history: TurnRecord[], openingMsg: string): Promise<GameTurn | null> => {
+    const p = await getProfile();
+    const nativeLang = p?.nativeLanguage?.name ?? 'Turkish';
+    const langName = p?.language?.name ?? 'Spanish';
+    const identityGoal = p?.identity?.goal ?? p?.goalDescription ?? '';
+    const isFirst = history.length === 0;
+
+    const historyText = history
+      .map((t, i) => `Turn ${i + 1}: NPC: "${t.npcMessage}" → User: "${t.selectedText}" (${t.quality})`)
+      .join('\n');
+
+    const reactionFmt = `"reactions":{"good":"(warm NPC reply in ${langName}, 1 sentence)","ok":"(brief/neutral reply in ${langName}, 1 sentence)","awkward":"(confused/impatient reply in ${langName}, 1 sentence)"}`;
+
+    const okSlowHint = history.length > 0 && history[history.length - 1].quality === 'ok'
+      ? `\nThe user's last response was "ok" quality (understood but blunt/minimal). NPC should ask a short clarifying follow-up instead of progressing — show that "ok" choices create friction and slow the scene down.`
+      : '';
+
+    const difficultyHint = consecutiveBad >= 2
+      ? '\nUser is struggling. Make the "good" option distinctly more natural so it stands out.'
+      : consecutiveBad === 1
+      ? '\nUser made an error. Keep options realistic but make the natural option somewhat clearer.'
+      : consecutiveGood >= 3
+      ? '\nUser is on a fluency streak. Options can be slightly more nuanced and subtle.'
+      : '';
+
+    const goalInject = goalCtx
+      ? `\nLearning focus — ${goalCtx.label}: ${goalCtx.toneInstruction}\n${goalCtx.difficultyNote}`
+      : '';
+
+    const prompt = isFirst
+      ? `Turn-based language roleplay game.
 Scene: "${scenario.title}" at ${scenario.location}.
 Character: ${persona.name} (${persona.roleLabel}). ${personalityPrompt(personality)}
 Target language: ${langName}. User native language: ${nativeLang}.
-User goal: "${identityGoal}". Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"
+User goal: "${identityGoal}". Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"${goalInject}
 
 NPC opening line: "${openingMsg}"
 
@@ -249,11 +466,13 @@ Generate 3 response options (in ${langName}) — same intent, 3 different social
 NPC personality affects how reactions differ between qualities.
 Shuffle options randomly. 1 sentence max each.${difficultyHint}
 
+IMPORTANT: Do NOT include action narrations like *wipes the glass*, *smiles*, *leans forward* etc. NPC must speak only in dialogue. No asterisk actions, no stage directions, no narration.
+
 Return ONLY valid JSON:
 {"npc_message":"${openingMsg}","npc_mood":"neutral",${reactionFmt},"options":[{"text":"...","quality":"good"},{"text":"...","quality":"ok"},{"text":"...","quality":"awkward"}],"scene_complete":false}`
-        : `Turn-based language roleplay.
+      : `Turn-based language roleplay.
 Scene: "${scenario.title}" at ${scenario.location}. Character: ${persona.name}. ${personalityPrompt(personality)}
-Target: ${langName}. Native: ${nativeLang}. Goal: "${identityGoal}"
+Target: ${langName}. Native: ${nativeLang}. Goal: "${identityGoal}"${goalInject}
 Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"
 
 History:\n${historyText}
@@ -263,43 +482,102 @@ Generate 3 response options — same intent, 3 social registers.
 Options must feel like real choices a person might make, not a grammar test.
 scene_complete:true only after turn ${history.length} if scene goal naturally achieved (min 3 turns).${okSlowHint}${difficultyHint}
 
+IMPORTANT: Do NOT include action narrations like *wipes the glass*, *smiles*, *leans forward* etc. NPC must speak only in dialogue. No asterisk actions, no stage directions, no narration.
+
 Return ONLY valid JSON:
 {"npc_message":"...","npc_mood":"neutral",${reactionFmt},"options":[{"text":"...","quality":"good"},{"text":"...","quality":"ok"},{"text":"...","quality":"awkward"}],"scene_complete":false}`;
 
-      const res = await sendMessage(
-        [{ id: `t${history.length}`, role: 'user', content: prompt, timestamp: new Date() }],
-        '',
-        { maxTokens: 700 },
-      );
+    const res = await sendMessage(
+      [{ id: `t${history.length}`, role: 'user', content: prompt, timestamp: new Date() }],
+      '',
+      { maxTokens: 520 },
+    );
 
-      const parsed = parseModelJson<GameTurn>(res, 'object');
-      if (parsed?.options?.length) {
-        const shuffled = [...parsed.options].sort(() => Math.random() - 0.5);
-        if (!isFirst && parsed.npc_message) setNpcMessage(parsed.npc_message);
-        setOptions(shuffled);
-        setCurrentReactions(parsed.reactions ?? null);
-        setNpcMood(parsed.npc_mood ?? 'neutral');
-        if (parsed.scene_complete && history.length >= 3) setSceneComplete(true);
+    return parseModelJson<GameTurn>(res, 'object');
+  };
 
-        // Smart hint: 1 bad → subtle (rendered lighter), 2 bad → visual glow
-        if (consecutiveBad >= 1) {
-          const goodPos = shuffled.findIndex(o => o.quality === 'good');
-          if (goodPos !== -1) setHintIdx(goodPos);
-        }
-      } else {
-        setSceneComplete(true);
+  const prefetchNextTurns = async (
+    history: TurnRecord[],
+    openingMsg: string,
+    turn: GameTurn,
+    activeNpcMessage: string,
+  ) => {
+    const goodOption = turn.options.find(o => o.quality === 'good')?.text ?? turn.options[0]?.text ?? '';
+
+    const jobs = turn.options.map(async (opt) => {
+      const reaction = turn.reactions?.[opt.quality] ?? '';
+      const nextHistory: TurnRecord[] = [
+        ...history,
+        {
+          npcMessage: activeNpcMessage,
+          selectedText: opt.text,
+          quality: opt.quality,
+          goodOption,
+          npcReaction: reaction,
+        },
+      ];
+
+      if (nextHistory.length >= MAX_TURNS) return;
+
+      const key = historyKey(nextHistory);
+      if (turnCacheRef.current[key]) return;
+
+      try {
+        const nextTurn = await requestTurn(nextHistory, openingMsg);
+        if (nextTurn?.options?.length) turnCacheRef.current[key] = nextTurn;
+      } catch {
+        // prefetch is best-effort only
       }
-    } catch {
-      setSceneComplete(true);
-    } finally {
-      setOptionsLoading(false);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    });
+
+    await Promise.all(jobs);
+  };
+
+  const loadTurn = async (history: TurnRecord[], openingMsg: string, minDelayMs: number = 0) => {
+    const key = historyKey(history);
+    const cached = turnCacheRef.current[key];
+
+    setOptionsLoading(false);
+    setOptions(null);
+    setCurrentReactions(null);
+    setNpcReaction(null);
+    setReactionVisible(false);
+    setHintIdx(null);
+
+    if (cached?.options?.length) {
+      if (minDelayMs > 0) await wait(minDelayMs);
+      applyTurnToUi(cached, history, openingMsg);
+      return;
     }
+
+    const localTurn = buildLocalTurn(history, openingMsg);
+    turnCacheRef.current[key] = localTurn;
+    if (minDelayMs > 0) await wait(minDelayMs);
+    applyTurnToUi(localTurn, history, openingMsg);
+
+    const activeNpcMessage = history.length === 0 ? openingMsg : (localTurn.npc_message || npcMessage);
+    void prefetchNextTurns(history, openingMsg, localTurn, activeNpcMessage);
+
+    void requestTurn(history, openingMsg)
+      .then(parsed => {
+        if (!parsed?.options?.length) return;
+        turnCacheRef.current[key] = parsed;
+        void prefetchNextTurns(
+          history,
+          openingMsg,
+          parsed,
+          history.length === 0 ? openingMsg : (parsed.npc_message || localTurn.npc_message || npcMessage),
+        );
+      })
+      .catch(() => {
+        // local-first fallback already active
+      });
   };
 
   // ── Game actions ──────────────────────────────────────────────────────────
 
   const startGame = (history: TurnRecord[] = [], msg = scenario.openingMessage, mood: NpcMood = 'neutral') => {
+    turnCacheRef.current = {};
     setTurnHistory(history);
     setNpcMessage(msg);
     setNpcMood(mood);
@@ -318,17 +596,22 @@ Return ONLY valid JSON:
     if (selectedIdx !== null || optionsLoading || !options) return;
     setSelectedIdx(idx);
     setReactionVisible(false);
+    feedbackEntrance.setValue(0);
+    Animated.timing(feedbackEntrance, { toValue: 1, duration: 240, useNativeDriver: true }).start();
     // Micro delay before NPC reaction appears
     const reaction = currentReactions?.[options[idx].quality] ?? null;
     reactionTimer.current = setTimeout(() => {
       setNpcReaction(reaction);
       setReactionVisible(true);
+      animateNpcReplyEntrance();
       setNpcMood(computeMood(turnHistory, options[idx].quality, consecutiveGood));
     }, REACTION_DELAY_MS);
   };
 
   const handleNext = async () => {
     if (selectedIdx === null || !options) return;
+
+    await animateOptionsOut();
 
     const chosen = options[selectedIdx];
     const goodOption = options.find(o => o.quality === 'good')?.text ?? chosen.text;
@@ -342,6 +625,7 @@ Return ONLY valid JSON:
     setSelectedIdx(null);
     setNpcReaction(null);
     setReactionVisible(false);
+    startThinkingCountdown();
 
     // Combo + fail logic
     const prevQuality = turnHistory.length > 0 ? turnHistory[turnHistory.length - 1].quality : null;
@@ -377,7 +661,7 @@ Return ONLY valid JSON:
       savedAt: new Date().toISOString(),
     } as SavedGameState));
 
-    await loadTurn(newHistory, scenario.openingMessage);
+    await loadTurn(newHistory, scenario.openingMessage, 3050);
   };
 
   const completeStage = async () => {
@@ -388,6 +672,11 @@ Return ONLY valid JSON:
     const xpBase = scenario.xpReward ?? 20;
     const bonus = accuracy >= 0.7 ? 8 : accuracy >= 0.4 ? 4 : 0;
     const userLevel: UserLevel = accuracy >= 0.7 ? 'advanced' : accuracy >= 0.4 ? 'intermediate' : 'beginner';
+    onRunComplete?.({
+      module: 'scene',
+      accuracy,
+      comboMax: consecutiveGood,
+    });
     onStageComplete({ scenarioId: scenario.id, scenarioTitle: scenario.title, stageType: stageKey, userLevel, userMessageCount: total, xpEarned: xpBase + bonus, personaName: persona.name, rewardLine: persona.rewardLine, naturalTip: persona.naturalTip, suggestedNextStage: persona.nextStageHint });
   };
 
@@ -661,8 +950,46 @@ Return ONLY valid JSON:
           )}
         </View>
 
+        {/* Chat history (WhatsApp-like flow) */}
+        {turnHistory.length > 0 && (
+          <View style={styles.chatHistoryWrap}>
+            <Text style={styles.chatHistoryTitle}>SOHBET AKIŞI</Text>
+            {turnHistory.map((t, i) => (
+              <View key={`chat-${i}`} style={styles.chatTurnBlock}>
+                <View style={styles.npcBubbleRow}>
+                  <View style={styles.npcBubble}>
+                    <Text style={styles.bubbleName}>{persona.name}</Text>
+                    <Text style={styles.npcBubbleText}>{t.npcMessage}</Text>
+                  </View>
+                </View>
+                <View style={styles.userBubbleRow}>
+                  <View style={styles.userBubble}>
+                    <Text style={styles.bubbleNameYou}>Sen</Text>
+                    <Text style={styles.userBubbleText}>{t.selectedText}</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* NPC card */}
-        <View style={styles.npcCard}>
+        <Animated.View
+          style={[
+            styles.npcCard,
+            {
+              opacity: npcEntrance,
+              transform: [
+                {
+                  translateX: npcEntrance.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [84, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={styles.npcAvatarWrap}>
             <Text style={styles.npcAvatarEmoji}>{scenario.emoji}</Text>
             <View style={[styles.moodPill, { backgroundColor: PERSONALITY_COLOR[personality] + '20' }]}>
@@ -687,14 +1014,23 @@ Return ONLY valid JSON:
             </View>
             {reactionVisible && npcReaction ? (
               <>
-                <Text style={styles.npcReactionText}>{npcReaction}</Text>
+                <Animated.View
+                  style={{
+                    opacity: npcReplyEntrance,
+                    transform: [{
+                      translateX: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }),
+                    }],
+                  }}
+                >
+                  <Text style={styles.npcReactionText}>{npcReaction}</Text>
+                </Animated.View>
                 <Text style={styles.npcPrevText}>{npcMessage}</Text>
               </>
             ) : (
               <Text style={styles.npcText}>{npcMessage}</Text>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         <Text style={styles.yourTurnLabel}>
           {selectedIdx !== null ? 'NPC TEPKİSİ' : 'CEVABINI SEÇ'}
@@ -702,45 +1038,85 @@ Return ONLY valid JSON:
 
         {/* Options */}
         {optionsLoading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color="#E8324A" size="small" />
-            <Text style={styles.loadingText}>Seçenekler hazırlanıyor...</Text>
-          </View>
+          <View style={styles.loadingWrap} />
         ) : options ? (
-          <View style={styles.optionsList}>
-            {options.map((opt, idx) => {
-              const isSelected = selectedIdx === idx;
-              const revealed = selectedIdx !== null;
-              const isDim = revealed && !isSelected;
-              const isHinted = !revealed && hintIdx === idx;
-              const color = revealed ? qColor(opt.quality) : '#252540';
+          <Animated.View
+            style={[
+              styles.optionsList,
+              {
+                opacity: optionsOpacity,
+                transform: [{
+                  translateY: optionsEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }),
+                }],
+              },
+            ]}
+          >
+            {(() => {
+              const center = (options.length - 1) / 2;
+              return options.map((opt, idx) => {
+                const isSelected = selectedIdx === idx;
+                const revealed = selectedIdx !== null;
+                const isDim = revealed && !isSelected;
+                const isHinted = !revealed && hintIdx === idx;
+                const color = revealed ? qColor(opt.quality) : '#252540';
+                const towardCenter = (center - idx) * 26;
 
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.option,
-                    isSelected && { borderColor: color, backgroundColor: color + '14' },
-                    isDim && styles.optionDim,
-                    isHinted && (consecutiveBad >= 2 ? styles.optionHintStrong : styles.optionHint),
-                  ]}
-                  onPress={() => handleSelect(idx)}
-                  disabled={revealed}
-                  activeOpacity={0.72}
-                >
-                  <Text style={[styles.optionText, isSelected && { color }]}>
-                    {opt.text}
-                  </Text>
-                  {isSelected && (
-                    <Text style={[styles.optionQualityTag, { color }]}>
-                      {qLabel(opt.quality)}
-                    </Text>
-                  )}
-                  {isHinted && <Text style={styles.hintDot}>•</Text>}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                return (
+                  <Animated.View
+                    key={idx}
+                    style={{
+                      opacity: optionsOpacity,
+                      transform: [
+                        {
+                          translateY: optionsEntrance.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [towardCenter, 0],
+                          }),
+                        },
+                        {
+                          scale: optionsEntrance.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.68, 1],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={[
+                        styles.option,
+                        isSelected && { borderColor: color, backgroundColor: color + '14' },
+                        isDim && styles.optionDim,
+                        isHinted && (consecutiveBad >= 2 ? styles.optionHintStrong : styles.optionHint),
+                      ]}
+                      onPress={() => handleSelect(idx)}
+                      disabled={revealed}
+                      activeOpacity={0.72}
+                    >
+                      <Text style={[styles.optionText, isSelected && { color }]}> 
+                        {opt.text}
+                      </Text>
+                      {isSelected && (
+                        <Animated.View
+                          style={{
+                            opacity: feedbackEntrance,
+                            transform: [{
+                              translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
+                            }],
+                          }}
+                        >
+                          <Text style={[styles.optionQualityTag, { color }]}> 
+                            {qLabel(opt.quality)}
+                          </Text>
+                        </Animated.View>
+                      )}
+                      {isHinted && <Text style={styles.hintDot}>•</Text>}
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              });
+            })()}
+          </Animated.View>
         ) : null}
 
         <View style={{ height: 100 }} />
@@ -818,6 +1194,35 @@ const styles = StyleSheet.create({
   // Game
   gameScroll: { paddingHorizontal: 20, paddingTop: 16 },
   progressSection: { marginBottom: 18, gap: 8 },
+  chatHistoryWrap: { marginBottom: 14, gap: 8 },
+  chatHistoryTitle: { fontSize: 10, fontWeight: '900', color: '#555', letterSpacing: 1.4, paddingHorizontal: 2 },
+  chatTurnBlock: { gap: 6 },
+  npcBubbleRow: { alignItems: 'flex-start' },
+  userBubbleRow: { alignItems: 'flex-end' },
+  npcBubble: {
+    maxWidth: '88%',
+    backgroundColor: '#16162A',
+    borderWidth: 1,
+    borderColor: '#252540',
+    borderRadius: 14,
+    borderTopLeftRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  userBubble: {
+    maxWidth: '88%',
+    backgroundColor: '#1F1520',
+    borderWidth: 1,
+    borderColor: '#E8324A55',
+    borderRadius: 14,
+    borderTopRightRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  bubbleName: { fontSize: 10, fontWeight: '900', color: '#A78BFA', marginBottom: 3, letterSpacing: 0.6 },
+  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#FB7185', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
+  npcBubbleText: { fontSize: 14, color: '#E5E7EB', lineHeight: 20 },
+  userBubbleText: { fontSize: 14, color: '#FFF', lineHeight: 20 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotEmpty: { backgroundColor: '#252540' },
@@ -843,10 +1248,9 @@ const styles = StyleSheet.create({
   npcPrevText: { fontSize: 12, color: '#333', marginTop: 4, fontStyle: 'italic' },
 
   yourTurnLabel: { fontSize: 10, fontWeight: '900', color: '#555', letterSpacing: 1.5, marginBottom: 10 },
-  loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 24, justifyContent: 'center' },
-  loadingText: { color: '#555', fontSize: 13 },
+  loadingWrap: { minHeight: 1 },
 
-  optionsList: { gap: 10 },
+  optionsList: { gap: 10, overflow: 'hidden' },
   option: { backgroundColor: '#16162A', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#252540' },
   optionDim: { opacity: 0.3 },
   optionHint: { borderColor: '#A78BFA30', backgroundColor: '#A78BFA05' },

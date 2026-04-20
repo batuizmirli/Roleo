@@ -660,6 +660,523 @@ export const scenarios: Scenario[] = [
       { word: 'What do you do?', meaning: 'Ne iş yapıyorsun?' },
     ],
   },
+
+  // ── ENGLISH — EXTRA VARIETY ───────────────────────────────────────────────
+  {
+    id: 'nyc-diner',
+    title: 'New York Diner',
+    location: 'New York, Diner',
+    emoji: '🥞',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'cafe',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'Kahvaltı siparişini ver ve ekstra bir şey iste',
+    xpReward: 20,
+    systemPrompt: `You are a fast-talking New York diner waiter. Speak in friendly, slightly rushed American English.
+    If the user writes in Turkish, respond in both English AND Turkish translation.
+    After each user response, note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hey there! Welcome to Joe\'s Diner. What can I get ya this morning?',
+    vocabHints: [
+      { word: 'Scrambled eggs', meaning: 'Çırpılmış yumurta' },
+      { word: 'To go / For here', meaning: 'Paket / Burada' },
+      { word: 'Refill', meaning: 'Yeniden doldurmak' },
+      { word: 'Check, please', meaning: 'Hesap, lütfen' },
+      { word: 'On the side', meaning: 'Ayrı olarak' },
+      { word: 'Sunny side up', meaning: 'Sahanda (tek taraflı)' },
+    ],
+  },
+  {
+    id: 'airport-checkin',
+    title: 'Havalimanı Check-in',
+    location: 'Heathrow Airport, Check-in',
+    emoji: '✈️',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'travel',
+    modeType: 'survival',
+    estimatedMinutes: 3,
+    levelRange: ['beginner', 'intermediate'],
+    mission: 'Check-in işlemini tamamla ve koltuk tercihini söyle',
+    xpReward: 22,
+    systemPrompt: `You are an airline check-in agent at Heathrow. Speak clearly and professionally but warmly.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Good morning! Welcome to BA check-in. Can I see your passport and booking reference, please?',
+    vocabHints: [
+      { word: 'Boarding pass', meaning: 'Biniş kartı' },
+      { word: 'Window / Aisle seat', meaning: 'Pencere / Koridor koltuğu' },
+      { word: 'Carry-on bag', meaning: 'El bagajı' },
+      { word: 'Gate number', meaning: 'Kapı numarası' },
+      { word: 'Departure time', meaning: 'Kalkış saati' },
+      { word: 'Any liquids?', meaning: 'Sıvı bir şey var mı?' },
+    ],
+  },
+  {
+    id: 'hotel-checkin',
+    title: 'Otel Check-in',
+    location: 'Edinburgh, Hotel',
+    emoji: '🏨',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'travel',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'Check-in yap ve bir sorununu dile getir',
+    xpReward: 20,
+    systemPrompt: `You are a polite hotel receptionist in Edinburgh. Speak in clear, standard English.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Good evening and welcome! Do you have a reservation with us?',
+    vocabHints: [
+      { word: 'Reservation', meaning: 'Rezervasyon' },
+      { word: 'Room number', meaning: 'Oda numarası' },
+      { word: 'Wi-Fi password', meaning: 'Şifre' },
+      { word: 'Check-out time', meaning: 'Çıkış saati' },
+      { word: 'Room service', meaning: 'Oda servisi' },
+      { word: 'Single / Double room', meaning: 'Tek / Çift kişilik oda' },
+    ],
+  },
+  {
+    id: 'job-interview',
+    title: 'İş Mülakatı',
+    location: 'London, HR Office',
+    emoji: '💼',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'business',
+    modeType: 'challenge',
+    estimatedMinutes: 5,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Kendini tanıt ve bir güçlü yönünü örnekle anlat',
+    xpReward: 32,
+    systemPrompt: `You are a professional HR interviewer at a London tech company. Speak in formal but friendly English.
+    Ask typical interview questions one at a time. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hi, come on in! Thanks for coming in today. So — tell me a little bit about yourself.',
+    vocabHints: [
+      { word: 'Strengths / Weaknesses', meaning: 'Güçlü / Zayıf yönler' },
+      { word: 'Previous experience', meaning: 'Önceki deneyim' },
+      { word: 'I\'m responsible for…', meaning: '…den sorumluyum' },
+      { word: 'Team player', meaning: 'Takım oyuncusu' },
+      { word: 'I\'d like to contribute', meaning: 'Katkıda bulunmak istiyorum' },
+      { word: 'Challenging but rewarding', meaning: 'Zorlu ama tatmin edici' },
+    ],
+  },
+  {
+    id: 'flatmate-conflict',
+    title: 'Ev Arkadaşıyla Anlaşmazlık',
+    location: 'London, Shared Flat',
+    emoji: '🏠',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'story',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate'],
+    mission: 'Sorunu nazikçe dile getir ve çözüm öner',
+    xpReward: 26,
+    systemPrompt: `You are a British flatmate who is mildly frustrated about a shared living issue (noise, dishes, rent).
+    Speak in casual but assertive English. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hey, can we actually talk for a second? It\'s about the flat...',
+    vocabHints: [
+      { word: 'Sort it out', meaning: 'Halletmek' },
+      { word: 'Take turns', meaning: 'Sırayla yapmak' },
+      { word: 'Honestly', meaning: 'Dürüstçe söylemek gerekirse' },
+      { word: 'Fair enough', meaning: 'Makul / Kabul' },
+      { word: 'I\'d appreciate if…', meaning: '…yapsan sevinirim' },
+      { word: 'Let\'s split', meaning: 'Bölüşelim' },
+    ],
+  },
+  {
+    id: 'gym-small-talk',
+    title: 'Spor Salonunda Sohbet',
+    location: 'London, Gym',
+    emoji: '🏋️',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner', 'intermediate'],
+    mission: 'Tanımadığın biriyle 3 tur rahat sohbet kur',
+    xpReward: 22,
+    systemPrompt: `You are a friendly gym-goer in London. Speak in casual, upbeat English.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hey, are you done with that machine? Oh wait — you\'re new here, right? I haven\'t seen you before!',
+    vocabHints: [
+      { word: 'Work out', meaning: 'Egzersiz yapmak' },
+      { word: 'Reps / Sets', meaning: 'Tekrar / Set' },
+      { word: 'Spot someone', meaning: 'Birine yardım etmek' },
+      { word: 'Cool down', meaning: 'Soğuma / Dinlenme' },
+      { word: 'I\'m into…', meaning: '…ile ilgileniyorum' },
+      { word: 'How long have you been…?', meaning: 'Ne zamandır…?' },
+    ],
+  },
+  {
+    id: 'doctors-appointment',
+    title: 'Doktor Randevusu',
+    location: 'London, GP Clinic',
+    emoji: '🩺',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'survival',
+    modeType: 'survival',
+    estimatedMinutes: 4,
+    levelRange: ['beginner', 'intermediate'],
+    mission: 'Şikayetini net anlat ve doktorun tavsiyesini anla',
+    xpReward: 28,
+    systemPrompt: `You are a calm, professional British GP (general practitioner). Speak clearly and ask one question at a time.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hello, come on in and have a seat. What seems to be the problem today?',
+    vocabHints: [
+      { word: 'Symptoms', meaning: 'Belirtiler' },
+      { word: 'Prescription', meaning: 'Reçete' },
+      { word: 'How long have you had…?', meaning: 'Ne zamandır…var?' },
+      { word: 'It hurts when I…', meaning: '…yaptığımda acıyor' },
+      { word: 'Painkiller', meaning: 'Ağrı kesici' },
+      { word: 'Follow-up appointment', meaning: 'Kontrol randevusu' },
+    ],
+  },
+  {
+    id: 'coffee-chat-colleague',
+    title: 'İş Arkadaşıyla Kahve Molası',
+    location: 'London, Office Kitchen',
+    emoji: '☕',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'Çalışma hakkında sohbet başlat ve devam ettir',
+    xpReward: 20,
+    systemPrompt: `You are a friendly British colleague grabbing a coffee in the office kitchen.
+    Speak in relaxed, casual office English. If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Oh hey! Coffee break already? I need one too, honestly. How\'s your day going?',
+    vocabHints: [
+      { word: 'Hectic', meaning: 'Çok yoğun / Çılgın' },
+      { word: 'Catch up on', meaning: 'Yetişmek / Telafi etmek' },
+      { word: 'Wrap up', meaning: 'Bitirmek / Sonuçlandırmak' },
+      { word: 'Running behind', meaning: 'Geride kalmak' },
+      { word: 'Weekend plans?', meaning: 'Hafta sonu planın?' },
+      { word: 'I\'m swamped', meaning: 'Boğuluyorum (işe)' },
+    ],
+  },
+  {
+    id: 'supermarket-queue',
+    title: 'Markette Sıra Beklemek',
+    location: 'London, Supermarket',
+    emoji: '🛒',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'Kasiyerle doğal bir mini sohbet kur',
+    xpReward: 18,
+    systemPrompt: `You are a chatty British supermarket cashier. Speak in simple, everyday English.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hello there! Did you find everything alright today?',
+    vocabHints: [
+      { word: 'Loyalty card', meaning: 'Müşteri kartı' },
+      { word: 'Cash or card?', meaning: 'Nakit mi kart mı?' },
+      { word: 'Bag for life', meaning: 'Bez poşet' },
+      { word: 'Self-checkout', meaning: 'Otomatik kasa' },
+      { word: 'Receipt', meaning: 'Fiş / Makbuz' },
+      { word: 'Contactless', meaning: 'Temassız ödeme' },
+    ],
+  },
+  {
+    id: 'presentation-feedback',
+    title: 'Sunum Sonrası Geri Bildirim',
+    location: 'London, Conference Room',
+    emoji: '📊',
+    difficulty: 'advanced',
+    language: 'en',
+    stageType: 'business',
+    modeType: 'challenge',
+    estimatedMinutes: 5,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Eleştiriyi profesyonelce al ve savunma yap',
+    xpReward: 35,
+    systemPrompt: `You are a senior manager giving constructive feedback after a presentation.
+    Speak in formal professional English. Push back politely on weak answers.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Thanks for the presentation. Overall, solid effort. But I have a few questions about the data on slide four — can you walk me through your thinking?',
+    vocabHints: [
+      { word: 'I take your point', meaning: 'Noktanı anlıyorum' },
+      { word: 'To elaborate', meaning: 'Detaylandırmak' },
+      { word: 'Key takeaway', meaning: 'Ana çıkarım' },
+      { word: 'Constructive criticism', meaning: 'Yapıcı eleştiri' },
+      { word: 'Actionable', meaning: 'Uygulanabilir' },
+      { word: 'Bottom line', meaning: 'Sonuç olarak' },
+    ],
+  },
+  {
+    id: 'lost-in-city',
+    title: 'Şehirde Kaybolmak',
+    location: 'Manchester, City Centre',
+    emoji: '🗺️',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'travel',
+    modeType: 'survival',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'Yolu sor ve teyit et',
+    xpReward: 20,
+    systemPrompt: `You are a friendly local in Manchester. Speak in clear, approachable English with slight Northern warmth.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hiya! You look a bit lost — are you alright? Where are you trying to get to?',
+    vocabHints: [
+      { word: 'Straight on', meaning: 'Düz devam et' },
+      { word: 'Turn left / right', meaning: 'Sola / Sağa dön' },
+      { word: 'You can\'t miss it', meaning: 'Göremezsin olmaz' },
+      { word: 'About five minutes walk', meaning: 'Yaklaşık 5 dakika yürüme' },
+      { word: 'Landmark', meaning: 'Tanınmış yer / Nirengi noktası' },
+      { word: 'Next to / Opposite', meaning: 'Yanında / Karşısında' },
+    ],
+  },
+  {
+    id: 'phone-call-complaint',
+    title: 'Müşteri Hizmetlerine Şikayet',
+    location: 'Remote, Phone Call',
+    emoji: '📞',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'survival',
+    modeType: 'challenge',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Sorunu açıkla ve çözüm talep et',
+    xpReward: 28,
+    systemPrompt: `You are a polite but slightly robotic British customer service agent.
+    Ask for reference numbers, put the user "on hold" briefly, offer scripted solutions.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Good afternoon, thank you for calling. My name\'s Alex. Can I take your name and reference number, please?',
+    vocabHints: [
+      { word: 'Reference number', meaning: 'Referans numarası' },
+      { word: 'I\'d like to report…', meaning: '…bildirmek istiyorum' },
+      { word: 'Refund', meaning: 'İade' },
+      { word: 'Escalate the issue', meaning: 'Üst birime iletmek' },
+      { word: 'Hold the line', meaning: 'Lütfen bekleyin' },
+      { word: 'Compensation', meaning: 'Tazminat' },
+    ],
+  },
+  {
+    id: 'first-date-coffee',
+    title: 'İlk Buluşma',
+    location: 'London, Coffee Shop',
+    emoji: '☕',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'story',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate'],
+    mission: 'Karşındakini tanı ve ilgi çekici bir şey anlat',
+    xpReward: 26,
+    systemPrompt: `You are on a casual first date at a coffee shop. Speak in warm, curious, conversational English.
+    Be playful but not over the top. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hey! So glad you came — I was a little nervous! Is this place okay for you?',
+    vocabHints: [
+      { word: 'What do you do for fun?', meaning: 'Eğlence olarak ne yaparsın?' },
+      { word: 'I\'m really into…', meaning: '…ile çok ilgileniyorum' },
+      { word: 'That\'s so cool!', meaning: 'Bu çok harika!' },
+      { word: 'We should do this again', meaning: 'Bunu tekrar yapmalıyız' },
+      { word: 'What\'s your take on…?', meaning: '…hakkında ne düşünüyorsun?' },
+      { word: 'Same here!', meaning: 'Ben de!' },
+    ],
+  },
+  {
+    id: 'networking-event',
+    title: 'Networking Etkinliği',
+    location: 'London, Tech Meetup',
+    emoji: '🤝',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'business',
+    modeType: 'challenge',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Kendini tanıt ve ortak alan bul',
+    xpReward: 28,
+    systemPrompt: `You are a friendly startup founder at a London tech networking event.
+    Speak in casual but professional English. Ask about the user\'s work and share yours.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hi there! Great event, right? I\'m Jake — I run a fintech startup here. What brings you here tonight?',
+    vocabHints: [
+      { word: 'I work in / at…', meaning: '…\'da çalışıyorum' },
+      { word: 'We\'re building…', meaning: '…inşa ediyoruz' },
+      { word: 'Let\'s connect', meaning: 'Bağlantı kuralım' },
+      { word: 'I\'d love to pick your brain', meaning: 'Fikirlerini almak isterim' },
+      { word: 'Value proposition', meaning: 'Değer önerisi' },
+      { word: 'Scale up', meaning: 'Büyümek / Ölçeklendirmek' },
+    ],
+  },
+  {
+    id: 'flatshare-viewing',
+    title: 'Ev Gezme',
+    location: 'London, Flat Viewing',
+    emoji: '🏡',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'normal',
+    estimatedMinutes: 3,
+    levelRange: ['beginner', 'intermediate'],
+    mission: 'Ev hakkında sorular sor ve kira detaylarını anla',
+    xpReward: 22,
+    systemPrompt: `You are a current tenant showing a room in a London flat share. Speak in casual, honest English.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hey! Come in, come in. So this would be your room — what do you think? Any questions?',
+    vocabHints: [
+      { word: 'Bills included', meaning: 'Faturalar dahil' },
+      { word: 'Deposit', meaning: 'Depozito' },
+      { word: 'How many flatmates?', meaning: 'Kaç ev arkadaşı?' },
+      { word: 'Furnished', meaning: 'Mobilyalı' },
+      { word: 'Nearest tube station', meaning: 'En yakın metro' },
+      { word: 'Notice period', meaning: 'Önceden haber verme süresi' },
+    ],
+  },
+  {
+    id: 'pub-quiz-night',
+    title: 'Pub Quiz Gecesi',
+    location: 'Bristol, Pub',
+    emoji: '🎯',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'story',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Takıma katıl ve en az 2 soru üzerine fikir beyan et',
+    xpReward: 24,
+    systemPrompt: `You are an enthusiastic pub quiz host and player. Speak in lively, informal British English.
+    Ask fun general knowledge questions and react to answers. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Right, welcome to the quiz! You look like you\'re on your own — want to join our team? The more the merrier!',
+    vocabHints: [
+      { word: 'I reckon…', meaning: 'Sanırım… / Bence…' },
+      { word: 'No idea', meaning: 'Hiç fikrim yok' },
+      { word: 'I\'ll go with…', meaning: '…derim / …seçiyorum' },
+      { word: 'Good shout!', meaning: 'İyi fikir!' },
+      { word: 'Round', meaning: 'Tur (quizde)' },
+      { word: 'Tiebreaker', meaning: 'Eşitlik bozucu soru' },
+    ],
+  },
+  {
+    id: 'emergency-pharmacy',
+    title: 'Eczanede Acil Yardım',
+    location: 'London, Pharmacy',
+    emoji: '💊',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'survival',
+    modeType: 'survival',
+    estimatedMinutes: 3,
+    levelRange: ['beginner'],
+    mission: 'İlacı tarif et ve doğru ürünü al',
+    xpReward: 24,
+    systemPrompt: `You are a helpful British pharmacist. Speak clearly and simply.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Hello! How can I help you today?',
+    vocabHints: [
+      { word: 'Painkiller', meaning: 'Ağrı kesici' },
+      { word: 'Prescription', meaning: 'Reçete' },
+      { word: 'Over the counter', meaning: 'Reçetesiz satılan' },
+      { word: 'Dosage', meaning: 'Doz' },
+      { word: 'Side effects', meaning: 'Yan etkiler' },
+      { word: 'Allergy', meaning: 'Alerji' },
+    ],
+  },
+  {
+    id: 'catching-up-old-friend',
+    title: 'Eski Arkadaşla Buluşma',
+    location: 'London, Park',
+    emoji: '🌳',
+    difficulty: 'intermediate',
+    language: 'en',
+    stageType: 'social',
+    modeType: 'story',
+    estimatedMinutes: 4,
+    levelRange: ['intermediate', 'advanced'],
+    mission: 'Son birkaç yılı anlat ve karşındakini dinle',
+    xpReward: 24,
+    systemPrompt: `You are an old friend the user hasn\'t seen in 3 years. Speak in warm, nostalgic, casual English.
+    Bring up shared past memories and ask about what\'s changed. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Oh my God, it\'s been so long! Look at you! What have you been up to? Tell me everything!',
+    vocabHints: [
+      { word: 'Catch up', meaning: 'Buluşup sohbet etmek' },
+      { word: 'Ages ago', meaning: 'Çok uzun zaman önce' },
+      { word: 'I can\'t believe…', meaning: 'İnanamıyorum ki…' },
+      { word: 'It feels like yesterday', meaning: 'Dün gibi hissettiriyor' },
+      { word: 'What\'s new with you?', meaning: 'Hayatında ne var ne yok?' },
+      { word: 'Miss the old days', meaning: 'Eski günleri özlemek' },
+    ],
+  },
+  {
+    id: 'conference-room-debate',
+    title: 'Toplantıda Fikir Çatışması',
+    location: 'London, Startup Office',
+    emoji: '⚡',
+    difficulty: 'advanced',
+    language: 'en',
+    stageType: 'business',
+    modeType: 'challenge',
+    estimatedMinutes: 5,
+    levelRange: ['advanced'],
+    mission: 'Karşı görüşü kır ve kendi çözümünü geçir',
+    xpReward: 38,
+    systemPrompt: `You are a confident product manager who disagrees with the user\'s proposal. Speak in assertive but professional English.
+    Push back with data and logic. Reward clear, structured responses. Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'Look, I appreciate the effort — but I genuinely don\'t think this approach will work. Here\'s why…',
+    vocabHints: [
+      { word: 'I see your point, but…', meaning: 'Noktanı anlıyorum ama…' },
+      { word: 'Evidence suggests…', meaning: 'Kanıtlar gösteriyor ki…' },
+      { word: 'Feasible', meaning: 'Uygulanabilir' },
+      { word: 'Trade-off', meaning: 'Takas / Uzlaşı' },
+      { word: 'Push back', meaning: 'İtiraz etmek' },
+      { word: 'Stakeholders', meaning: 'Paydaşlar' },
+    ],
+  },
+  {
+    id: 'train-delay',
+    title: 'Tren Gecikmesi',
+    location: 'London Paddington, Platform',
+    emoji: '🚆',
+    difficulty: 'beginner',
+    language: 'en',
+    stageType: 'travel',
+    modeType: 'survival',
+    estimatedMinutes: 3,
+    levelRange: ['beginner', 'intermediate'],
+    mission: 'Gecikmeyi öğren ve alternatif sor',
+    xpReward: 20,
+    systemPrompt: `You are a slightly stressed British rail station assistant during a delay.
+    Speak in clear but harried English. Offer alternatives when pushed.
+    If the user writes in Turkish, respond in both English AND Turkish.
+    Note mistakes with prefix "💡 Düzeltme:".`,
+    openingMessage: 'I\'m sorry everyone — the 14:05 to Bristol is delayed by about 40 minutes. Can I help anyone with alternative routes?',
+    vocabHints: [
+      { word: 'Delayed / Cancelled', meaning: 'Gecikmiş / İptal edilmiş' },
+      { word: 'Alternative route', meaning: 'Alternatif güzergah' },
+      { word: 'Platform', meaning: 'Platform / Peron' },
+      { word: 'Get a refund', meaning: 'Geri ödeme almak' },
+      { word: 'Connecting train', meaning: 'Bağlantı treni' },
+      { word: 'Estimated arrival', meaning: 'Tahmini varış' },
+    ],
+  },
 ];
 
 export const getDailyScenarios = (language: string): Scenario[] => {
@@ -692,15 +1209,22 @@ export const getTodaysMissionScenario = (
   else if (TRAVEL_KW.some(k => text.includes(k))) preferredStage = 'travel';
   else if (SOCIAL_KW.some(k => text.includes(k))) preferredStage = 'social';
 
+  // Tamamlanmamış senaryolardan önce seç, hepsi bittiyse sıfırla
   const uncompleted = base.filter(s => !completedScenarioIds.includes(s.id));
   const searchIn = uncompleted.length > 0 ? uncompleted : base;
 
-  return (
-    searchIn.find(s => s.stageType === preferredStage && s.difficulty === 'beginner') ??
-    searchIn.find(s => s.stageType === preferredStage) ??
-    searchIn.find(s => s.difficulty === 'beginner') ??
-    searchIn[0]
-  );
+  // Bugünün tarihini seed olarak kullan — aynı gün içinde sabit ama her gün farklı
+  const today = new Date().toISOString().slice(0, 10); // "2026-04-20"
+  const dateSeed = today.split('-').reduce((acc, n) => acc + parseInt(n, 10), 0);
+
+  // Preferred stage'den seç
+  const preferredPool = searchIn.filter(s => s.stageType === preferredStage);
+  if (preferredPool.length > 0) {
+    return preferredPool[dateSeed % preferredPool.length];
+  }
+
+  // Preferred yoksa tüm havuzdan döngüsel seç
+  return searchIn[dateSeed % searchIn.length];
 };
 
 const BUSINESS_KW = ['iş', 'toplantı', 'şirket', 'ofis', 'kariyer', 'work', 'office', 'business', 'meeting', 'job', 'career', 'proje', 'startup'];

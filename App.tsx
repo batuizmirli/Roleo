@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import RoleoIntroScreen from './src/screens/RoleoIntroScreen';
 import StartupLanguageScreen from './src/screens/StartupLanguageScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ScenariosScreen from './src/screens/ScenariosScreen';
@@ -11,7 +12,7 @@ import ScenarioScreen from './src/screens/ScenarioScreen';
 import VocabScreen from './src/screens/VocabScreen';
 import GrammarScreen from './src/screens/GrammarScreen';
 import QuizScreen from './src/screens/QuizScreen';
-import StoriesScreen from './src/screens/StoriesScreen';
+import QuotesScreen from './src/screens/QuotesScreen';
 import PhrasebookScreen from './src/screens/PhrasebookScreen';
 import StageResultScreen from './src/screens/StageResultScreen';
 import FirstSessionReadyScreen from './src/screens/FirstSessionReadyScreen';
@@ -19,12 +20,16 @@ import FirstSessionNextScreen from './src/screens/FirstSessionNextScreen';
 import DebugPanelScreen from './src/screens/DebugPanelScreen';
 import InstantLearnScreen from './src/screens/InstantLearnScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
+import FlashPickScreen from './src/screens/FlashPickScreen';
+import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
+import RunResultScreen from './src/screens/RunResultScreen';
 import ScenarioPrepModal from './src/components/ScenarioPrepModal';
-import { UserProfile } from './src/types';
+import { ModuleResult, UserProfile } from './src/types';
 import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario } from './src/data/scenarios';
 import { trackEvent } from './src/services/telemetry';
 
 type Screen =
+  | 'intro'
   | 'onboarding'
   | 'startup-language'
   | 'home'
@@ -39,11 +44,19 @@ type Screen =
   | 'first-session-ready'
   | 'first-session-next'
   | 'instant-learn'
+  | 'flash-pick'
+  | 'true-or-fake'
   | 'progress'
   | 'debug';
 
 export default function App() {
+  type RunState = 'idle' | 'flash' | 'truefake' | 'scene' | 'complete';
+
   const [screen, setScreen] = useState<Screen>('onboarding');
+  const [runState, setRunState] = useState<RunState>('idle');
+  const [runResults, setRunResults] = useState<ModuleResult[]>([]);
+  const [runScenario, setRunScenario] = useState<Scenario | null>(null);
+  const [runGoalId, setRunGoalId] = useState<string | undefined>(undefined);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [stageResult, setStageResult] = useState<StageResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +73,7 @@ export default function App() {
     const bootstrap = async () => {
       const p = await AsyncStorage.getItem('userProfile');
       if (!p) {
-        setScreen('onboarding');
+        setScreen('intro');
         setLoading(false);
         return;
       }
@@ -72,13 +85,14 @@ export default function App() {
           const scenario = getPersonalizedScenario(profile?.language?.code ?? 'es', profile?.identity);
           setFirstSessionScenario(scenario);
           setRunType('first');
-          setScreen('first-session-ready');
+          setScreen('intro');
         } else {
-          setScreen('startup-language');
+          setScreen('intro');
         }
+
       } catch {
         await AsyncStorage.removeItem('userProfile');
-        setScreen('onboarding');
+        setScreen('intro');
       } finally {
         setLoading(false);
       }
@@ -141,7 +155,112 @@ export default function App() {
     goTo('scenario');
   };
 
+  const startDailyRun = async (goalId?: string) => {
+    setRunResults([]);
+    setRunScenario(null);
+    setRunGoalId(goalId);
+    setRunState('flash');
+    await trackEvent('run_started', { source: 'home', goalId: goalId ?? 'none' });
+  };
+
+  const handleFlashComplete = async (result: ModuleResult) => {
+    setRunResults(r => [...r, result]);
+    setRunState('truefake');
+    await trackEvent('module_completed', { module: 'flash', accuracy: result.accuracy, comboMax: result.comboMax });
+  };
+
+  const handleTrueFakeComplete = async (result: ModuleResult) => {
+    setRunResults(r => [...r, result]);
+
+    const profileRaw = await AsyncStorage.getItem('userProfile');
+    const profile = profileRaw ? JSON.parse(profileRaw) : null;
+    const languageCode = profile?.language?.code ?? 'es';
+    const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    setRunScenario(scenario);
+
+    setRunState('scene');
+    await trackEvent('module_completed', { module: 'truefake', accuracy: result.accuracy, comboMax: result.comboMax });
+  };
+
+  const handleSceneComplete = async (result: ModuleResult) => {
+    setRunResults(r => [...r, result]);
+    setRunState('complete');
+    await trackEvent('module_completed', { module: 'scene', accuracy: result.accuracy, comboMax: result.comboMax });
+    await trackEvent('run_completed', {
+      moduleCount: 3,
+      overallAccuracy: [...runResults, result].reduce((s, x) => s + x.accuracy, 0) / Math.max(runResults.length + 1, 1),
+    });
+  };
+
+  const resetRun = () => {
+    setRunResults([]);
+    setRunScenario(null);
+    setRunGoalId(undefined);
+    setRunState('idle');
+  };
+
   const renderScreen = () => {
+    if (runState === 'flash') {
+      return <FlashPickScreen onBack={resetRun} runMode onComplete={handleFlashComplete} />;
+    }
+
+    if (runState === 'truefake') {
+      return <TrueOrFakeScreen onBack={resetRun} runMode onComplete={handleTrueFakeComplete} />;
+    }
+
+    if (runState === 'scene') {
+      if (!runScenario) return null;
+      const flash = runResults.find(r => r.module === 'flash');
+      const trueFake = runResults.find(r => r.module === 'truefake');
+      const easyStart = (flash?.accuracy ?? 0) > 0.7 && (trueFake?.accuracy ?? 0) > 0.7;
+      return (
+        <ScenarioScreen
+          scenario={runScenario}
+          onBack={resetRun}
+          easyStart={easyStart}
+          goalId={runGoalId}
+          onRunComplete={handleSceneComplete}
+          onStageComplete={() => {
+            // handled by onRunComplete in Daily Run flow
+          }}
+        />
+      );
+    }
+
+    if (runState === 'complete') {
+      return <RunResultScreen results={runResults} onExit={() => { resetRun(); goTo('home'); }} />;
+    }
+
+    if (screen === 'intro') {
+      return (
+        <RoleoIntroScreen
+          onFinish={async () => {
+            const p = await AsyncStorage.getItem('userProfile');
+            if (!p) {
+              goTo('onboarding');
+              return;
+            }
+
+            try {
+              const profile = JSON.parse(p);
+              const firstSessionState = await AsyncStorage.getItem('firstSessionState');
+              if (firstSessionState === 'pending') {
+                const scenario = getPersonalizedScenario(profile?.language?.code ?? 'es', profile?.identity);
+                setFirstSessionScenario(scenario);
+                setRunType('first');
+                goTo('first-session-ready');
+              } else {
+                goTo('startup-language');
+              }
+            } catch {
+              await AsyncStorage.removeItem('userProfile');
+              goTo('onboarding');
+            }
+          }}
+        />
+      );
+    }
+
     if (screen === 'onboarding') {
       return (
         <OnboardingScreen
@@ -183,11 +302,19 @@ export default function App() {
     }
 
     if (screen === 'home') {
-      return <HomeScreen onModeSelect={handleModeSelect} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
+      return <HomeScreen onModeSelect={handleModeSelect} onStartDailyRun={(gid) => startDailyRun(gid)} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenFlashPick={() => goTo('flash-pick')} onOpenTrueOrFake={() => goTo('true-or-fake')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
     }
 
     if (screen === 'instant-learn') {
       return <InstantLearnScreen onBack={() => goTo('home')} />;
+    }
+
+    if (screen === 'flash-pick') {
+      return <FlashPickScreen onBack={() => goTo('home')} />;
+    }
+
+    if (screen === 'true-or-fake') {
+      return <TrueOrFakeScreen onBack={() => goTo('home')} />;
     }
 
     if (screen === 'scenarios') {
@@ -265,7 +392,7 @@ export default function App() {
     if (screen === 'vocab') return <VocabScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'grammar') return <GrammarScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'quiz') return <QuizScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
-    if (screen === 'stories') return <StoriesScreen onBack={() => goTo('home')} />;
+    if (screen === 'stories') return <QuotesScreen onBack={() => goTo('home')} />;
     if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo('home')} />;
     if (screen === 'progress') return <ProgressScreen onBack={() => goTo('home')} />;
     if (screen === 'debug') return <DebugPanelScreen onBack={() => goTo('home')} />;
@@ -274,10 +401,10 @@ export default function App() {
   };
 
   const FAB_HIDDEN_SCREENS: Screen[] = [
-    'onboarding', 'startup-language', 'first-session-ready',
+    'intro', 'onboarding', 'startup-language', 'first-session-ready',
     'first-session-next', 'instant-learn', 'stage-result', 'debug',
   ];
-  const showFab = !loading && !FAB_HIDDEN_SCREENS.includes(screen);
+  const showFab = !loading && runState === 'idle' && !FAB_HIDDEN_SCREENS.includes(screen);
 
   if (loading) return null;
 
@@ -292,7 +419,7 @@ export default function App() {
           <Text style={fabStyles.fabIcon}>⚡</Text>
         </TouchableOpacity>
       )}
-      {selectedScenario && (
+      {runState === 'idle' && selectedScenario && (
         <ScenarioPrepModal
           visible={showPrepModal}
           scenario={selectedScenario}

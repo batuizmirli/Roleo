@@ -95,6 +95,89 @@ const PERSONAS: Record<StageKey, StagePersona> = {
 
 export const getPersonaByStage = (stageType: StageKey): StagePersona => PERSONAS[stageType];
 
+// ─── Goal-based context injection ───────────────────────────────────────────
+export type GoalId =
+  | 'b2-speaking'
+  | 'phrasal-verbs'
+  | 'meeting-confidence'
+  | 'pronunciation'
+  | 'small-talk'
+  | 'travel-survival';
+
+export type GoalContext = {
+  /** Short label shown in prompts */
+  label: string;
+  /** Injected into the system prompt to shape NPC behaviour */
+  toneInstruction: string;
+  /** Difficulty hint appended to prompts */
+  difficultyNote: string;
+  /** Friendly NPC opening flavour override (appended) */
+  flavourHint: string;
+};
+
+const GOAL_CONTEXTS: Record<GoalId, GoalContext> = {
+  'b2-speaking': {
+    label: 'B2 konuşma',
+    toneInstruction:
+      `The user is practising B2-level English. Use a natural, balanced register — not too formal, not too casual. ` +
+      `Favour richer vocabulary and slightly longer turns to push fluency. Gently rephrase if the user makes a B1-level error.`,
+    difficultyNote: `Aim for B2-level options: nuanced but not overly academic.`,
+    flavourHint: '',
+  },
+  'phrasal-verbs': {
+    label: 'Phrasal verb',
+    toneInstruction:
+      `The user wants to learn phrasal verbs naturally. Weave 1-2 common phrasal verbs into your NPC lines each turn ` +
+      `(e.g. "Could you look into that?", "I'll sort it out"). ` +
+      `In options, one of the "good" choices must use a phrasal verb correctly. Keep tone everyday and conversational.`,
+    difficultyNote: `One "good" option must contain a natural phrasal verb.`,
+    flavourHint: '',
+  },
+  'meeting-confidence': {
+    label: 'İş toplantısı',
+    toneInstruction:
+      `This is a professional business context. Use formal, precise English — hedging phrases ("I'd suggest...", "From my perspective..."), ` +
+      `meeting vocabulary ("agenda", "action item", "follow up"), and polite directness. ` +
+      `Avoid slang entirely. The "awkward" option should sound inappropriately casual for a meeting.`,
+    difficultyNote: `Options should reflect professional register differences, not just grammar.`,
+    flavourHint: '',
+  },
+  pronunciation: {
+    label: 'Telaffuz',
+    toneInstruction:
+      `The user wants to sound clearer. Keep NPC sentences short and well-enunciated. ` +
+      `Occasionally, after the user's turn, the NPC can naturally echo back a corrected form ` +
+      `("You mean 'comfortable', right? Sure, let's do that."). Options should include one with a tricky-to-pronounce word.`,
+    difficultyNote: `One option per turn should feature a word commonly mispronounced by Turkish speakers (e.g. "comfortable", "particularly", "literally").`,
+    flavourHint: '',
+  },
+  'small-talk': {
+    label: 'Small talk',
+    toneInstruction:
+      `This is light social conversation — a chat at a party, waiting room, or coffee queue. ` +
+      `Keep it warm, playful and breezy. Use contractions, filler phrases ("Yeah, totally!", "Oh wow, really?"), ` +
+      `and end each NPC turn with a friendly question to keep the chat going. ` +
+      `The "awkward" option should feel socially strange or too blunt for casual chat.`,
+    difficultyNote: `Options should feel like real small-talk choices, not a grammar exercise.`,
+    flavourHint: '',
+  },
+  'travel-survival': {
+    label: 'Seyahat',
+    toneInstruction:
+      `This is a real-world travel situation — airport, hotel check-in, directions, or a restaurant abroad. ` +
+      `Keep NPC lines practical and slightly urgent. Use travel-specific vocabulary ` +
+      `("boarding gate", "check out", "reservation", "platform"). ` +
+      `The "good" option should solve the immediate travel problem clearly and confidently.`,
+    difficultyNote: `Prioritise practical travel phrases; options should feel high-stakes and realistic.`,
+    flavourHint: '',
+  },
+};
+
+export const getGoalContext = (goalId: string | undefined): GoalContext | null => {
+  if (!goalId) return null;
+  return GOAL_CONTEXTS[goalId as GoalId] ?? null;
+};
+
 export const pickPersonaVariation = (stageType: StageKey, turnSeed: number) => {
   const list = PERSONAS[stageType].variationPrompts;
   return list[turnSeed % list.length];

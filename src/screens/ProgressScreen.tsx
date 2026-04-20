@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { getProgress, getUnlockState, getLevelFromXp, getLevelProgress, ProgressState, UnlockState } from '../services/progress';
+import { getProgress, getUnlockState, getLevelFromXp, getLevelProgress, getWeeklyXp, ProgressState, UnlockState, DailyXpEntry } from '../services/progress';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 
 type Props = {
   onBack: () => void;
@@ -18,12 +21,14 @@ const STAGE_LABELS: Record<string, string> = {
 export default function ProgressScreen({ onBack }: Props) {
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [unlockState, setUnlockState] = useState<UnlockState | null>(null);
+  const [weeklyXp, setWeeklyXp] = useState<DailyXpEntry[]>([]);
 
   useEffect(() => {
     const load = async () => {
       const p = await getProgress();
       setProgress(p);
       setUnlockState(getUnlockState(p));
+      setWeeklyXp(getWeeklyXp(p.dailyXpLog ?? {}));
     };
     load();
   }, []);
@@ -82,6 +87,28 @@ export default function ProgressScreen({ onBack }: Props) {
         </View>
       </View>
 
+      {/* Weekly XP Chart */}
+      <Text style={styles.sectionTitle}>Haftal\u0131k XP</Text>
+      <View style={styles.chartCard}>
+        <View style={styles.chartRow}>
+          {weeklyXp.map((day, i) => {
+            const maxXp = Math.max(...weeklyXp.map(d => d.xp), 1);
+            const heightPct = Math.max((day.xp / maxXp) * 100, 4);
+            const isToday = i === weeklyXp.length - 1;
+            return (
+              <View key={day.date} style={styles.chartCol}>
+                <Text style={styles.chartXp}>{day.xp > 0 ? day.xp : ''}</Text>
+                <View style={styles.chartBarBg}>
+                  <View style={[styles.chartBar, { height: `${heightPct}%` }, isToday && styles.chartBarToday]} />
+                </View>
+                <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>{day.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <Text style={styles.chartTotal}>Toplam: {weeklyXp.reduce((s, d) => s + d.xp, 0)} XP</Text>
+      </View>
+
       {/* Stage Breakdown */}
       <Text style={styles.sectionTitle}>Stage Tipleri</Text>
       {Object.entries(STAGE_LABELS).map(([key, label]) => {
@@ -116,8 +143,18 @@ export default function ProgressScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A12' },
-  scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.xxxl },
+  chartCard: { backgroundColor: colors.primaryCard, borderRadius: 20, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.primaryBorder },
+  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, gap: spacing.xs },
+  chartCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
+  chartXp: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.bold },
+  chartBarBg: { width: '100%', height: 80, backgroundColor: colors.surface, borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
+  chartBar: { width: '100%', backgroundColor: colors.primaryAccent, borderRadius: 6, minHeight: 4 },
+  chartBarToday: { backgroundColor: '#3DD68C' },
+  chartLabel: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.semibold },
+  chartLabelToday: { color: '#3DD68C', fontWeight: typography.weight.bold },
+  chartTotal: { fontSize: typography.size.xs, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#16162A', alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 20, color: '#FFF' },

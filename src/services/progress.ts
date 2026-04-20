@@ -9,6 +9,7 @@ export type ProgressState = {
   lastPlayedDate: string | null;
   completedScenarioIds: string[];
   scenarioPlayCounts: Record<string, number>;
+  dailyXpLog: Record<string, number>;
 };
 
 export type UnlockState = {
@@ -31,6 +32,7 @@ const defaultProgress: ProgressState = {
   lastPlayedDate: null,
   completedScenarioIds: [],
   scenarioPlayCounts: {},
+  dailyXpLog: {},
 };
 
 const emptyCounts: UnlockState['stageCounts'] = {
@@ -98,6 +100,7 @@ export const getProgress = async (): Promise<ProgressState> => {
     ...parsed,
     lastPlayedDate,
     scenarioPlayCounts: parsed.scenarioPlayCounts ?? {},
+    dailyXpLog: parsed.dailyXpLog ?? {},
   };
 };
 
@@ -116,6 +119,8 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
 
   progress.lastPlayedDate = todayStr;
   progress.xp += result.xpEarned;
+  if (!progress.dailyXpLog) progress.dailyXpLog = {};
+  progress.dailyXpLog[todayStr] = (progress.dailyXpLog[todayStr] ?? 0) + result.xpEarned;
 
   if (!progress.completedScenarioIds.includes(result.scenarioId)) {
     progress.completedScenarioIds.push(result.scenarioId);
@@ -163,6 +168,8 @@ export const awardActivityXP = async (xp: number): Promise<void> => {
   }
   progress.lastPlayedDate = todayStr;
   progress.xp += xp;
+  if (!progress.dailyXpLog) progress.dailyXpLog = {};
+  progress.dailyXpLog[todayStr] = (progress.dailyXpLog[todayStr] ?? 0) + xp;
 
   await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
@@ -175,3 +182,17 @@ export const awardActivityXP = async (xp: number): Promise<void> => {
 
 export const getLevelFromXp = (xp: number) => Math.floor(xp / 100) + 1;
 export const getLevelProgress = (xp: number) => (xp % 100) / 100;
+
+const DAY_LABELS = ['Paz', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt'];
+
+export type DailyXpEntry = { date: string; label: string; xp: number };
+
+export const getWeeklyXp = (log: Record<string, number>): DailyXpEntry[] => {
+  const result: DailyXpEntry[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const iso = d.toISOString().slice(0, 10);
+    result.push({ date: iso, label: DAY_LABELS[d.getDay()], xp: log[iso] ?? 0 });
+  }
+  return result;
+};

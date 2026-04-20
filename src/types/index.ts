@@ -79,6 +79,13 @@ export type StageResult = {
   suggestedNextStage?: string;
 };
 
+export type ModuleResult = {
+  module: 'flash' | 'truefake' | 'scene';
+  accuracy: number;
+  comboMax?: number;
+  speed?: number;
+};
+
 export type GameMode = {
   id: 'scenarios' | 'grammar' | 'vocab' | 'quiz' | 'stories' | 'phrasebook';
   title: string;
