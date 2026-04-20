@@ -49,15 +49,15 @@ export default function FirstSessionReadyScreen({ onStart, scenario }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A12', paddingHorizontal: 24, paddingTop: 90 },
-  logo: { color: '#E8324A', fontSize: 26, fontWeight: '900', letterSpacing: 2, marginBottom: 28 },
-  title: { color: '#FFF', fontSize: 36, fontWeight: '900' },
-  subtitle: { color: '#AAA', fontSize: 16, marginTop: 8, marginBottom: 24 },
-  card: { backgroundColor: '#16162A', borderRadius: 18, borderWidth: 1, borderColor: '#252540', padding: 16, marginBottom: 22 },
+  container: { flex: 1, backgroundColor: '#F5F7FA', paddingHorizontal: 24, paddingTop: 90 },
+  logo: { color: '#1B9C5A', fontSize: 26, fontWeight: '900', letterSpacing: 2, marginBottom: 28 },
+  title: { color: '#1A2B3C', fontSize: 36, fontWeight: '900' },
+  subtitle: { color: '#6B7B8D', fontSize: 16, marginTop: 8, marginBottom: 24 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E8EDF2', padding: 16, marginBottom: 22 },
   cardEmoji: { fontSize: 28 },
-  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '800', marginTop: 10 },
-  cardDesc: { color: '#888', fontSize: 13, marginTop: 6, lineHeight: 20 },
+  cardTitle: { color: '#1A2B3C', fontSize: 18, fontWeight: '800', marginTop: 10 },
+  cardDesc: { color: '#9AABB8', fontSize: 13, marginTop: 6, lineHeight: 20 },
   cardMission: { color: '#3DD68C', fontSize: 12, marginTop: 8, lineHeight: 18 },
-  button: { marginTop: 'auto', marginBottom: 34, backgroundColor: '#E8324A', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  buttonText: { color: '#FFF', fontWeight: '900', fontSize: 16 },
+  button: { marginTop: 'auto', marginBottom: 34, backgroundColor: '#1B9C5A', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
 });

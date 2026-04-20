@@ -409,9 +409,9 @@ export default function App() {
   if (loading) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0A0A12' }}>
-      <StatusBar style="light" />
-      <Animated.View style={{ flex: 1, backgroundColor: '#0A0A12', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+    <View style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
+      <StatusBar style="dark" />
+      <Animated.View style={{ flex: 1, backgroundColor: '#F5F7FA', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         {renderScreen()}
       </Animated.View>
       {showFab && (
@@ -441,10 +441,10 @@ const fabStyles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#E8324A',
+    backgroundColor: '#1B9C5A',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#E8324A',
+    shadowColor: '#1B9C5A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,

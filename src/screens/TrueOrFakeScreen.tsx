@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   topStat: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
   timerBg: { height: 8, borderRadius: 99, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.md },
-  timerFill: { height: 8, borderRadius: 99, backgroundColor: '#FB7185' },
+  timerFill: { height: 8, borderRadius: 99, backgroundColor: '#EF4444' },
 
   sentenceCard: { minHeight: 170, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.divider, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
   sentenceText: { color: colors.textPrimary, fontSize: 28, fontWeight: typography.weight.black, textAlign: 'center', lineHeight: 38 },

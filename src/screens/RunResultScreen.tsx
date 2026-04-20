@@ -37,23 +37,23 @@ export default function RunResultScreen({ results, onExit }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A12',
+    backgroundColor: '#F5F7FA',
     paddingHorizontal: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emoji: { fontSize: 56 },
-  title: { color: '#FFF', fontSize: 28, fontWeight: '900', marginTop: 10 },
+  title: { color: '#1A2B3C', fontSize: 28, fontWeight: '900', marginTop: 10 },
   metric: { color: '#CBD5E1', fontSize: 16, marginTop: 8 },
   message: { color: '#A78BFA', fontSize: 16, marginTop: 14, fontWeight: '700' },
   btn: {
     marginTop: 22,
-    backgroundColor: '#E8324A',
+    backgroundColor: '#1B9C5A',
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
     minWidth: 220,
     alignItems: 'center',
   },
-  btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 });

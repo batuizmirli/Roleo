@@ -61,11 +61,11 @@ const PERSONALITY_LABEL: Record<NpcPersonality, string> = {
   friendly: '😊 Friendly', busy: '⏱ Busy', rude: '😤 Rude',
 };
 const PERSONALITY_COLOR: Record<NpcPersonality, string> = {
-  friendly: '#3DD68C', busy: '#F5B800', rude: '#E8324A',
+  friendly: '#3DD68C', busy: '#F5B800', rude: '#1B9C5A',
 };
 
 const qColor = (q: OptionQuality) =>
-  q === 'good' ? '#3DD68C' : q === 'ok' ? '#F5B800' : '#E8324A';
+  q === 'good' ? '#3DD68C' : q === 'ok' ? '#F5B800' : '#1B9C5A';
 const qLabel = (q: OptionQuality) =>
   q === 'good' ? '✨ Çok doğal' : q === 'ok' ? '👍 Anlaşıldı' : '😅 Biraz garip';
 
@@ -864,7 +864,7 @@ Return ONLY valid JSON:
               <Text style={styles.doneStatLbl}>Doğal seçim</Text>
             </View>
             <View style={styles.doneStat}>
-              <Text style={[styles.doneStatVal, { color: '#E8324A' }]}>
+              <Text style={[styles.doneStatVal, { color: '#1B9C5A' }]}>
                 {turnHistory.filter(t => t.quality === 'awkward').length}
               </Text>
               <Text style={styles.doneStatLbl}>Garip seçim</Text>
@@ -1006,7 +1006,7 @@ Return ONLY valid JSON:
               </View>
               {npcMood !== 'neutral' && (
                 <Text style={[styles.npcMoodLabel, {
-                  color: npcMood === 'happy' ? '#3DD68C' : npcMood === 'confused' ? '#F5B800' : '#E8324A',
+                  color: npcMood === 'happy' ? '#3DD68C' : npcMood === 'confused' ? '#F5B800' : '#1B9C5A',
                 }]}>
                   · {MOOD_LABEL[npcMood]}
                 </Text>
@@ -1058,7 +1058,7 @@ Return ONLY valid JSON:
                 const revealed = selectedIdx !== null;
                 const isDim = revealed && !isSelected;
                 const isHinted = !revealed && hintIdx === idx;
-                const color = revealed ? qColor(opt.quality) : '#252540';
+                const color = revealed ? qColor(opt.quality) : '#E8EDF2';
                 const towardCenter = (center - idx) * 26;
 
                 return (
@@ -1143,67 +1143,67 @@ Return ONLY valid JSON:
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A12' },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#0A0A12', borderBottomWidth: 1, borderBottomColor: '#16162A', gap: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#16162A', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#FFF' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#F5F7FA', borderBottomWidth: 1, borderBottomColor: '#FFFFFF', gap: 12 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  backText: { fontSize: 20, color: '#1A2B3C' },
   headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   headerEmoji: { fontSize: 26 },
-  headerTitle: { fontSize: 15, fontWeight: '800', color: '#FFF' },
-  headerLocation: { fontSize: 11, color: '#555', marginTop: 1 },
-  turnBadge: { backgroundColor: '#16162A', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#252540' },
-  turnText: { color: '#E8324A', fontSize: 11, fontWeight: '900' },
+  headerTitle: { fontSize: 15, fontWeight: '800', color: '#1A2B3C' },
+  headerLocation: { fontSize: 11, color: '#B0BEC5', marginTop: 1 },
+  turnBadge: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E8EDF2' },
+  turnText: { color: '#1B9C5A', fontSize: 11, fontWeight: '900' },
 
   centerWrap: { flex: 1, paddingHorizontal: 24, paddingTop: 40, alignItems: 'center', justifyContent: 'center', gap: 12 },
   bigEmoji: { fontSize: 56, marginBottom: 4 },
-  bigTitle: { fontSize: 22, fontWeight: '900', color: '#FFF', textAlign: 'center' },
-  bigMeta: { fontSize: 14, color: '#666', marginBottom: 8 },
+  bigTitle: { fontSize: 22, fontWeight: '900', color: '#1A2B3C', textAlign: 'center' },
+  bigMeta: { fontSize: 14, color: '#9AABB8', marginBottom: 8 },
 
-  primaryBtn: { backgroundColor: '#E8324A', borderRadius: 16, paddingVertical: 17, paddingHorizontal: 24, alignItems: 'center', width: '100%' },
-  primaryBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  primaryBtn: { backgroundColor: '#1B9C5A', borderRadius: 16, paddingVertical: 17, paddingHorizontal: 24, alignItems: 'center', width: '100%' },
+  primaryBtnText: { color: '#1A2B3C', fontSize: 16, fontWeight: '800' },
   ghostBtn: { paddingVertical: 14, alignItems: 'center', width: '100%' },
-  ghostBtnText: { color: '#555', fontSize: 14 },
-  earlyExitBtn: { backgroundColor: '#16162A', borderRadius: 14, paddingVertical: 14, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: '#252540' },
-  earlyExitText: { color: '#666', fontSize: 14, fontWeight: '700' },
+  ghostBtnText: { color: '#B0BEC5', fontSize: 14 },
+  earlyExitBtn: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 14, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: '#E8EDF2' },
+  earlyExitText: { color: '#9AABB8', fontSize: 14, fontWeight: '700' },
 
   introScroll: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 48, gap: 14 },
-  introBadge: { color: '#E8324A', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  introTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', lineHeight: 34 },
-  introSub: { color: '#888', fontSize: 14 },
-  quoteBox: { backgroundColor: '#16162A', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#252540' },
-  quoteText: { color: '#FFF', fontSize: 17, fontWeight: '700', lineHeight: 26 },
+  introBadge: { color: '#1B9C5A', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  introTitle: { color: '#1A2B3C', fontSize: 26, fontWeight: '900', lineHeight: 34 },
+  introSub: { color: '#9AABB8', fontSize: 14 },
+  quoteBox: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#E8EDF2' },
+  quoteText: { color: '#1A2B3C', fontSize: 17, fontWeight: '700', lineHeight: 26 },
   missionText: { color: '#3DD68C', fontSize: 13, lineHeight: 20 },
-  howItWorksBox: { backgroundColor: '#16162A', borderRadius: 14, padding: 16, gap: 6, borderWidth: 1, borderColor: '#252540' },
+  howItWorksBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, gap: 6, borderWidth: 1, borderColor: '#E8EDF2' },
   howTitle: { color: '#A78BFA', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
-  howItem: { color: '#AAA', fontSize: 13, lineHeight: 22 },
-  vocabTitle: { fontSize: 22, fontWeight: '800', color: '#FFF' },
-  vocabSubtitle: { fontSize: 14, color: '#888' },
+  howItem: { color: '#6B7B8D', fontSize: 13, lineHeight: 22 },
+  vocabTitle: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
+  vocabSubtitle: { fontSize: 14, color: '#9AABB8' },
   vocabGrid: { gap: 8 },
-  vocabCard: { backgroundColor: '#16162A', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#252540' },
-  vocabWord: { fontSize: 15, fontWeight: '700', color: '#FFF' },
-  vocabMeaning: { fontSize: 13, color: '#E8324A', fontWeight: '600' },
+  vocabCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E8EDF2' },
+  vocabWord: { fontSize: 15, fontWeight: '700', color: '#1A2B3C' },
+  vocabMeaning: { fontSize: 13, color: '#1B9C5A', fontWeight: '600' },
 
   // Lost
   failReactionBox: { width: '100%', backgroundColor: '#1A0A0E', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E8324A40' },
-  failReactionName: { fontSize: 11, fontWeight: '900', color: '#E8324A', letterSpacing: 1, marginBottom: 6 },
-  failReactionText: { fontSize: 16, color: '#FFF', fontWeight: '700', lineHeight: 24 },
-  failTip: { width: '100%', backgroundColor: '#16162A', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#252540' },
-  failTipText: { fontSize: 13, color: '#AAA', lineHeight: 20 },
+  failReactionName: { fontSize: 11, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1, marginBottom: 6 },
+  failReactionText: { fontSize: 16, color: '#1A2B3C', fontWeight: '700', lineHeight: 24 },
+  failTip: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E8EDF2' },
+  failTipText: { fontSize: 13, color: '#6B7B8D', lineHeight: 20 },
 
   // Game
   gameScroll: { paddingHorizontal: 20, paddingTop: 16 },
   progressSection: { marginBottom: 18, gap: 8 },
   chatHistoryWrap: { marginBottom: 14, gap: 8 },
-  chatHistoryTitle: { fontSize: 10, fontWeight: '900', color: '#555', letterSpacing: 1.4, paddingHorizontal: 2 },
+  chatHistoryTitle: { fontSize: 10, fontWeight: '900', color: '#B0BEC5', letterSpacing: 1.4, paddingHorizontal: 2 },
   chatTurnBlock: { gap: 6 },
   npcBubbleRow: { alignItems: 'flex-start' },
   userBubbleRow: { alignItems: 'flex-end' },
   npcBubble: {
     maxWidth: '88%',
-    backgroundColor: '#16162A',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#252540',
+    borderColor: '#E8EDF2',
     borderRadius: 14,
     borderTopLeftRadius: 6,
     paddingHorizontal: 12,
@@ -1211,81 +1211,81 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     maxWidth: '88%',
-    backgroundColor: '#1F1520',
-    borderWidth: 1,
-    borderColor: '#E8324A55',
+    backgroundColor: '#1B9C5A',
+    borderWidth: 0,
+    borderColor: '#178A4F',
     borderRadius: 14,
     borderTopRightRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  bubbleName: { fontSize: 10, fontWeight: '900', color: '#A78BFA', marginBottom: 3, letterSpacing: 0.6 },
-  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#FB7185', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
-  npcBubbleText: { fontSize: 14, color: '#E5E7EB', lineHeight: 20 },
-  userBubbleText: { fontSize: 14, color: '#FFF', lineHeight: 20 },
+  bubbleName: { fontSize: 10, fontWeight: '900', color: '#1B9C5A', marginBottom: 3, letterSpacing: 0.6 },
+  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#178A4F', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
+  npcBubbleText: { fontSize: 14, color: '#1A2B3C', lineHeight: 20 },
+  userBubbleText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  dotEmpty: { backgroundColor: '#252540' },
+  dotEmpty: { backgroundColor: '#E8EDF2' },
   progressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4 },
-  sceneGoalText: { fontSize: 11, color: '#555', flex: 1 },
+  sceneGoalText: { fontSize: 11, color: '#B0BEC5', flex: 1 },
   comboBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
   comboText: { fontSize: 11, fontWeight: '900' },
-  warningText: { fontSize: 11, color: '#E8324A', fontWeight: '700', textAlign: 'center' },
+  warningText: { fontSize: 11, color: '#1B9C5A', fontWeight: '700', textAlign: 'center' },
 
-  npcCard: { flexDirection: 'row', gap: 14, marginBottom: 20, backgroundColor: '#16162A', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#252540' },
+  npcCard: { flexDirection: 'row', gap: 14, marginBottom: 20, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#E8EDF2' },
   npcAvatarWrap: { alignItems: 'center', gap: 6 },
   npcAvatarEmoji: { fontSize: 30 },
   moodPill: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   moodPillEmoji: { fontSize: 14 },
   npcContent: { flex: 1, gap: 4 },
   npcNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' },
-  npcName: { fontSize: 11, fontWeight: '900', color: '#E8324A', letterSpacing: 1 },
+  npcName: { fontSize: 11, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1 },
   personalityTag: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
   personalityText: { fontSize: 9, fontWeight: '800' },
   npcMoodLabel: { fontSize: 10, fontWeight: '700' },
-  npcText: { fontSize: 18, color: '#FFF', fontWeight: '700', lineHeight: 26 },
-  npcReactionText: { fontSize: 18, color: '#FFF', fontWeight: '700', lineHeight: 26 },
+  npcText: { fontSize: 18, color: '#1A2B3C', fontWeight: '700', lineHeight: 26 },
+  npcReactionText: { fontSize: 18, color: '#1A2B3C', fontWeight: '700', lineHeight: 26 },
   npcPrevText: { fontSize: 12, color: '#333', marginTop: 4, fontStyle: 'italic' },
 
-  yourTurnLabel: { fontSize: 10, fontWeight: '900', color: '#555', letterSpacing: 1.5, marginBottom: 10 },
+  yourTurnLabel: { fontSize: 10, fontWeight: '900', color: '#B0BEC5', letterSpacing: 1.5, marginBottom: 10 },
   loadingWrap: { minHeight: 1 },
 
   optionsList: { gap: 10, overflow: 'hidden' },
-  option: { backgroundColor: '#16162A', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#252540' },
+  option: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#E8EDF2' },
   optionDim: { opacity: 0.3 },
   optionHint: { borderColor: '#A78BFA30', backgroundColor: '#A78BFA05' },
   optionHintStrong: { borderColor: '#A78BFA70', backgroundColor: '#A78BFA12' },
-  optionText: { color: '#FFF', fontSize: 15, lineHeight: 22 },
+  optionText: { color: '#1A2B3C', fontSize: 15, lineHeight: 22 },
   optionQualityTag: { fontSize: 12, fontWeight: '800', marginTop: 6 },
   hintDot: { fontSize: 18, color: '#A78BFA', position: 'absolute', right: 14, top: 14 },
 
-  bottomBar: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12, backgroundColor: '#0A0A12', borderTopWidth: 1, borderTopColor: '#16162A' },
+  bottomBar: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12, backgroundColor: '#F5F7FA', borderTopWidth: 1, borderTopColor: '#FFFFFF' },
 
   // Done
   doneScroll: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, alignItems: 'center', gap: 14 },
-  goalRow: { width: '100%', flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#16162A', borderRadius: 14, padding: 16, borderWidth: 1 },
+  goalRow: { width: '100%', flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1 },
   goalRowIcon: { fontSize: 20, marginTop: 2 },
   goalRowStatus: { fontSize: 13, fontWeight: '800', marginBottom: 2 },
-  goalRowText: { fontSize: 12, color: '#888', lineHeight: 18 },
+  goalRowText: { fontSize: 12, color: '#9AABB8', lineHeight: 18 },
   doneStats: { flexDirection: 'row', gap: 10, width: '100%' },
-  doneStat: { flex: 1, backgroundColor: '#16162A', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#252540' },
-  doneStatVal: { fontSize: 22, fontWeight: '900', color: '#FFF' },
-  doneStatLbl: { fontSize: 11, color: '#666', marginTop: 4 },
+  doneStat: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2' },
+  doneStatVal: { fontSize: 22, fontWeight: '900', color: '#1A2B3C' },
+  doneStatLbl: { fontSize: 11, color: '#9AABB8', marginTop: 4 },
   bestPhraseBox: { width: '100%', backgroundColor: '#0D1A10', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#1A3020' },
   bestPhraseLabel: { fontSize: 10, fontWeight: '900', color: '#3DD68C', letterSpacing: 1, marginBottom: 6 },
-  bestPhraseText: { fontSize: 16, color: '#FFF', fontWeight: '700', lineHeight: 24 },
+  bestPhraseText: { fontSize: 16, color: '#1A2B3C', fontWeight: '700', lineHeight: 24 },
   replayTitle: { width: '100%', fontSize: 10, fontWeight: '900', color: '#444', letterSpacing: 1.5, marginBottom: -4 },
-  replayItem: { width: '100%', backgroundColor: '#16162A', borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: '#252540' },
+  replayItem: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: '#E8EDF2' },
   replayHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   replayDot: { width: 7, height: 7, borderRadius: 4 },
-  replayNpc: { fontSize: 11, color: '#555', flex: 1 },
+  replayNpc: { fontSize: 11, color: '#B0BEC5', flex: 1 },
   replayChosen: { fontSize: 13, fontWeight: '700', paddingLeft: 15 },
   replayBetter: { fontSize: 12, color: '#A78BFA', paddingLeft: 15, lineHeight: 18 },
   nativeFlowBadge: { backgroundColor: '#A78BFA20', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#A78BFA40' },
   nativeFlowText: { color: '#A78BFA', fontSize: 13, fontWeight: '900' },
-  outcomeText: { fontSize: 14, color: '#888', textAlign: 'center', fontStyle: 'italic', marginTop: -4 },
+  outcomeText: { fontSize: 14, color: '#9AABB8', textAlign: 'center', fontStyle: 'italic', marginTop: -4 },
   nearMissBadge: { backgroundColor: '#F5B80018', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#F5B80050' },
   nearMissText: { color: '#F5B800', fontSize: 12, fontWeight: '800' },
   lostLabel: { backgroundColor: '#E8324A20', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#E8324A50' },
-  lostLabelText: { color: '#E8324A', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  lostLabelText: { color: '#1B9C5A', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
 });

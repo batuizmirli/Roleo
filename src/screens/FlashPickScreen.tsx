@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   stat: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
   timerBarBg: { height: 8, borderRadius: 99, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.xs },
-  timerBarFill: { height: 8, borderRadius: 99, backgroundColor: '#FB7185' },
+  timerBarFill: { height: 8, borderRadius: 99, backgroundColor: '#EF4444' },
   timerFrozen: { backgroundColor: '#60A5FA' },
   timerText: { color: colors.textMuted, fontSize: typography.size.xs, marginBottom: spacing.md, textAlign: 'right' },
 
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   optionLabel: { color: colors.textMuted, fontSize: typography.size.xs, marginTop: spacing.xs, textTransform: 'capitalize' },
   optionHint: { borderColor: '#F5B800', shadowColor: '#F5B800', shadowOpacity: 0.3, shadowRadius: 8 },
   optionCorrect: { borderColor: '#22C55E', backgroundColor: '#102417' },
-  optionWrong: { borderColor: '#FB7185', backgroundColor: '#2A1016' },
+  optionWrong: { borderColor: '#EF4444', backgroundColor: '#2A1016' },
 
   powerRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   powerBtn: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
 
   feedback: { marginTop: spacing.md, textAlign: 'center', color: colors.textMuted, fontSize: typography.size.sm },
   feedbackGood: { color: '#22C55E', fontWeight: typography.weight.bold },
-  feedbackBad: { color: '#FB7185', fontWeight: typography.weight.bold },
+  feedbackBad: { color: '#EF4444', fontWeight: typography.weight.bold },
   accText: { textAlign: 'center', color: colors.textMuted, fontSize: typography.size.xs, marginTop: spacing.xs },
 
   resultCard: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.divider, alignItems: 'center' },

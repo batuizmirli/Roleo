@@ -1,24 +1,37 @@
 export const colors = {
-  background: '#0B1020',
-  surface: '#121A2D',
-  surfaceAlt: '#0F172A',
+  background: '#F5F7FA',
+  surface: '#FFFFFF',
+  surfaceAlt: '#EEF2F6',
 
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textPrimary: '#1A2B3C',
+  textSecondary: '#6B7B8D',
+  textMuted: '#9AABB8',
 
-  primaryCard: '#151B2F',
-  primaryBorder: '#8B5CF666',
-  primaryAccent: '#C4B5FD',
+  primaryCard: '#FFFFFF',
+  primaryBorder: '#E8EDF2',
+  primaryAccent: '#1B9C5A',
 
-  secondaryCard: '#11172A',
-  secondaryBorder: '#334155',
-  secondaryAccent: '#7DD3FC',
+  secondaryCard: '#F0FAF4',
+  secondaryBorder: '#D4E8DC',
+  secondaryAccent: '#22C55E',
 
   success: '#22C55E',
   warning: '#F59E0B',
-  danger: '#FB7185',
+  danger: '#EF4444',
 
-  overlay: '#FFFFFF14',
-  divider: '#1E293B',
+  overlay: '#0000001A',
+  divider: '#E8EDF2',
+
+  // Talky green palette
+  green50: '#F0FAF4',
+  green100: '#D4E8DC',
+  green500: '#1B9C5A',
+  green600: '#178A4F',
+  green700: '#136E3F',
+  green800: '#0F5A33',
+
+  white: '#FFFFFF',
+  dark: '#1A2B3C',
+  darkCard: '#1E3A2F',
+  darkBg: '#162B23',
 };
