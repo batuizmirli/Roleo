@@ -42,12 +42,20 @@ export default function ProgressScreen({ onBack }: Props) {
   const totalSessions = totalCompleted;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
+    <View style={styles.container}>
+      <TouchableOpacity onPress={onBack} style={styles.fixedBackBtn}>
+        <Text style={styles.fixedBackText}>←</Text>
+      </TouchableOpacity>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
         <Text style={styles.title}>📈 Gelişimin</Text>
+      </View>
+
+      <View style={styles.overviewCard}>
+        <Text style={styles.overviewLabel}>Genel Durum</Text>
+        <Text style={styles.overviewTitle}>Öğrenme ritmin istikrarlı ilerliyor.</Text>
+        <Text style={styles.overviewText}>Ana ekrandaki yoğun kutuları kaldırdım; detaylı ilerleme artık burada daha sakin bir düzende duruyor.</Text>
       </View>
 
       {/* XP & Level */}
@@ -138,51 +146,70 @@ export default function ProgressScreen({ onBack }: Props) {
       )}
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.xxxl },
+  scrollView: { flex: 1 },
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 96, paddingBottom: spacing.xxxl },
+  overviewCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
+  overviewLabel: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 8 },
+  overviewTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, marginBottom: 8 },
+  overviewText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
   chartCard: { backgroundColor: colors.primaryCard, borderRadius: 20, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.primaryBorder },
   chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, gap: spacing.xs },
   chartCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
   chartXp: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.bold },
   chartBarBg: { width: '100%', height: 80, backgroundColor: colors.surface, borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
   chartBar: { width: '100%', backgroundColor: colors.primaryAccent, borderRadius: 6, minHeight: 4 },
-  chartBarToday: { backgroundColor: '#3DD68C' },
+  chartBarToday: { backgroundColor: colors.secondaryAccent },
   chartLabel: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.semibold },
-  chartLabelToday: { color: '#3DD68C', fontWeight: typography.weight.bold },
+  chartLabelToday: { color: colors.primaryAccent, fontWeight: typography.weight.bold },
   chartTotal: { fontSize: typography.size.xs, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  xpCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#E8EDF2' },
+  fixedBackBtn: {
+    position: 'absolute',
+    top: 52,
+    left: spacing.xl,
+    zIndex: 100,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  fixedBackText: { fontSize: 20, color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28, paddingLeft: 52 },
+  title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
+  xpCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
   xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  xpLabel: { fontSize: 10, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1.5 },
-  xpLevel: { fontSize: 48, fontWeight: '900', color: '#1A2B3C', lineHeight: 54 },
+  xpLabel: { fontSize: 10, fontWeight: '900', color: colors.primaryAccent, letterSpacing: 1.5 },
+  xpLevel: { fontSize: 48, fontWeight: '900', color: colors.textPrimary, lineHeight: 54 },
   xpRight: { alignItems: 'flex-end' },
-  xpTotal: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  xpNext: { fontSize: 12, color: '#9AABB8', marginTop: 4 },
-  progressBar: { height: 8, borderRadius: 999, backgroundColor: '#F5F7FA', overflow: 'hidden' },
-  progressFill: { height: 8, borderRadius: 999, backgroundColor: '#1B9C5A' },
-  progressPct: { fontSize: 11, color: '#9AABB8', marginTop: 6, textAlign: 'right' },
+  xpTotal: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  xpNext: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  progressBar: { height: 8, borderRadius: 999, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  progressFill: { height: 8, borderRadius: 999, backgroundColor: colors.primaryAccent },
+  progressPct: { fontSize: 11, color: colors.textMuted, marginTop: 6, textAlign: 'right' },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
-  statCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2' },
+  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
   statEmoji: { fontSize: 22, marginBottom: 6 },
-  statValue: { fontSize: 24, fontWeight: '900', color: '#1A2B3C' },
-  statLabel: { fontSize: 10, color: '#6B7B8D', marginTop: 4, textAlign: 'center' },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#6B7B8D', marginBottom: 12, letterSpacing: 0.5 },
-  stageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#FFFFFF' },
+  statValue: { fontSize: 24, fontWeight: '900', color: colors.textPrimary },
+  statLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: colors.textSecondary, marginBottom: 12, letterSpacing: 0.5 },
+  stageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E8EDF2' },
   stageRowLocked: { opacity: 0.45 },
-  stageLabel: { fontSize: 14, fontWeight: '700', color: '#1A2B3C' },
+  stageLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   stageRight: {},
-  stageDone: { fontSize: 13, color: '#3DD68C', fontWeight: '700' },
-  stageEmpty: { fontSize: 13, color: '#B0BEC5' },
-  stageLocked: { fontSize: 13, color: '#B0BEC5' },
-  goalCard: { marginTop: 24, backgroundColor: '#0D1A10', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#1A3020' },
-  goalLabel: { fontSize: 10, fontWeight: '900', color: '#3DD68C', letterSpacing: 1.5, marginBottom: 8 },
-  goalText: { fontSize: 14, color: '#CCC', lineHeight: 22 },
+  stageDone: { fontSize: 13, color: colors.secondaryAccent, fontWeight: '700' },
+  stageEmpty: { fontSize: 13, color: colors.textMuted },
+  stageLocked: { fontSize: 13, color: colors.textMuted },
+  goalCard: { marginTop: 24, backgroundColor: colors.primaryAccentSoft, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E8CBB5' },
+  goalLabel: { fontSize: 10, fontWeight: '900', color: colors.primaryAccent, letterSpacing: 1.5, marginBottom: 8 },
+  goalText: { fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
 });

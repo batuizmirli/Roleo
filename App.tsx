@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -19,6 +20,7 @@ import FirstSessionReadyScreen from './src/screens/FirstSessionReadyScreen';
 import FirstSessionNextScreen from './src/screens/FirstSessionNextScreen';
 import DebugPanelScreen from './src/screens/DebugPanelScreen';
 import InstantLearnScreen from './src/screens/InstantLearnScreen';
+import PronunciationScreen from './src/screens/PronunciationScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import FlashPickScreen from './src/screens/FlashPickScreen';
 import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
@@ -44,6 +46,7 @@ type Screen =
   | 'first-session-ready'
   | 'first-session-next'
   | 'instant-learn'
+  | 'pronunciation'
   | 'flash-pick'
   | 'true-or-fake'
   | 'progress'
@@ -51,6 +54,8 @@ type Screen =
 
 export default function App() {
   type RunState = 'idle' | 'flash' | 'truefake' | 'scene' | 'complete';
+
+  const [fontsLoaded] = useFonts({ PlayfairDisplay_700Bold, PlayfairDisplay_900Black });
 
   const [screen, setScreen] = useState<Screen>('onboarding');
   const [runState, setRunState] = useState<RunState>('idle');
@@ -302,11 +307,15 @@ export default function App() {
     }
 
     if (screen === 'home') {
-      return <HomeScreen onModeSelect={handleModeSelect} onStartDailyRun={(gid) => startDailyRun(gid)} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenFlashPick={() => goTo('flash-pick')} onOpenTrueOrFake={() => goTo('true-or-fake')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
+      return <HomeScreen onModeSelect={handleModeSelect} onStartDailyRun={(gid) => startDailyRun(gid)} onRevisitIntro={() => goTo('intro')} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenPronunciation={() => goTo('pronunciation')} onOpenFlashPick={() => goTo('flash-pick')} onOpenTrueOrFake={() => goTo('true-or-fake')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
     }
 
     if (screen === 'instant-learn') {
       return <InstantLearnScreen onBack={() => goTo('home')} />;
+    }
+
+    if (screen === 'pronunciation') {
+      return <PronunciationScreen onBack={() => goTo('home')} />;
     }
 
     if (screen === 'flash-pick') {
@@ -406,12 +415,12 @@ export default function App() {
   ];
   const showFab = !loading && runState === 'idle' && !FAB_HIDDEN_SCREENS.includes(screen);
 
-  if (loading) return null;
+  if (loading || !fontsLoaded) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
+    <View style={{ flex: 1, backgroundColor: '#F6F0E5' }}>
       <StatusBar style="dark" />
-      <Animated.View style={{ flex: 1, backgroundColor: '#F5F7FA', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <Animated.View style={{ flex: 1, backgroundColor: '#F6F0E5', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         {renderScreen()}
       </Animated.View>
       {showFab && (
@@ -441,16 +450,17 @@ const fabStyles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#1B9C5A',
+    backgroundColor: '#A66A4C',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1B9C5A',
+    shadowColor: '#A66A4C',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
     elevation: 8,
   },
   fabIcon: {
     fontSize: 22,
+    color: '#FFFDF8',
   },
 });

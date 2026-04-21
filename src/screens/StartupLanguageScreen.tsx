@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 const NATIVE_LANGUAGES: Language[] = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
@@ -65,14 +66,14 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#FF4D6D" />
+        <ActivityIndicator size="large" color={colors.primaryAccent} />
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-      <Text style={styles.logo}>roleo</Text>
+      <Text style={styles.logo}>Roleo</Text>
       <Text style={styles.title}>Ana dilin hangisi?</Text>
       <Text style={styles.subtitle}>Öğrenme açıklamalarını bu dilde göstereceğim.</Text>
 
@@ -98,34 +99,44 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
-  scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  loadingWrap: { flex: 1, backgroundColor: '#F5F7FA', alignItems: 'center', justifyContent: 'center' },
-  logo: { fontSize: 28, fontWeight: '900', color: '#1B9C5A', letterSpacing: 2, marginBottom: 26 },
-  title: { fontSize: 26, fontWeight: '800', color: '#1A2B3C', marginBottom: 8 },
-  subtitle: { fontSize: 15, color: '#9AABB8', marginBottom: 28, lineHeight: 22 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: 24, paddingTop: 64, paddingBottom: 40 },
+  loadingWrap: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  logo: { fontSize: 30, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.3, marginBottom: 20, fontFamily: 'PlayfairDisplay_900Black' },
+  title: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginBottom: 8, fontFamily: 'PlayfairDisplay_700Bold' },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 32, lineHeight: 22 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   card: {
     width: '47%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderWidth: 1.5,
-    borderColor: '#E8EDF2',
+    borderColor: colors.primaryBorder,
+    shadowColor: '#2F241B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  cardActive: { borderColor: '#1B9C5A', backgroundColor: '#1F1520' },
+  cardActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
   flag: { fontSize: 22 },
-  name: { fontSize: 14, fontWeight: '700', color: '#1A2B3C', flex: 1 },
+  name: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, flex: 1 },
   button: {
-    marginTop: 24,
-    backgroundColor: '#1B9C5A',
+    marginTop: 28,
+    backgroundColor: colors.primaryAccent,
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
+    shadowColor: colors.primaryAccent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  buttonDisabled: { opacity: 0.45 },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  buttonDisabled: { opacity: 0.3 },
+  buttonText: { color: colors.textOnAccent, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
 });

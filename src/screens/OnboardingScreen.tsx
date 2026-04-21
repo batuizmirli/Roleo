@@ -9,9 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile } from '../types';
+
+const crowdConversationImage = require('../../assets/onboarding/crowd-conversation.jpg');
+const cafeOrderImage = require('../../assets/onboarding/cafe-order.jpg');
+const meetingConfidenceImage = require('../../assets/onboarding/meeting-confidence.jpg');
 
 const LEARNING_LANGUAGES: Language[] = [
   { code: 'es', name: 'Spanish', flag: '🇪🇸' },
@@ -45,6 +50,42 @@ type Step = 'native' | 'language' | 'goal' | 'dream' | 'context' | 'emotion';
 
 type Props = {
   onComplete: () => void;
+};
+
+const STEP_BACKGROUNDS: Record<Step, any> = {
+  native: crowdConversationImage,
+  language: crowdConversationImage,
+  goal: crowdConversationImage,
+  dream: cafeOrderImage,
+  context: cafeOrderImage,
+  emotion: meetingConfidenceImage,
+};
+
+const STEP_VISUALS: Record<Step, { eyebrow: string; caption: string }> = {
+  native: {
+    eyebrow: 'Real-life scene',
+    caption: 'Kalabalık bir ortamda konuşan insanlar gibi gerçek anlara hazırlan.',
+  },
+  language: {
+    eyebrow: 'Conversation flow',
+    caption: 'Yeni dilini sosyal bir ortamda, gerçek kişilerle kullanma hissi.',
+  },
+  goal: {
+    eyebrow: 'Your reason',
+    caption: 'Hedefin, hangi sahnelerde rahat konuşmak istediğini belirler.',
+  },
+  dream: {
+    eyebrow: 'Cafe scene',
+    caption: 'Bir kafede sipariş verirken doğal ve rahat hissettiğin anı kur.',
+  },
+  context: {
+    eyebrow: 'Exact setup',
+    caption: 'Garson, masa, kalabalık ve anın detayları öğrenmeni güçlendirir.',
+  },
+  emotion: {
+    eyebrow: 'Confidence moment',
+    caption: 'Toplantıda ya da sosyal ortamda daha akıcı ve özgüvenli hisset.',
+  },
 };
 
 export default function OnboardingScreen({ onComplete }: Props) {
@@ -132,14 +173,26 @@ export default function OnboardingScreen({ onComplete }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ImageBackground source={STEP_BACKGROUNDS[step]} style={styles.backgroundImage}>
+        <View style={styles.backgroundOverlay} />
+      </ImageBackground>
 
-        {/* Step indicator */}
-        <View style={styles.stepDots}>
-          {stepIndicator.map((_, i) => (
-            <View key={i} style={[styles.dot, i === currentStepIndex && styles.dotActive, i < currentStepIndex && styles.dotDone]} />
-          ))}
-        </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.contentPanel}>
+
+          {/* Step indicator */}
+          <View style={styles.stepDots}>
+            {stepIndicator.map((_, i) => (
+              <View key={i} style={[styles.dot, i === currentStepIndex && styles.dotActive, i < currentStepIndex && styles.dotDone]} />
+            ))}
+          </View>
+
+          <ImageBackground source={STEP_BACKGROUNDS[step]} imageStyle={styles.heroImageStyle} style={styles.heroImageCard}>
+            <View style={styles.heroOverlay}>
+              <Text style={styles.heroEyebrow}>{STEP_VISUALS[step].eyebrow}</Text>
+              <Text style={styles.heroCaption}>{STEP_VISUALS[step].caption}</Text>
+            </View>
+          </ImageBackground>
 
         {/* NATIVE LANGUAGE */}
         {step === 'native' && (
@@ -231,7 +284,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <TextInput
                 style={styles.dreamInput}
                 placeholder="Describe your dream moment..."
-                placeholderTextColor="#555"
+                placeholderTextColor="#9AABB8"
                 multiline
                 numberOfLines={5}
                 value={dreamText}
@@ -257,7 +310,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <TextInput
                 style={styles.dreamInput}
                 placeholder="Describe the setting and person..."
-                placeholderTextColor="#555"
+                placeholderTextColor="#9AABB8"
                 multiline
                 numberOfLines={4}
                 value={contextText}
@@ -283,7 +336,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <TextInput
                 style={styles.dreamInput}
                 placeholder="Describe the feeling you want..."
-                placeholderTextColor="#555"
+                placeholderTextColor="#9AABB8"
                 multiline
                 numberOfLines={4}
                 value={emotionText}
@@ -296,6 +349,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
           </View>
         )}
 
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -304,7 +358,14 @@ export default function OnboardingScreen({ onComplete }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#10211A',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8, 22, 16, 0.48)',
   },
   scroll: {
     flexGrow: 1,
@@ -312,10 +373,47 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
   },
+  contentPanel: {
+    backgroundColor: 'rgba(247, 250, 246, 0.94)',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
   stepDots: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 32,
+    marginBottom: 18,
+  },
+  heroImageCard: {
+    height: 190,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
+    justifyContent: 'flex-end',
+  },
+  heroImageStyle: {
+    borderRadius: 20,
+  },
+  heroOverlay: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(7, 20, 15, 0.35)',
+  },
+  heroEyebrow: {
+    color: '#E8F8EE',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  heroCaption: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
   },
   dot: {
     width: 8,
@@ -337,21 +435,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '900',
     color: '#1B9C5A',
-    letterSpacing: 2,
+    letterSpacing: -0.3,
     marginBottom: 32,
+    fontFamily: 'PlayfairDisplay_900Black',
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A2B3C',
     marginBottom: 10,
     lineHeight: 34,
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   subtitle: {
     fontSize: 15,
     color: '#6B7B8D',
     marginBottom: 32,
     lineHeight: 22,
+    fontWeight: '500',
   },
   backBtn: {
     marginBottom: 16,
@@ -438,6 +539,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A2B3C',
     marginBottom: 2,
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   goalDesc: {
     fontSize: 13,
@@ -457,11 +559,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontStyle: 'italic',
     lineHeight: 20,
+    fontWeight: '500',
   },
   dreamInput: {
     color: '#1A2B3C',
     fontSize: 15,
     lineHeight: 24,
+    fontWeight: '500',
     textAlignVertical: 'top',
     minHeight: 100,
   },
@@ -482,8 +586,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#1A2B3C',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
 });

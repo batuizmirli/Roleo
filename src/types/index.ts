@@ -38,6 +38,7 @@ export type Scenario = {
   systemPrompt: string;
   openingMessage: string;
   vocabHints?: VocabHint[];
+  backgroundImage?: string;
 };
 
 export type UserLevel = 'beginner' | 'intermediate' | 'advanced';

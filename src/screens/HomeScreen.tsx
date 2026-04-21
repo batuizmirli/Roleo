@@ -9,7 +9,10 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  ImageBackground,
 } from 'react-native';
+
+const homeBgImage = require('../../assets/onboarding/cafe-order.jpg');
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { SUPPORTED_LANGUAGES } from '../data/scenarios';
@@ -17,8 +20,6 @@ import { tryParseJson } from '../services/json';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { getLevelFromXp, getProgress, getWeeklyXp } from '../services/progress';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
 
 type HomeSection = {
   id: 'scenarios' | 'flash-pick' | 'true-or-fake';
@@ -77,15 +78,17 @@ const PRACTICE_TARGETS: PracticeTarget[] = [
 type Props = {
   onModeSelect: (mode: 'scenarios' | 'stories' | 'phrasebook') => void;
   onStartDailyRun?: (goalId: string) => void;
+  onRevisitIntro?: () => void;
   onDebug?: () => void;
   onOpenInstantLearn?: () => void;
+  onOpenPronunciation?: () => void;
   onOpenFlashPick?: () => void;
   onOpenTrueOrFake?: () => void;
   onOpenProgress?: () => void;
   onStartDailyMission?: () => void;
 };
 
-export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onOpenInstantLearn, onOpenFlashPick, onOpenTrueOrFake, onOpenProgress, onStartDailyMission }: Props) {
+export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitIntro, onDebug, onOpenInstantLearn, onOpenPronunciation, onOpenFlashPick, onOpenTrueOrFake, onOpenProgress, onStartDailyMission }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [targetExpanded, setTargetExpanded] = useState(false);
@@ -190,12 +193,15 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
   };
 
   return (
-    <>
+    <View style={styles.root}>
+      <ImageBackground source={homeBgImage} style={StyleSheet.absoluteFill} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(246, 240, 229, 0.82)' }]} />
+      </ImageBackground>
       <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onLongPress={onDebug} activeOpacity={1}>
-            <Text style={styles.logo}>roleo</Text>
+            <Text style={styles.logo}>Roleo</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.langBtn} onPress={() => setLangModalVisible(true)}>
@@ -209,7 +215,7 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
         </View>
 
         <View style={styles.dreamCard}>
-          <Text style={styles.dreamLabel}>HEDEFİN</Text>
+          <Text style={styles.dreamLabel}>BUGÜNÜN ODAĞI</Text>
           <TouchableOpacity
             style={styles.targetSelector}
             activeOpacity={0.88}
@@ -220,7 +226,7 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
           >
             <View style={{ flex: 1 }}>
               <Text style={styles.dreamTitle}>{selectedTarget}</Text>
-              <Text style={styles.dreamMeta}>Değiştirmek için dokun</Text>
+              <Text style={styles.dreamMeta}>Dokunarak değiştir</Text>
             </View>
             <Text style={styles.targetSelectorArrow}>{targetExpanded ? '▴' : '▾'}</Text>
           </TouchableOpacity>
@@ -262,11 +268,25 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
         ) : null}
 
         <TouchableOpacity style={styles.dailyRunBtn} onPress={() => onStartDailyRun?.(selectedTargetId)} activeOpacity={0.9}>
-          <Text style={styles.dailyRunBtnTitle}>Start Today’s Run</Text>
-          <Text style={styles.dailyRunBtnSub}>Flash Pick → True/Fake → Scene</Text>
+          <Text style={styles.dailyRunBtnEyebrow}>Günlük Rutin</Text>
+          <Text style={styles.dailyRunBtnTitle}>Bugünkü çalışmayı başlat</Text>
+          <Text style={styles.dailyRunBtnSub}>3 kısa mod • yaklaşık 6-8 dk</Text>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Quick Play</Text>
+        <TouchableOpacity style={styles.progressOverviewCard} onPress={onOpenProgress} activeOpacity={0.9}>
+          <View style={styles.progressOverviewTop}>
+            <View>
+              <Text style={styles.progressOverviewLabel}>İlerleme Özeti</Text>
+              <Text style={styles.progressOverviewTitle}>Seviye {level} • {xp} XP</Text>
+            </View>
+            <Text style={styles.progressOverviewArrow}>↗</Text>
+          </View>
+          <Text style={styles.progressOverviewText}>
+            {profile?.streak ?? 0} günlük seri • bu hafta {weeklyTotal} XP • detaylı istatistikler ayrı ekranda
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Advanced Modes</Text>
 
         <View style={styles.modesGrid}>
           {HOME_SECTIONS.map((mode, index) => (
@@ -300,20 +320,30 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
           ))}
         </View>
 
-        <View style={styles.quickStatsRow}>
-          <View style={styles.quickStatPill}>
-            <Text style={styles.quickStatLabel}>Streak</Text>
-            <Text style={styles.quickStatValue}>🔥 {profile?.streak ?? 0}</Text>
-          </View>
-          <View style={styles.quickStatPill}>
-            <Text style={styles.quickStatLabel}>Bu hafta</Text>
-            <Text style={styles.quickStatValue}>{weeklyTotal} XP</Text>
-          </View>
-          <View style={styles.quickStatPill}>
-            <Text style={styles.quickStatLabel}>Seviye</Text>
-            <Text style={styles.quickStatValue}>Lv {level}</Text>
-          </View>
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Learning Tools</Text>
+        <View style={styles.toolsGrid}>
+          <AnimatedPressable style={styles.toolCard} onPress={onOpenPronunciation} delay={60}>
+            <View style={styles.toolIconWrap}><Text style={styles.toolIcon}>🔊</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toolTitle}>Pronunciation</Text>
+              <Text style={styles.toolDesc}>Harfler, kelimeler ve sayılar için dinle-tekrar et</Text>
+            </View>
+            <Text style={styles.toolArrow}>→</Text>
+          </AnimatedPressable>
+
+          <AnimatedPressable style={styles.toolCard} onPress={onOpenInstantLearn} delay={95}>
+            <View style={styles.toolIconWrap}><Text style={styles.toolIcon}>🧠</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toolTitle}>Instant Learn</Text>
+              <Text style={styles.toolDesc}>AI ile kısa, kişisel mini dersler</Text>
+            </View>
+            <Text style={styles.toolArrow}>→</Text>
+          </AnimatedPressable>
         </View>
+
+        <TouchableOpacity style={styles.revisitIntroBtn} onPress={onRevisitIntro} activeOpacity={0.88}>
+          <Text style={styles.revisitIntroBtnText}>Tanıtıma dön</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -339,155 +369,223 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onDebug, onO
         </View>
       </Modal>
 
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  root: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 40 },
-  streakBanner: { backgroundColor: '#F0FAF4', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#D4E8DC' },
-  streakBannerUrgent: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  streakBannerText: { color: '#1B9C5A', fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  streakBannerTextUrgent: { color: '#EF4444' },
-  streakBannerMeta: { color: '#9AABB8', fontSize: 11, textAlign: 'center', marginTop: 4 },
-  dailyRunBtn: {
-    backgroundColor: '#1B9C5A',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    shadowColor: '#1B9C5A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  dailyRunBtnTitle: { color: '#1A2B3C', fontSize: 17, fontWeight: '800', textAlign: 'center' },
-  dailyRunBtnSub: { color: '#D4E8DC', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 3 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  logo: { fontSize: 26, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1.5 },
+
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  logo: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.2, fontFamily: 'PlayfairDisplay_900Black' },
   headerRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  langBtn: { backgroundColor: '#FFF', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#E8EDF2', flexDirection: 'row', alignItems: 'center', gap: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
-  langBtnText: { fontSize: 13, color: '#1A2B3C', fontWeight: '600' },
-  langBtnArrow: { fontSize: 10, color: '#9AABB8' },
-  streakBadge: { backgroundColor: '#FFF', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#E8EDF2', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
-  streakText: { fontSize: 13, fontWeight: '700', color: '#1A2B3C' },
-  dreamCard: { backgroundColor: '#1B9C5A', borderRadius: 20, padding: 18, marginBottom: 18, borderLeftWidth: 0, borderWidth: 0 },
-  dreamLabel: { fontSize: 10, fontWeight: '700', color: '#D4E8DC', letterSpacing: 1.5, marginBottom: 6 },
-  dreamTitle: { fontSize: 16, color: '#1A2B3C', fontWeight: '800', lineHeight: 22 },
-  dreamMeta: { fontSize: 12, color: '#B8E4CC', lineHeight: 18, marginTop: 6 },
-  targetSelector: {
-    marginTop: 8,
-    borderRadius: 12,
+  langBtn: { backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  langBtnText: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
+  langBtnArrow: { fontSize: 10, color: colors.textMuted },
+  streakBadge: { backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder },
+  streakText: { fontSize: 13, fontWeight: '700', color: colors.primaryAccent },
+
+  // Dream Card
+  dreamCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: colors.primaryBorder,
+  },
+  dreamLabel: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 2, marginBottom: 8 },
+  dreamTitle: { fontSize: 22, color: colors.textPrimary, fontWeight: '900', lineHeight: 28, fontFamily: 'PlayfairDisplay_700Bold' },
+  dreamMeta: { fontSize: 12, color: colors.textSecondary, lineHeight: 18, marginTop: 6 },
+  targetSelector: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  targetSelectorArrow: { color: '#D4E8DC', fontSize: 16, fontWeight: '700' },
+  targetSelectorArrow: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   targetDropdown: {
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   targetOption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.divider,
   },
-  targetOptionActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  targetOptionTitle: { color: '#E8F5EE', fontSize: 13, fontWeight: '700' },
-  targetOptionTitleActive: { color: '#1A2B3C' },
-  targetOptionHint: { color: '#B8E4CC', fontSize: 11, marginTop: 2 },
-  targetOptionCheck: { fontSize: 16, color: '#1A2B3C', fontWeight: '800' },
+  targetOptionActive: { backgroundColor: colors.primaryAccentSoft },
+  targetOptionTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
+  targetOptionTitleActive: { color: colors.textPrimary },
+  targetOptionHint: { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
+  targetOptionCheck: { fontSize: 16, color: colors.primaryAccent, fontWeight: '800' },
   targetUpdatedNotice: {
     marginTop: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.secondaryBorder,
+    backgroundColor: colors.secondaryCard,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  targetUpdatedNoticeText: {
-    color: '#1A2B3C',
-    fontSize: 12,
-    fontWeight: '700',
+  targetUpdatedNoticeText: { color: colors.secondaryAccent, fontSize: 12, fontWeight: '700' },
+
+  // Streak Banner
+  streakBanner: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
+  streakBannerUrgent: { backgroundColor: colors.dangerSoft, borderColor: '#E7C3BD' },
+  streakBannerText: { color: colors.primaryAccent, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  streakBannerTextUrgent: { color: colors.danger },
+  streakBannerMeta: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 4 },
+
+  // Daily Run Button
+  dailyRunBtn: {
+    backgroundColor: colors.primaryAccent,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: colors.primaryAccent,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 7,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1A2B3C', marginBottom: 14 },
+  dailyRunBtnEyebrow: { color: 'rgba(255,253,248,0.72)', fontSize: 11, fontWeight: '700', textAlign: 'center', marginBottom: 4, letterSpacing: 1.2, textTransform: 'uppercase' },
+  dailyRunBtnTitle: { color: colors.textOnAccent, fontSize: 20, fontWeight: '900', textAlign: 'center', fontFamily: 'PlayfairDisplay_700Bold' },
+  dailyRunBtnSub: { color: 'rgba(255,253,248,0.82)', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 6 },
+
+  progressOverviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  progressOverviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  progressOverviewLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+  progressOverviewTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', marginTop: 4, fontFamily: 'PlayfairDisplay_700Bold' },
+  progressOverviewArrow: { color: colors.primaryAccent, fontSize: 18, fontWeight: '700' },
+  progressOverviewText: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+
+  // Section Title
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, marginBottom: 14, fontFamily: 'PlayfairDisplay_700Bold' },
+
+  // Mode Cards
   modesGrid: { gap: 10 },
-  modeCard: { position: 'relative', backgroundColor: '#FFF', borderRadius: 18, padding: 18, borderWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  modeCard: {
+    position: 'relative',
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    shadowColor: '#2F241B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
   modeCardRecommended: { paddingTop: 32 },
   recommendedBadge: {
     position: 'absolute',
     right: 12,
     top: 10,
-    backgroundColor: '#F0FAF4',
+    backgroundColor: colors.primaryAccentSoft,
     borderWidth: 1,
-    borderColor: '#D4E8DC',
+    borderColor: '#E8CBB5',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
     zIndex: 2,
   },
-  recommendedText: { color: '#1B9C5A', fontSize: 10, fontWeight: '800' },
-  modeIconBg: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  modeEmoji: { fontSize: 24 },
+  recommendedText: { color: colors.primaryAccent, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  modeIconBg: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modeEmoji: { fontSize: 28 },
   modeMiddle: { flex: 1 },
-  modeTitle: { fontSize: 15, fontWeight: '800', color: '#1A2B3C' },
-  modeDesc: { fontSize: 12, color: '#9AABB8', marginTop: 2 },
-  modeBadge: { marginTop: 5, fontSize: 11, fontWeight: '800' },
-  modeArrow: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modeTitle: { fontSize: 16, fontWeight: '900', color: colors.textPrimary, fontFamily: 'PlayfairDisplay_700Bold' },
+  modeDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 3, lineHeight: 16 },
+  modeBadge: { marginTop: 6, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  modeArrow: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   modeArrowText: { fontSize: 16, fontWeight: '800' },
-  quickStatsRow: { marginTop: 16, flexDirection: 'row', gap: 8 },
-  quickStatPill: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderWidth: 0,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+
+  toolsGrid: { gap: 10 },
+  toolCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  quickStatLabel: { color: '#9AABB8', fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  quickStatValue: { color: '#1A2B3C', fontSize: 13, fontWeight: '800', textAlign: 'center', marginTop: 4 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  toolIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+  },
+  toolIcon: { fontSize: 22 },
+  toolTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', fontFamily: 'PlayfairDisplay_700Bold' },
+  toolDesc: { color: colors.textSecondary, fontSize: 12, marginTop: 2, lineHeight: 17 },
+  toolArrow: { color: colors.primaryAccent, fontSize: 16, fontWeight: '800' },
+  revisitIntroBtn: {
+    marginTop: 18,
+    marginBottom: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.surface,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  revisitIntroBtnText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+
+  // Language Modal
+  overlay: { flex: 1, backgroundColor: 'rgba(59,49,38,0.2)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modal: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    borderWidth: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
     padding: 20,
     paddingBottom: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    shadowColor: '#2F241B',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1A2B3C', marginBottom: 20, textAlign: 'center' },
-  modalItem: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, marginBottom: 8, backgroundColor: '#F5F7FA' },
-  modalItemActive: { borderWidth: 1.5, borderColor: '#1B9C5A', backgroundColor: '#F0FAF4' },
+  modalTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, marginBottom: 20, textAlign: 'center', fontFamily: 'PlayfairDisplay_700Bold' },
+  modalItem: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, marginBottom: 8, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.primaryBorder },
+  modalItemActive: { borderWidth: 1.5, borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
   modalFlag: { fontSize: 24 },
-  modalName: { fontSize: 16, fontWeight: '600', color: '#1A2B3C', flex: 1 },
-  check: { fontSize: 16, color: '#1B9C5A', fontWeight: '800' },
+  modalName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, flex: 1 },
+  check: { fontSize: 16, color: colors.primaryAccent, fontWeight: '800' },
 });
