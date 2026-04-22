@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
@@ -72,71 +73,164 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-      <Text style={styles.logo}>Roleo</Text>
-      <Text style={styles.title}>Ana dilin hangisi?</Text>
-      <Text style={styles.subtitle}>Öğrenme açıklamalarını bu dilde göstereceğim.</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerBlock}>
+          <Text style={styles.title}>Ana dilin hangisi?</Text>
+          <Text style={styles.subtitle}>Deneyimi sana göre kurmak için anadilini seç.</Text>
+        </View>
 
-      <View style={styles.grid}>
-        {NATIVE_LANGUAGES.map(lang => (
-          <TouchableOpacity
-            key={lang.code}
-            style={[styles.card, selected?.code === lang.code && styles.cardActive]}
-            onPress={() => setSelected(lang)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.flag}>{lang.flag}</Text>
-            <Text style={styles.name}>{lang.name}</Text>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.grid}>
+          {NATIVE_LANGUAGES.map(lang => {
+            const active = selected?.code === lang.code;
+            return (
+              <TouchableOpacity
+                key={lang.code}
+                style={[styles.card, active && styles.cardActive]}
+                onPress={() => setSelected(lang)}
+                activeOpacity={0.88}
+              >
+                <View style={[styles.flagWrap, active && styles.flagWrapActive]}>
+                  <Text style={styles.flag}>{lang.flag}</Text>
+                </View>
+                <Text style={[styles.name, active ? styles.nameActive : styles.nameInactive]}>{lang.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      <View style={styles.bottomAction}>
+        <TouchableOpacity
+          style={[styles.button, (!selected || saving) && styles.buttonDisabled]}
+          onPress={handleContinue}
+          disabled={!selected || saving}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.buttonText}>{saving ? 'Kaydediliyor...' : 'Devam Et'}</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={[styles.button, !selected && styles.buttonDisabled]} onPress={handleContinue} disabled={!selected || saving}>
-        <Text style={styles.buttonText}>{saving ? 'Kaydediliyor...' : 'Devam Et →'}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingHorizontal: 24, paddingTop: 64, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: '#FCF9F8' },
   loadingWrap: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  logo: { fontSize: 30, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.3, marginBottom: 20, fontFamily: 'PlayfairDisplay_900Black' },
-  title: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginBottom: 8, fontFamily: 'PlayfairDisplay_700Bold' },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 32, lineHeight: 22 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  card: {
-    width: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 20,
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1.5,
-    borderColor: colors.primaryBorder,
-    shadowColor: '#2F241B',
+  },
+  headerBlock: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 34,
+    lineHeight: 42,
+    color: '#1B1C1C',
+    marginBottom: 8,
+    fontFamily: 'NotoSerif_600SemiBold',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#53433E',
+    textAlign: 'center',
+    fontFamily: 'Manrope_500Medium',
+    maxWidth: 300,
+  },
+  grid: {
+    width: '100%',
+    maxWidth: 380,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+  },
+  card: {
+    width: '48.3%',
+    minHeight: 106,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(216,194,186,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#333333',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
-  cardActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
-  flag: { fontSize: 22 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, flex: 1 },
-  button: {
-    marginTop: 28,
-    backgroundColor: colors.primaryAccent,
-    borderRadius: 16,
-    paddingVertical: 18,
+  cardActive: {
+    borderWidth: 2,
+    borderColor: '#884C32',
+    backgroundColor: '#FFFBF8',
+  },
+  flagWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FCF9F8',
     alignItems: 'center',
-    shadowColor: colors.primaryAccent,
+    justifyContent: 'center',
+    shadowColor: '#333333',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  flagWrapActive: {
+    borderColor: '#F3E2D7',
+  },
+  flag: { fontSize: 28 },
+  name: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+  },
+  nameActive: { color: '#1B1C1C' },
+  nameInactive: { color: '#53433E' },
+  bottomSpacer: {
+    height: 120,
+    width: '100%',
+  },
+  bottomAction: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 16,
+    backgroundColor: 'rgba(252, 249, 248, 0.93)',
+  },
+  button: {
+    backgroundColor: '#884C32',
+    borderRadius: 999,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#884C32',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.20,
     shadowRadius: 12,
     elevation: 5,
   },
-  buttonDisabled: { opacity: 0.3 },
-  buttonText: { color: colors.textOnAccent, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+  buttonDisabled: { opacity: 0.4 },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    letterSpacing: 0.3,
+    fontFamily: 'Manrope_600SemiBold',
+  },
 });

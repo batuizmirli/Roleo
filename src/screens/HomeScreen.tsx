@@ -9,63 +9,70 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  ImageBackground,
+  Image,
 } from 'react-native';
-
-const homeBgImage = require('../../assets/onboarding/cafe-order.jpg');
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { SUPPORTED_LANGUAGES } from '../data/scenarios';
 import { tryParseJson } from '../services/json';
-import AnimatedPressable from '../components/AnimatedPressable';
 import { getLevelFromXp, getProgress, getWeeklyXp } from '../services/progress';
 import { colors } from '../theme/colors';
 
-type HomeSection = {
-  id: 'scenarios' | 'flash-pick' | 'true-or-fake';
-  title: string;
-  description: string;
-  emoji: string;
-  color: string;
+const PROFILE_IMG =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAOrXu2DvdRpYCZcKGbpFaKDeh47Omk180V2hsOHt4hljk-86mNvE5CLhaovCYPEl--_tObWAaQoXhJKIMgufmlxZZnZTYS2gZ5TcJOq4dP3477d3zmpMU4ycZDPIb6dGJZw28CSrtmjPsE74ksPaUep8eQm-qwHnYutT7hNX5UphPc-Xc9HsEFGtrCWbpLwPO6SJ9c0NXoOOqnm70SdhiWryCJTFWKWyCMnU7aWn8cTY1aoxSS08iXK_-834LZvGIC9aPhGtogl5';
+
+const LESSON_IMAGES = {
+  scenarios:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuBbtctSvx_HriBlpMS37XCcnY3eTll-alUxjMwhKb7oMKf-XDm3mjICRemXdXJctnEzyMVmdG3kSQYv1XGbhJsObmRqMfTXT0O4WtVHNf1lpiqR6GY5Ih_khda0f27szL26GNTkAwK_0mv03oFl_fICtzw1tyBkaaXvV6pO8u4U1CvrTH1tt7jYNhj56Dcerd_ablb7hzOVQMvv69iue3lTAE_ibZNDjnru1uRxqcgn-gmeAe-Qe07QUYttbqaeTXcWzhfM-H12nH_q',
+  trueOrFake:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuAUjXcrzjE4C6wau0P7C-fkISaTbqT61PsWcgEuTO46gD8gUboOWCPFI_D8XGtcCQeWhVwTen8IOIHksRdn5ihA2pvO8zhf6sM6jr9qnC6mzJmf07It2cdvuuv7dWrKIfHAvMHm1cIJW86R1gQqEmojxcDxvo3qErXsXSvKPYjzx6UfYveHzFSKQYdILZkXN9mgnU2pJjlaabjOgHi6uwRFMrMffLULdx5FkizJOCSrerStULUhj5qY1-axBvSVmCoj7jkktZP8BJlV',
+  instant:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuASzAHrVeV45oQpiluyBlqkJlC65-gea9gcv_n6mRS7PG7TdqjgsihMMGBOmJ-cTtjxGK84c_Hu2P4X0Co6v2NhMB3wG8eH8kYFroeuWZ0QTxGU7KtjSpAETkCFkOmkMXZ97LDPycIHXWNi6FrBbO63zZmuBX7YmPINQhScLFr0BzolxjC2NK59SA03ip1ruzGZtKI2UnehaBKLiFa198E-IBGeOEBtFQxXmrbClU7xG_rXM74N3qIHKyIVXD3hGmMyhTb2N8RvOqKZ',
+} as const;
+
+type PickedCard = {
+  id: 'scenarios' | 'true-or-fake' | 'instant-learn';
   tag: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  thumbBg: string;
 };
+
+const PICKED_FOR_YOU: PickedCard[] = [
+  {
+    id: 'scenarios',
+    tag: 'ORTA',
+    title: 'Sahneye Devam Et',
+    subtitle: 'Kaldığın yerden diyaloglara devam et',
+    image: LESSON_IMAGES.scenarios,
+    thumbBg: 'rgba(160, 103, 76, 0.12)',
+  },
+  {
+    id: 'true-or-fake',
+    tag: 'TEMEL',
+    title: 'True or Fake',
+    subtitle: 'Doğru kalıpları hızlıca ayırt et',
+    image: LESSON_IMAGES.trueOrFake,
+    thumbBg: 'rgba(165, 100, 72, 0.12)',
+  },
+  {
+    id: 'instant-learn',
+    tag: 'İLERİ',
+    title: 'Serbest Pratik',
+    subtitle: 'Yapay zeka ile dilediğin konuda konuş',
+    image: LESSON_IMAGES.instant,
+    thumbBg: 'rgba(231, 226, 217, 0.55)',
+  },
+];
 
 type PracticeTarget = {
   id: string;
   label: string;
   hint: string;
 };
-
-const HOME_SECTIONS: HomeSection[] = [
-  {
-    id: 'scenarios',
-    title: 'Sahneye Devam Et',
-    description: 'Kaldığın konuşmadan devam et',
-    emoji: '🎭',
-    color: '#1B9C5A',
-    tag: 'Ana Mod',
-  },
-  {
-    id: 'true-or-fake',
-    title: 'True or Fake',
-    description: 'Cümle gerçek mi fake mi? Hızlı karar ver',
-    emoji: '✅',
-    color: '#34D399',
-    tag: 'Real/Fake',
-  },
-  {
-    id: 'flash-pick',
-    title: 'Flash Pick',
-    description: 'Hızlı karar ver, combo yakala, süreye karşı yarış',
-    emoji: '⚡',
-    color: '#EF4444',
-    tag: 'Arcade',
-  },
-];
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const PRACTICE_TARGETS: PracticeTarget[] = [
   { id: 'b2-speaking', label: 'B2 seviyesinde konuşmak', hint: 'Akıcı, net ve doğal ifade' },
@@ -75,6 +82,20 @@ const PRACTICE_TARGETS: PracticeTarget[] = [
   { id: 'small-talk', label: 'Small talk başlatabilmek', hint: 'Sosyal ortamlarda rahat giriş' },
   { id: 'travel-survival', label: 'Seyahatte zorlanmamak', hint: 'Havalimanı, otel, restoran akışı' },
 ];
+
+type RoutineTile = {
+  id: string;
+  label: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  fill: number;
+  muted: boolean;
+  onPress: () => void;
+};
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 type Props = {
   onModeSelect: (mode: 'scenarios' | 'stories' | 'phrasebook') => void;
   onStartDailyRun?: (goalId: string) => void;
@@ -88,21 +109,40 @@ type Props = {
   onStartDailyMission?: () => void;
 };
 
-export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitIntro, onDebug, onOpenInstantLearn, onOpenPronunciation, onOpenFlashPick, onOpenTrueOrFake, onOpenProgress, onStartDailyMission }: Props) {
+const surface = '#FCF9F8';
+const primary = '#884C32';
+const terracotta = '#B06D50';
+const onSurface = '#1B1C1C';
+const onSurfaceVariant = '#53433E';
+const outlineVariant = 'rgba(216, 194, 186, 0.35)';
+const tagBg = '#FFDBCC';
+const tagText = '#6A3A23';
+const white = '#FFFFFF';
+
+export default function HomeScreen({
+  onModeSelect,
+  onStartDailyRun,
+  onRevisitIntro,
+  onDebug,
+  onOpenInstantLearn,
+  onOpenPronunciation,
+  onOpenFlashPick,
+  onOpenTrueOrFake,
+  onOpenProgress,
+}: Props) {
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [targetExpanded, setTargetExpanded] = useState(false);
-  const [streakMessage, setStreakMessage] = useState<string | null>(null);
-  const [streakUrgent, setStreakUrgent] = useState(false);
   const [weeklyTotal, setWeeklyTotal] = useState(0);
   const [selectedTarget, setSelectedTarget] = useState<string>(PRACTICE_TARGETS[0].label);
   const [selectedTargetId, setSelectedTargetId] = useState<string>(PRACTICE_TARGETS[0].id);
   const [targetUpdatedNotice, setTargetUpdatedNotice] = useState(false);
+  const [playedToday, setPlayedToday] = useState(false);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadProfile();
-
     return () => {
       if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     };
@@ -110,6 +150,42 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitInt
 
   const xp = profile?.xp ?? 0;
   const level = getLevelFromXp(xp);
+  const matchedTarget = PRACTICE_TARGETS.find(t => t.label === selectedTarget) ?? PRACTICE_TARGETS[0];
+
+  const routineTiles: RoutineTile[] = [
+    {
+      id: 'kelime',
+      label: 'Kelime',
+      icon: 'menu-book',
+      fill: playedToday ? 1 : 0.35,
+      muted: false,
+      onPress: () => onOpenFlashPick?.(),
+    },
+    {
+      id: 'telaffuz',
+      label: 'Telaffuz',
+      icon: 'mic',
+      fill: Math.min(1, 0.45 + (weeklyTotal > 20 ? 0.25 : 0)),
+      muted: false,
+      onPress: () => onOpenPronunciation?.(),
+    },
+    {
+      id: 'dinleme',
+      label: 'Dinleme',
+      icon: 'headphones',
+      fill: Math.min(1, 0.55 + (xp > 80 ? 0.3 : 0)),
+      muted: false,
+      onPress: () => onOpenInstantLearn?.(),
+    },
+    {
+      id: 'grammar',
+      label: 'Grammar',
+      icon: 'translate',
+      fill: weeklyTotal > 40 ? 0.4 : 0,
+      muted: weeklyTotal <= 40,
+      onPress: () => onOpenTrueOrFake?.(),
+    },
+  ];
 
   const loadProfile = async () => {
     const data = await AsyncStorage.getItem('userProfile');
@@ -124,67 +200,35 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitInt
     setProfile(parsed);
     const savedLabel = parsed.goalDescription?.trim() || PRACTICE_TARGETS[0].label;
     setSelectedTarget(savedLabel);
-    const matchedTarget = PRACTICE_TARGETS.find(t => t.label === savedLabel) ?? PRACTICE_TARGETS[0];
-    setSelectedTargetId(matchedTarget.id);
+    const matched = PRACTICE_TARGETS.find(t => t.label === savedLabel) ?? PRACTICE_TARGETS[0];
+    setSelectedTargetId(matched.id);
 
     const progress = await getProgress();
-
-    // Streak banner logic
-    const streak = progress.streak;
-    const lastPlayed = progress.lastPlayedDate;
     const todayStr = new Date().toISOString().slice(0, 10);
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const playedToday = lastPlayed === todayStr;
-
-    if (streak >= 7) {
-      setStreakMessage(`\uD83D\uDD25 ${streak} g\u00FCn \u00FCst \u00FCste! Efsane seri!`);
-      setStreakUrgent(false);
-    } else if (streak >= 3) {
-      setStreakMessage(`\uD83D\uDD25 ${streak} g\u00FCn serisi! Devam et!`);
-      setStreakUrgent(false);
-    } else if (streak >= 1 && !playedToday) {
-      setStreakMessage(`\u26A0\uFE0F Bug\u00FCn oynamazsan ${streak} g\u00FCnl\u00FCk serin k\u0131r\u0131l\u0131r!`);
-      setStreakUrgent(true);
-    } else if (streak === 0 || !lastPlayed) {
-      setStreakMessage('\uD83C\uDF1F Bug\u00FCn yeni bir seri ba\u015Flat!');
-      setStreakUrgent(false);
-    } else {
-      setStreakMessage(null);
-    }
-
+    setPlayedToday(progress.lastPlayedDate === todayStr);
     const weekly = getWeeklyXp(progress.dailyXpLog ?? {});
     setWeeklyTotal(weekly.reduce((s, d) => s + d.xp, 0));
-
   };
 
   const handleTargetSelect = async (target: PracticeTarget) => {
     if (!profile) return;
-    LayoutAnimation.configureNext({
-      duration: 220,
-      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-    });
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedTarget(target.label);
     setSelectedTargetId(target.id);
     setTargetExpanded(false);
     setTargetUpdatedNotice(true);
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-    noticeTimerRef.current = setTimeout(() => {
-      setTargetUpdatedNotice(false);
-    }, 2200);
+    noticeTimerRef.current = setTimeout(() => setTargetUpdatedNotice(false), 2200);
     const updated: UserProfile = {
       ...profile,
       goalDescription: target.label,
-      identity: profile.identity
-        ? { ...profile.identity, goal: target.label }
-        : profile.identity,
+      identity: profile.identity ? { ...profile.identity, goal: target.label } : profile.identity,
     };
     setProfile(updated);
     await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
   };
 
-  const handleLanguageChange = async (lang: typeof SUPPORTED_LANGUAGES[0]) => {
+  const handleLanguageChange = async (lang: (typeof SUPPORTED_LANGUAGES)[0]) => {
     if (!profile) return;
     const updated = { ...profile, language: lang };
     await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
@@ -192,168 +236,190 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitInt
     setLangModalVisible(false);
   };
 
+  const heroDescription = profile?.language?.name
+    ? `${profile.language.name} pratiğinde bugün: ${matchedTarget.hint}`
+    : matchedTarget.hint;
+
+  const rhythmDoneCount = routineTiles.filter(t => t.fill >= 0.95).length;
+  const rhythmDoneLabel = `${Math.min(4, Math.max(rhythmDoneCount, playedToday ? 1 : 0))}/4 tamamlandı`;
+
+  const openPicked = (id: PickedCard['id']) => {
+    if (id === 'scenarios') onModeSelect('scenarios');
+    else if (id === 'true-or-fake') onOpenTrueOrFake?.();
+    else onOpenInstantLearn?.();
+  };
+
+  const bottomNavPad = Math.max(insets.bottom, 12) + 56;
+
   return (
     <View style={styles.root}>
-      <ImageBackground source={homeBgImage} style={StyleSheet.absoluteFill} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(246, 240, 229, 0.82)' }]} />
-      </ImageBackground>
-      <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onLongPress={onDebug} activeOpacity={1}>
-            <Text style={styles.logo}>Roleo</Text>
-          </TouchableOpacity>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.langBtn} onPress={() => setLangModalVisible(true)}>
-              <Text style={styles.langBtnText}>{profile?.language.flag} {profile?.language.name}</Text>
-              <Text style={styles.langBtnArrow}>▾</Text>
-            </TouchableOpacity>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakText}>🔥 {profile?.streak ?? 0}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.dreamCard}>
-          <Text style={styles.dreamLabel}>BUGÜNÜN ODAĞI</Text>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.targetSelector}
+            onPress={() => setLangModalVisible(true)}
+            onLongPress={onDebug}
+            delayLongPress={480}
             activeOpacity={0.88}
-            onPress={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setTargetExpanded(prev => !prev);
-            }}
+            style={styles.avatarWrap}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.dreamTitle}>{selectedTarget}</Text>
-              <Text style={styles.dreamMeta}>Dokunarak değiştir</Text>
-            </View>
-            <Text style={styles.targetSelectorArrow}>{targetExpanded ? '▴' : '▾'}</Text>
+            <Image source={{ uri: PROFILE_IMG }} style={styles.avatarImg} />
           </TouchableOpacity>
+          <Text style={styles.wordmark}>Roleo</Text>
+          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.88} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="notifications-none" size={22} color={terracotta} />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
-          {targetExpanded && (
-            <View style={styles.targetDropdown}>
-              {PRACTICE_TARGETS.map(target => {
-                const active = selectedTarget === target.label;
-                return (
-                  <TouchableOpacity
-                    key={target.id}
-                    onPress={() => handleTargetSelect(target)}
-                    style={[styles.targetOption, active && styles.targetOptionActive]}
-                    activeOpacity={0.88}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.targetOptionTitle, active && styles.targetOptionTitleActive]}>{target.label}</Text>
-                      <Text style={styles.targetOptionHint}>{target.hint}</Text>
-                    </View>
-                    {active ? <Text style={styles.targetOptionCheck}>✓</Text> : null}
-                  </TouchableOpacity>
-                );
-              })}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomNavPad + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <View style={styles.heroGlow} />
+          <MaterialIcons name="record-voice-over" size={112} color="rgba(255,255,255,0.38)" style={styles.heroDecoIcon} />
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>GÜNLÜK HEDEF</Text>
             </View>
-          )}
-
-          {targetUpdatedNotice ? (
-            <View style={styles.targetUpdatedNotice}>
-              <Text style={styles.targetUpdatedNoticeText}>Oyun modları hedefin için yeniden düzenlendi ✅</Text>
-            </View>
-          ) : null}
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setTargetExpanded(e => !e);
+              }}
+            >
+              <Text style={styles.heroHeadline}>Bugünün odağı</Text>
+              <Text style={styles.heroGoalLine} numberOfLines={2}>
+                {selectedTarget}
+              </Text>
+              <Text style={styles.heroBody} numberOfLines={3}>
+                {heroDescription}
+              </Text>
+            </TouchableOpacity>
+            {targetExpanded ? (
+              <View style={styles.targetList}>
+                {PRACTICE_TARGETS.map(t => {
+                  const active = selectedTarget === t.label;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[styles.targetRow, active && styles.targetRowActive]}
+                      onPress={() => handleTargetSelect(t)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.targetRowTitle, active && styles.targetRowTitleActive]}>{t.label}</Text>
+                        <Text style={styles.targetRowHint}>{t.hint}</Text>
+                      </View>
+                      {active ? <MaterialIcons name="check-circle" size={20} color={white} /> : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+            {targetUpdatedNotice ? (
+              <Text style={styles.notice}>Hedef güncellendi — modlar buna göre ayarlandı.</Text>
+            ) : null}
+            <TouchableOpacity
+              style={styles.heroCta}
+              activeOpacity={0.9}
+              onPress={() => onStartDailyRun?.(selectedTargetId)}
+            >
+              <Text style={styles.heroCtaText}>Hemen Başla</Text>
+              <MaterialIcons name="play-arrow" size={22} color={primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {streakMessage ? (
-          <AnimatedPressable style={[styles.streakBanner, streakUrgent && styles.streakBannerUrgent]} delay={60}>
-            <Text style={[styles.streakBannerText, streakUrgent && styles.streakBannerTextUrgent]}>{streakMessage}</Text>
-            {weeklyTotal > 0 ? <Text style={styles.streakBannerMeta}>Bu hafta: {weeklyTotal} XP</Text> : null}
-          </AnimatedPressable>
-        ) : null}
-
-        <TouchableOpacity style={styles.dailyRunBtn} onPress={() => onStartDailyRun?.(selectedTargetId)} activeOpacity={0.9}>
-          <Text style={styles.dailyRunBtnEyebrow}>Günlük Rutin</Text>
-          <Text style={styles.dailyRunBtnTitle}>Bugünkü çalışmayı başlat</Text>
-          <Text style={styles.dailyRunBtnSub}>3 kısa mod • yaklaşık 6-8 dk</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.progressOverviewCard} onPress={onOpenProgress} activeOpacity={0.9}>
-          <View style={styles.progressOverviewTop}>
-            <View>
-              <Text style={styles.progressOverviewLabel}>İlerleme Özeti</Text>
-              <Text style={styles.progressOverviewTitle}>Seviye {level} • {xp} XP</Text>
-            </View>
-            <Text style={styles.progressOverviewArrow}>↗</Text>
-          </View>
-          <Text style={styles.progressOverviewText}>
-            {profile?.streak ?? 0} günlük seri • bu hafta {weeklyTotal} XP • detaylı istatistikler ayrı ekranda
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={styles.sectionTitle}>Advanced Modes</Text>
-
-        <View style={styles.modesGrid}>
-          {HOME_SECTIONS.map((mode, index) => (
-            <AnimatedPressable
-              key={mode.id}
-              style={[styles.modeCard, index === 0 && styles.modeCardRecommended]}
-              onPress={() => mode.id === 'flash-pick'
-                ? onOpenFlashPick?.()
-                : mode.id === 'true-or-fake'
-                ? onOpenTrueOrFake?.()
-                : onModeSelect(mode.id)}
-              delay={index * 45}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Günlük ritim</Text>
+          <Text style={styles.sectionMeta}>{rhythmDoneLabel}</Text>
+        </View>
+        <View style={styles.rhythmGrid}>
+          {routineTiles.map(tile => (
+            <TouchableOpacity
+              key={tile.id}
+              style={[styles.rhythmCard, tile.muted && styles.rhythmCardMuted]}
+              onPress={tile.onPress}
+              activeOpacity={0.88}
             >
-              {index === 0 && (
-                <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Tavsiye Edilen</Text>
-                </View>
-              )}
-              <View style={[styles.modeIconBg, { backgroundColor: mode.color + '22' }]}>
-                <Text style={styles.modeEmoji}>{mode.emoji}</Text>
+              <View style={[styles.rhythmIconCircle, tile.muted && styles.rhythmIconCircleMuted]}>
+                <MaterialIcons name={tile.icon} size={22} color={tile.muted ? '#85736C' : primary} />
               </View>
-              <View style={[styles.modeMiddle]}>
-                <Text style={styles.modeTitle}>{mode.title}</Text>
-                <Text style={styles.modeDesc}>{mode.description}</Text>
-                <Text style={[styles.modeBadge, { color: mode.color }]}>{mode.tag}</Text>
+              <Text style={styles.rhythmLabel}>{tile.label}</Text>
+              <View style={styles.rhythmTrack}>
+                <View style={[styles.rhythmFill, { width: `${Math.round(tile.fill * 100)}%` }]} />
               </View>
-              <View style={[styles.modeArrow, { backgroundColor: mode.color + '22' }]}>
-                <Text style={[styles.modeArrowText, { color: mode.color }]}>→</Text>
-              </View>
-            </AnimatedPressable>
+            </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Learning Tools</Text>
-        <View style={styles.toolsGrid}>
-          <AnimatedPressable style={styles.toolCard} onPress={onOpenPronunciation} delay={60}>
-            <View style={styles.toolIconWrap}><Text style={styles.toolIcon}>🔊</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toolTitle}>Pronunciation</Text>
-              <Text style={styles.toolDesc}>Harfler, kelimeler ve sayılar için dinle-tekrar et</Text>
-            </View>
-            <Text style={styles.toolArrow}>→</Text>
-          </AnimatedPressable>
-
-          <AnimatedPressable style={styles.toolCard} onPress={onOpenInstantLearn} delay={95}>
-            <View style={styles.toolIconWrap}><Text style={styles.toolIcon}>🧠</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toolTitle}>Instant Learn</Text>
-              <Text style={styles.toolDesc}>AI ile kısa, kişisel mini dersler</Text>
-            </View>
-            <Text style={styles.toolArrow}>→</Text>
-          </AnimatedPressable>
+        <Text style={[styles.sectionTitle, { marginBottom: 14 }]}>Senin için seçtiklerimiz</Text>
+        <View style={styles.pickedList}>
+          {PICKED_FOR_YOU.map(card => (
+            <TouchableOpacity
+              key={card.id}
+              style={styles.lessonCard}
+              onPress={() => openPicked(card.id)}
+              activeOpacity={0.92}
+            >
+              <View style={[styles.lessonThumb, { backgroundColor: card.thumbBg }]}>
+                <Image source={{ uri: card.image }} style={styles.lessonImg} />
+              </View>
+              <View style={styles.lessonMid}>
+                <View style={styles.tagPill}>
+                  <Text style={styles.tagPillText}>{card.tag}</Text>
+                </View>
+                <Text style={styles.lessonTitle}>{card.title}</Text>
+                <Text style={styles.lessonSub}>{card.subtitle}</Text>
+              </View>
+              <View style={styles.lessonChevron}>
+                <MaterialIcons name="chevron-right" size={22} color={primary} />
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <TouchableOpacity style={styles.revisitIntroBtn} onPress={onRevisitIntro} activeOpacity={0.88}>
-          <Text style={styles.revisitIntroBtnText}>Tanıtıma dön</Text>
+        <TouchableOpacity onPress={onOpenProgress} activeOpacity={0.88} style={styles.progressLink}>
+          <Text style={styles.progressLinkText}>
+            İlerleme — Seviye {level} · {xp} XP
+          </Text>
+          <MaterialIcons name="chevron-right" size={18} color={terracotta} />
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <TouchableOpacity onPress={onRevisitIntro} activeOpacity={0.88} style={styles.introLink}>
+          <Text style={styles.introLinkText}>Tanıtımı tekrar izle</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* Language Modal */}
+      <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <View style={styles.navInner}>
+          <View style={styles.navItem}>
+            <MaterialIcons name="explore" size={24} color={terracotta} />
+            <Text style={styles.navLabelActive}>Discover</Text>
+            <View style={styles.navDot} />
+          </View>
+          <TouchableOpacity style={styles.navItem} onPress={() => onModeSelect('scenarios')} activeOpacity={0.88}>
+            <MaterialIcons name="school" size={24} color="#333" style={{ opacity: 0.45 }} />
+            <Text style={styles.navLabel}>Learn</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => onStartDailyRun?.(selectedTargetId)} activeOpacity={0.88}>
+            <MaterialIcons name="record-voice-over" size={24} color="#333" style={{ opacity: 0.45 }} />
+            <Text style={styles.navLabel}>Practice</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => onOpenProgress?.()} activeOpacity={0.88}>
+            <MaterialIcons name="person-outline" size={24} color="#333" style={{ opacity: 0.45 }} />
+            <Text style={styles.navLabel}>Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <Modal visible={langModalVisible} transparent animationType="fade" onRequestClose={() => setLangModalVisible(false)}>
         <View style={styles.overlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setLangModalVisible(false)} />
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Dil Seç</Text>
+            <Text style={styles.modalTitle}>Hedef dil</Text>
             {SUPPORTED_LANGUAGES.map(lang => (
               <TouchableOpacity
                 key={lang.code}
@@ -362,230 +428,376 @@ export default function HomeScreen({ onModeSelect, onStartDailyRun, onRevisitInt
               >
                 <Text style={styles.modalFlag}>{lang.flag}</Text>
                 <Text style={styles.modalName}>{lang.name}</Text>
-                {profile?.language.code === lang.code && <Text style={styles.check}>✓</Text>}
+                {profile?.language.code === lang.code ? <MaterialIcons name="check" size={20} color={primary} /> : null}
               </TouchableOpacity>
             ))}
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  container: { flex: 1, backgroundColor: 'transparent' },
-  scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 40 },
-
-  // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  logo: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.2, fontFamily: 'PlayfairDisplay_900Black' },
-  headerRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  langBtn: { backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  langBtnText: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
-  langBtnArrow: { fontSize: 10, color: colors.textMuted },
-  streakBadge: { backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder },
-  streakText: { fontSize: 13, fontWeight: '700', color: colors.primaryAccent },
-
-  // Dream Card
-  dreamCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  dreamLabel: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 2, marginBottom: 8 },
-  dreamTitle: { fontSize: 22, color: colors.textPrimary, fontWeight: '900', lineHeight: 28, fontFamily: 'PlayfairDisplay_700Bold' },
-  dreamMeta: { fontSize: 12, color: colors.textSecondary, lineHeight: 18, marginTop: 6 },
-  targetSelector: {
-    marginTop: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    minHeight: 62,
+  root: { flex: 1, backgroundColor: surface },
+  safeTop: { backgroundColor: '#FCF9F7' },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    height: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(51,51,51,0.06)',
+    backgroundColor: '#FCF9F7',
   },
-  targetSelectorArrow: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
-  targetDropdown: {
-    marginTop: 8,
+  avatarWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(136, 76, 50, 0.2)',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  wordmark: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: 'NotoSerif_700Bold',
+    color: terracotta,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scroll: { flex: 1 },
+  scrollInner: { paddingHorizontal: 20, paddingTop: 20 },
+  hero: {
+    backgroundColor: primary,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 28,
+    overflow: 'hidden',
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  heroGlow: {
+    position: 'absolute',
+    right: -24,
+    top: -24,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  heroDecoIcon: {
+    position: 'absolute',
+    right: 4,
+    bottom: 4,
+  },
+  heroContent: { zIndex: 2 },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 10,
+  },
+  heroBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    color: white,
+    letterSpacing: 0.8,
+  },
+  heroHeadline: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontFamily: 'NotoSerif_600SemiBold',
+    color: white,
+    marginBottom: 6,
+    maxWidth: 280,
+  },
+  heroGoalLine: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: 'Manrope_600SemiBold',
+    color: 'rgba(255,255,255,0.95)',
+    marginBottom: 8,
+    maxWidth: 280,
+  },
+  heroBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: 'Manrope_400Regular',
+    color: 'rgba(255,255,255,0.88)',
+    maxWidth: 260,
+    marginBottom: 16,
+  },
+  targetList: {
+    marginBottom: 12,
     borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  targetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.12)',
+  },
+  targetRowActive: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  targetRowTitle: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.92)' },
+  targetRowTitleActive: { color: white },
+  targetRowHint: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  notice: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 10,
+  },
+  heroCta: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: surface,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  heroCtaText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: primary,
+    letterSpacing: 0.3,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: 'NotoSerif_500Medium',
+    color: onSurface,
+  },
+  sectionMeta: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: primary,
+  },
+  rhythmGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 28,
+  },
+  rhythmCard: {
+    width: '48%',
+    backgroundColor: white,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.surface,
+    borderColor: outlineVariant,
+    padding: 12,
+    alignItems: 'center',
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  rhythmCardMuted: { opacity: 0.62 },
+  rhythmIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(165, 100, 72, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  rhythmIconCircleMuted: { backgroundColor: '#F0EDED' },
+  rhythmLabel: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: onSurfaceVariant,
+    marginBottom: 8,
+  },
+  rhythmTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.creamMuted,
     overflow: 'hidden',
   },
-  targetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+  rhythmFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: primary,
   },
-  targetOptionActive: { backgroundColor: colors.primaryAccentSoft },
-  targetOptionTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
-  targetOptionTitleActive: { color: colors.textPrimary },
-  targetOptionHint: { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
-  targetOptionCheck: { fontSize: 16, color: colors.primaryAccent, fontWeight: '800' },
-  targetUpdatedNotice: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.secondaryBorder,
-    backgroundColor: colors.secondaryCard,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  targetUpdatedNoticeText: { color: colors.secondaryAccent, fontSize: 12, fontWeight: '700' },
-
-  // Streak Banner
-  streakBanner: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  streakBannerUrgent: { backgroundColor: colors.dangerSoft, borderColor: '#E7C3BD' },
-  streakBannerText: { color: colors.primaryAccent, fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  streakBannerTextUrgent: { color: colors.danger },
-  streakBannerMeta: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 4 },
-
-  // Daily Run Button
-  dailyRunBtn: {
-    backgroundColor: colors.primaryAccent,
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: colors.primaryAccent,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 7,
-  },
-  dailyRunBtnEyebrow: { color: 'rgba(255,253,248,0.72)', fontSize: 11, fontWeight: '700', textAlign: 'center', marginBottom: 4, letterSpacing: 1.2, textTransform: 'uppercase' },
-  dailyRunBtnTitle: { color: colors.textOnAccent, fontSize: 20, fontWeight: '900', textAlign: 'center', fontFamily: 'PlayfairDisplay_700Bold' },
-  dailyRunBtnSub: { color: 'rgba(255,253,248,0.82)', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 6 },
-
-  progressOverviewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  progressOverviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  progressOverviewLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
-  progressOverviewTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', marginTop: 4, fontFamily: 'PlayfairDisplay_700Bold' },
-  progressOverviewArrow: { color: colors.primaryAccent, fontSize: 18, fontWeight: '700' },
-  progressOverviewText: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
-
-  // Section Title
-  sectionTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, marginBottom: 14, fontFamily: 'PlayfairDisplay_700Bold' },
-
-  // Mode Cards
-  modesGrid: { gap: 10 },
-  modeCard: {
-    position: 'relative',
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 18,
+  pickedList: { gap: 10, marginBottom: 16 },
+  lessonCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+    backgroundColor: white,
+    borderRadius: 24,
+    padding: 16,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    shadowColor: '#2F241B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    borderColor: 'rgba(216,194,186,0.2)',
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
   },
-  modeCardRecommended: { paddingTop: 32 },
-  recommendedBadge: {
-    position: 'absolute',
-    right: 12,
-    top: 10,
-    backgroundColor: colors.primaryAccentSoft,
-    borderWidth: 1,
-    borderColor: '#E8CBB5',
-    borderRadius: 999,
+  lessonThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  lessonImg: { width: '100%', height: '100%' },
+  lessonMid: { flex: 1, minWidth: 0 },
+  tagPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: tagBg,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    zIndex: 2,
+    borderRadius: 999,
+    marginBottom: 6,
   },
-  recommendedText: { color: colors.primaryAccent, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  modeIconBg: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  modeEmoji: { fontSize: 28 },
-  modeMiddle: { flex: 1 },
-  modeTitle: { fontSize: 16, fontWeight: '900', color: colors.textPrimary, fontFamily: 'PlayfairDisplay_700Bold' },
-  modeDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 3, lineHeight: 16 },
-  modeBadge: { marginTop: 6, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  modeArrow: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  modeArrowText: { fontSize: 16, fontWeight: '800' },
-
-  toolsGrid: { gap: 10 },
-  toolCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+  tagPillText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_600SemiBold',
+    color: tagText,
+    letterSpacing: 1.2,
+  },
+  lessonTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'NotoSerif_500Medium',
+    color: onSurface,
+  },
+  lessonSub: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'Manrope_500Medium',
+    color: onSurfaceVariant,
+    marginTop: 4,
+  },
+  lessonChevron: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    padding: 14,
+    borderColor: outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 14,
+  },
+  progressLinkText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: terracotta,
+  },
+  introLink: { alignItems: 'center', paddingBottom: 8 },
+  introLinkText: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: onSurfaceVariant },
+  bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FCF9F7',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(51,51,51,0.06)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  navInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
+  },
+  navItem: { alignItems: 'center', minWidth: 72 },
+  navLabel: {
+    marginTop: 4,
+    fontSize: 10,
+    fontFamily: 'NotoSerif_500Medium',
+    color: '#333',
+    opacity: 0.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  navLabelActive: {
+    marginTop: 4,
+    fontSize: 10,
+    fontFamily: 'NotoSerif_500Medium',
+    color: terracotta,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  navDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: terracotta,
+    marginTop: 4,
+  },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(59,49,38,0.25)' },
+  modal: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: white,
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: outlineVariant,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'NotoSerif_600SemiBold',
+    color: onSurface,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  toolIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  toolIcon: { fontSize: 22 },
-  toolTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', fontFamily: 'PlayfairDisplay_700Bold' },
-  toolDesc: { color: colors.textSecondary, fontSize: 12, marginTop: 2, lineHeight: 17 },
-  toolArrow: { color: colors.primaryAccent, fontSize: 16, fontWeight: '800' },
-  revisitIntroBtn: {
-    marginTop: 18,
-    marginBottom: 8,
+    padding: 14,
     borderRadius: 14,
+    marginBottom: 8,
+    backgroundColor: colors.creamSoft,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.surface,
-    paddingVertical: 14,
-    alignItems: 'center',
+    borderColor: outlineVariant,
   },
-  revisitIntroBtnText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-
-  // Language Modal
-  overlay: { flex: 1, backgroundColor: 'rgba(59,49,38,0.2)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
-  modal: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: 20,
-    paddingBottom: 18,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    shadowColor: '#2F241B',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, marginBottom: 20, textAlign: 'center', fontFamily: 'PlayfairDisplay_700Bold' },
-  modalItem: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, marginBottom: 8, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.primaryBorder },
-  modalItemActive: { borderWidth: 1.5, borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
-  modalFlag: { fontSize: 24 },
-  modalName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, flex: 1 },
-  check: { fontSize: 16, color: colors.primaryAccent, fontWeight: '800' },
+  modalItemActive: { borderColor: primary, borderWidth: 2, backgroundColor: 'rgba(255,219,204,0.35)' },
+  modalFlag: { fontSize: 22 },
+  modalName: { flex: 1, fontSize: 16, fontFamily: 'Manrope_500Medium', color: onSurface },
 });

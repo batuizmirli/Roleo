@@ -1,4 +1,12 @@
 export const colors = {
+  // Stitch-aligned semantic palette
+  terracotta: '#B06D50',
+  terracottaDark: '#884C32',
+  terracottaSoft: '#A56448',
+  cream: '#FCF9F8',
+  creamSoft: '#F6F3F2',
+  creamMuted: '#E7E2D9',
+
   background: '#F6F0E5',
   surface: '#FFFDF8',
   surfaceAlt: '#F1E9DD',

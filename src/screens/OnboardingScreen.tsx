@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,141 +10,190 @@ import {
   Platform,
   Alert,
   ImageBackground,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile } from '../types';
 
-const crowdConversationImage = require('../../assets/onboarding/crowd-conversation.jpg');
-const cafeOrderImage = require('../../assets/onboarding/cafe-order.jpg');
-const meetingConfidenceImage = require('../../assets/onboarding/meeting-confidence.jpg');
+const { width: SCREEN_W } = Dimensions.get('window');
 
+// ─── Images ────────────────────────────────────────────────────────────────
+const IMG_CROWD    = require('../../assets/onboarding/crowd-conversation.jpg');
+const IMG_TRAVEL   = require('../../assets/onboarding/travel-outcome.jpg');
+const IMG_SOCIAL   = require('../../assets/onboarding/friends-social.jpg');
+const IMG_CAFE     = require('../../assets/onboarding/cafe-order.jpg');
+const IMG_MEETING  = require('../../assets/onboarding/meeting-confidence.jpg');
+
+// ─── Data ──────────────────────────────────────────────────────────────────
 const LEARNING_LANGUAGES: Language[] = [
-  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-  { code: 'fr', name: 'French', flag: '🇫🇷' },
-  { code: 'de', name: 'German', flag: '🇩🇪' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹' },
+  { code: 'es', name: 'Spanish',    flag: '🇪🇸' },
+  { code: 'fr', name: 'French',     flag: '🇫🇷' },
+  { code: 'de', name: 'German',     flag: '🇩🇪' },
+  { code: 'it', name: 'Italian',    flag: '🇮🇹' },
   { code: 'pt', name: 'Portuguese', flag: '🇧🇷' },
-  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'en', name: 'English',    flag: '🇬🇧' },
 ];
 
 const NATIVE_LANGUAGES: Language[] = [
-  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'tr', name: 'Türkçe',    flag: '🇹🇷' },
+  { code: 'en', name: 'English',   flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch',   flag: '🇩🇪' },
+  { code: 'fr', name: 'Français',  flag: '🇫🇷' },
+  { code: 'es', name: 'Español',   flag: '🇪🇸' },
+  { code: 'it', name: 'Italiano',  flag: '🇮🇹' },
   { code: 'pt', name: 'Português', flag: '🇧🇷' },
-  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'ru', name: 'Русский',   flag: '🇷🇺' },
 ];
 
 const GOALS: UserGoal[] = [
-  { id: 'travel', label: 'Travel', emoji: '✈️', description: 'Get lost in a new city' },
-  { id: 'work', label: 'Work', emoji: '💼', description: 'Speak in meetings' },
-  { id: 'culture', label: 'Culture', emoji: '🎭', description: 'Music, film, art' },
-  { id: 'love', label: 'Social', emoji: '❤️', description: 'Connect with people' },
-  { id: 'exam', label: 'Exam', emoji: '📚', description: 'Get a language certificate' },
+  { id: 'travel',  label: 'Travel',  emoji: '✈️', description: 'Navigate new cities with ease' },
+  { id: 'work',    label: 'Work',    emoji: '💼', description: 'Speak up in meetings' },
+  { id: 'culture', label: 'Culture', emoji: '🎭', description: 'Music, film, literature' },
+  { id: 'love',    label: 'Social',  emoji: '❤️', description: 'Build real connections' },
+  { id: 'exam',    label: 'Exam',    emoji: '📚', description: 'Get certified' },
 ];
 
+// ─── Step config ───────────────────────────────────────────────────────────
 type Step = 'native' | 'language' | 'goal' | 'dream' | 'context' | 'emotion';
+const STEPS: Step[] = ['native', 'language', 'goal', 'dream', 'context', 'emotion'];
 
-type Props = {
-  onComplete: () => void;
+type StepTheme = {
+  image: any;
+  overlay: [string, string, string];
+  accent: string;
+  label: string;
+  headline: string;
+  sub: string;
 };
 
-const STEP_BACKGROUNDS: Record<Step, any> = {
-  native: crowdConversationImage,
-  language: crowdConversationImage,
-  goal: crowdConversationImage,
-  dream: cafeOrderImage,
-  context: cafeOrderImage,
-  emotion: meetingConfidenceImage,
-};
-
-const STEP_VISUALS: Record<Step, { eyebrow: string; caption: string }> = {
+const THEMES: Record<Step, StepTheme> = {
   native: {
-    eyebrow: 'Real-life scene',
-    caption: 'Kalabalık bir ortamda konuşan insanlar gibi gerçek anlara hazırlan.',
+    image: IMG_CROWD,
+    overlay: ['rgba(6,6,18,0.55)', 'rgba(6,6,18,0.78)', 'rgba(6,6,18,0.97)'],
+    accent: '#8B8FFF',
+    label: 'Your language',
+    headline: "What's your\nnative language?",
+    sub: "We'll explain things in the words you grew up with.",
   },
   language: {
-    eyebrow: 'Conversation flow',
-    caption: 'Yeni dilini sosyal bir ortamda, gerçek kişilerle kullanma hissi.',
+    image: IMG_TRAVEL,
+    overlay: ['rgba(4,14,10,0.50)', 'rgba(4,14,10,0.78)', 'rgba(4,14,10,0.97)'],
+    accent: '#34D399',
+    label: 'Your target',
+    headline: 'Which language\nwill you speak?',
+    sub: "Every session is built around real conversations in this language.",
   },
   goal: {
-    eyebrow: 'Your reason',
-    caption: 'Hedefin, hangi sahnelerde rahat konuşmak istediğini belirler.',
+    image: IMG_SOCIAL,
+    overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
+    accent: '#F472B6',
+    label: 'Your reason',
+    headline: 'Why are you\nlearning?',
+    sub: "Your goal shapes every scene we build for you.",
   },
   dream: {
-    eyebrow: 'Cafe scene',
-    caption: 'Bir kafede sipariş verirken doğal ve rahat hissettiğin anı kur.',
+    image: IMG_CAFE,
+    overlay: ['rgba(4,10,22,0.52)', 'rgba(4,10,22,0.80)', 'rgba(4,10,22,0.97)'],
+    accent: '#60A5FA',
+    label: 'Your vision',
+    headline: 'Imagine the\nmoment.',
+    sub: "Describe the exact scene you're working toward.",
   },
   context: {
-    eyebrow: 'Exact setup',
-    caption: 'Garson, masa, kalabalık ve anın detayları öğrenmeni güçlendirir.',
+    image: IMG_CAFE,
+    overlay: ['rgba(12,5,22,0.50)', 'rgba(12,5,22,0.80)', 'rgba(12,5,22,0.97)'],
+    accent: '#C084FC',
+    label: 'Your scene',
+    headline: 'Set the\nexact place.',
+    sub: "Where are you? Who are you speaking with?",
   },
   emotion: {
-    eyebrow: 'Confidence moment',
-    caption: 'Toplantıda ya da sosyal ortamda daha akıcı ve özgüvenli hisset.',
+    image: IMG_MEETING,
+    overlay: ['rgba(20,12,4,0.50)', 'rgba(20,12,4,0.80)', 'rgba(20,12,4,0.97)'],
+    accent: '#FBBF24',
+    label: 'Your feeling',
+    headline: 'How do you\nwant to feel?',
+    sub: "This becomes the emotional core of every practice session.",
   },
 };
 
+// ─── Props ─────────────────────────────────────────────────────────────────
+type Props = { onComplete: () => void };
+
+// ─── Component ─────────────────────────────────────────────────────────────
 export default function OnboardingScreen({ onComplete }: Props) {
-  const [step, setStep] = useState<Step>('native');
-  const [selectedNative, setSelectedNative] = useState<Language | null>(null);
+  const [step, setStep]                 = useState<Step>('native');
+  const [selectedNative, setSelectedNative]     = useState<Language | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
-  const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
-  const [dreamText, setDreamText] = useState('');
-  const [contextText, setContextText] = useState('');
-  const [emotionText, setEmotionText] = useState('');
+  const [selectedGoal, setSelectedGoal]         = useState<UserGoal | null>(null);
+  const [dreamText, setDreamText]       = useState('');
+  const [contextText, setContextText]   = useState('');
+  const [emotionText, setEmotionText]   = useState('');
+
+  const fadeAnim   = useRef(new Animated.Value(1)).current;
+  const slideAnim  = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  const currentIdx = STEPS.indexOf(step);
+  const theme = THEMES[step];
+
+  // animate progress bar
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: (currentIdx + 1) / STEPS.length,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [step]);
+
+  const transition = (nextStep: Step) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 160, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -24, duration: 160, useNativeDriver: true }),
+    ]).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(24);
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
+    });
+  };
+
+  const handleBack = () => {
+    const prev = STEPS[currentIdx - 1];
+    if (prev) transition(prev);
+  };
 
   const handleNativeSelect = (lang: Language) => {
     setSelectedNative(lang);
-    setTimeout(() => setStep('language'), 300);
+    setTimeout(() => transition('language'), 260);
   };
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
-    setTimeout(() => setStep('goal'), 300);
+    setTimeout(() => transition('goal'), 260);
   };
 
   const handleGoalSelect = (goal: UserGoal) => {
     setSelectedGoal(goal);
-    setTimeout(() => setStep('dream'), 300);
-  };
-
-  const handleBack = () => {
-    if (step === 'language') setStep('native');
-    else if (step === 'goal') setStep('language');
-    else if (step === 'dream') setStep('goal');
-    else if (step === 'context') setStep('dream');
-    else if (step === 'emotion') setStep('context');
+    setTimeout(() => transition('dream'), 260);
   };
 
   const handleDreamContinue = () => {
-    if (!dreamText.trim()) {
-      Alert.alert('Write your dream', 'Write something that motivates you.');
-      return;
-    }
-    setStep('context');
+    if (!dreamText.trim()) { Alert.alert('Write your dream', 'Describe a moment that motivates you.'); return; }
+    transition('context');
   };
 
   const handleContextContinue = () => {
-    if (!contextText.trim()) {
-      Alert.alert('Add the scene', 'Where are you and who are you talking to?');
-      return;
-    }
-    setStep('emotion');
+    if (!contextText.trim()) { Alert.alert('Set the scene', 'Where are you and who are you talking to?'); return; }
+    transition('emotion');
   };
 
-  const handleEmotionContinue = () => {
-    if (!emotionText.trim()) {
-      Alert.alert('Add the feeling', 'How do you want to feel in that moment?');
-      return;
-    }
-    handleComplete();
-  };
-
-  const handleComplete = async () => {
+  const handleEmotionContinue = async () => {
+    if (!emotionText.trim()) { Alert.alert('Add the feeling', 'How do you want to feel?'); return; }
     const profile: UserProfile = {
       language: selectedLanguage!,
       nativeLanguage: selectedNative!,
@@ -160,435 +209,532 @@ export default function OnboardingScreen({ onComplete }: Props) {
       xp: 0,
       level: 'beginner',
     };
-
     await AsyncStorage.setItem('userProfile', JSON.stringify(profile));
     onComplete();
   };
 
-  const stepIndicator = ['native', 'language', 'goal', 'dream', 'context', 'emotion'];
-  const currentStepIndex = stepIndicator.indexOf(step);
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  const TEXT_STEPS: Partial<Record<Step, { label: string; handler: () => void }>> = {
+    dream:   { label: 'Devam Et',      handler: handleDreamContinue },
+    context: { label: 'Devam Et',      handler: handleContextContinue },
+    emotion: { label: 'Roleoya Başla', handler: handleEmotionContinue },
+  };
+
+  const footerCta = TEXT_STEPS[step];
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ImageBackground source={STEP_BACKGROUNDS[step]} style={styles.backgroundImage}>
-        <View style={styles.backgroundOverlay} />
+      {/* ── Full-bleed background image ── */}
+      <ImageBackground source={theme.image} style={StyleSheet.absoluteFill} resizeMode="cover">
+        <LinearGradient
+          colors={theme.overlay}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
       </ImageBackground>
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.contentPanel}>
+      {/* ── Progress bar ── */}
+      <View style={styles.progressTrack}>
+        <Animated.View style={[styles.progressFill, { width: progressWidth, backgroundColor: theme.accent }]} />
+      </View>
 
-          {/* Step indicator */}
-          <View style={styles.stepDots}>
-            {stepIndicator.map((_, i) => (
-              <View key={i} style={[styles.dot, i === currentStepIndex && styles.dotActive, i < currentStepIndex && styles.dotDone]} />
-            ))}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+
+          {/* ── Top bar ── */}
+          <View style={styles.topBar}>
+            {currentIdx > 0 ? (
+              <TouchableOpacity onPress={handleBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={[styles.backArrow, { color: theme.accent }]}>←</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 32 }} />
+            )}
+            <Text style={[styles.logoText, { color: theme.accent }]}>roleo</Text>
+            <Text style={styles.stepCounter}>{currentIdx + 1} / {STEPS.length}</Text>
           </View>
 
-          <ImageBackground source={STEP_BACKGROUNDS[step]} imageStyle={styles.heroImageStyle} style={styles.heroImageCard}>
-            <View style={styles.heroOverlay}>
-              <Text style={styles.heroEyebrow}>{STEP_VISUALS[step].eyebrow}</Text>
-              <Text style={styles.heroCaption}>{STEP_VISUALS[step].caption}</Text>
-            </View>
-          </ImageBackground>
+          {/* ── Step label ── */}
+          <Text style={[styles.eyebrow, { color: theme.accent }]}>{theme.label}</Text>
 
-        {/* NATIVE LANGUAGE */}
-        {step === 'native' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>What's your native language?</Text>
-            <Text style={styles.subtitle}>We'll explain things in your language.</Text>
-            <View style={styles.nativeGrid}>
-              {NATIVE_LANGUAGES.map(lang => (
-                <TouchableOpacity
-                  key={lang.code}
-                  style={[styles.nativeCard, selectedNative?.code === lang.code && styles.cardActive]}
-                  onPress={() => handleNativeSelect(lang)}
-                >
-                  <Text style={styles.nativeFlag}>{lang.flag}</Text>
-                  <Text style={styles.nativeName}>{lang.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+          {/* ── Headline ── */}
+          <Text style={styles.headline}>{theme.headline}</Text>
 
-        {/* LEARNING LANGUAGE */}
-        {step === 'language' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>Which language do you want to learn?</Text>
-            <Text style={styles.subtitle}>You'll practice every day with real-life scenes.</Text>
-            <View style={styles.langGrid}>
-              {LEARNING_LANGUAGES.filter(l => l.code !== selectedNative?.code).map(lang => (
-                <TouchableOpacity
-                  key={lang.code}
-                  style={[styles.langCard, selectedLanguage?.code === lang.code && styles.cardActive]}
-                  onPress={() => handleLanguageSelect(lang)}
-                >
-                  <Text style={styles.langFlag}>{lang.flag}</Text>
-                  <Text style={styles.langName}>{lang.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+          {/* ── Subtitle ── */}
+          <Text style={styles.subtitle}>{theme.sub}</Text>
 
-        {/* GOAL */}
-        {step === 'goal' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>Why do you want to learn?</Text>
-            <Text style={styles.subtitle}>
-              {selectedLanguage?.flag} {selectedLanguage?.name} — we'll build your personal curriculum.
-            </Text>
-            <View style={styles.goalsList}>
-              {GOALS.map(goal => (
-                <TouchableOpacity
-                  key={goal.id}
-                  style={[styles.goalCard, selectedGoal?.id === goal.id && styles.cardActive]}
-                  onPress={() => handleGoalSelect(goal)}
-                >
-                  <Text style={styles.goalEmoji}>{goal.emoji}</Text>
-                  <View style={styles.goalText}>
-                    <Text style={styles.goalLabel}>{goal.label}</Text>
-                    <Text style={styles.goalDesc}>{goal.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+          {/* ── Step content ── */}
+          {step === 'native' && (
+            <NativeStep
+              selected={selectedNative}
+              onSelect={handleNativeSelect}
+              accent={theme.accent}
+            />
+          )}
 
-        {/* DREAM */}
-        {step === 'dream' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>Imagine the moment.</Text>
-            <Text style={styles.subtitle}>
-              {selectedGoal?.emoji} {selectedGoal?.label} — describe the exact scene you're dreaming of.
-            </Text>
-            <View style={styles.dreamBox}>
-              <Text style={styles.dreamHint}>e.g. "I'm ordering coffee in Barcelona and the waiter smiles back at me."</Text>
-              <TextInput
-                style={styles.dreamInput}
-                placeholder="Describe your dream moment..."
-                placeholderTextColor="#9AABB8"
-                multiline
-                numberOfLines={5}
-                value={dreamText}
-                onChangeText={setDreamText}
-              />
-            </View>
-            <TouchableOpacity style={styles.button} onPress={handleDreamContinue}>
-              <Text style={styles.buttonText}>Continue →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {step === 'language' && (
+            <LanguageStep
+              selected={selectedLanguage}
+              excluded={selectedNative?.code}
+              onSelect={handleLanguageSelect}
+              accent={theme.accent}
+            />
+          )}
 
-        {step === 'context' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>Set the exact scene.</Text>
-            <Text style={styles.subtitle}>Where are you, and who are you speaking with?</Text>
-            <View style={styles.dreamBox}>
-              <Text style={styles.dreamHint}>e.g. “La Rambla'da bir kafedeyim ve garson siparişimi bekliyor.”</Text>
-              <TextInput
-                style={styles.dreamInput}
-                placeholder="Describe the setting and person..."
-                placeholderTextColor="#9AABB8"
-                multiline
-                numberOfLines={4}
-                value={contextText}
-                onChangeText={setContextText}
-              />
-            </View>
-            <TouchableOpacity style={styles.button} onPress={handleContextContinue}>
-              <Text style={styles.buttonText}>Continue →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {step === 'goal' && (
+            <GoalStep
+              selected={selectedGoal}
+              language={selectedLanguage}
+              onSelect={handleGoalSelect}
+              accent={theme.accent}
+            />
+          )}
 
-        {step === 'emotion' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.logo}>roleo</Text>
-            <Text style={styles.title}>How do you want to feel?</Text>
-            <Text style={styles.subtitle}>This becomes the emotional goal behind your practice.</Text>
-            <View style={styles.dreamBox}>
-              <Text style={styles.dreamHint}>e.g. “cool, relaxed and natural” / “confident in the meeting”</Text>
-              <TextInput
-                style={styles.dreamInput}
-                placeholder="Describe the feeling you want..."
-                placeholderTextColor="#9AABB8"
-                multiline
-                numberOfLines={4}
-                value={emotionText}
-                onChangeText={setEmotionText}
-              />
-            </View>
-            <TouchableOpacity style={styles.button} onPress={handleEmotionContinue}>
-              <Text style={styles.buttonText}>Start My Journey →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {step === 'dream' && (
+            <TextStep
+              value={dreamText}
+              onChange={setDreamText}
+              hint={`e.g. "Ordering coffee in Barcelona, and the waiter smiles back."`}
+              placeholder="Describe your dream moment..."
+              accent={theme.accent}
+            />
+          )}
 
-        </View>
+          {step === 'context' && (
+            <TextStep
+              value={contextText}
+              onChange={setContextText}
+              hint={`e.g. "A busy café in La Rambla — a waiter waiting for my order."`}
+              placeholder="Where are you, who's there..."
+              accent={theme.accent}
+            />
+          )}
+
+          {step === 'emotion' && (
+            <TextStep
+              value={emotionText}
+              onChange={setEmotionText}
+              hint={`e.g. "Cool, relaxed, totally natural" — "Confident in the meeting"`}
+              placeholder="Describe how that feels..."
+              accent={theme.accent}
+            />
+          )}
+
+        </Animated.View>
       </ScrollView>
+
+      {/* ── Fixed bottom CTA (dream / context / emotion steps) ── */}
+      {footerCta && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.ctaBtn, { backgroundColor: theme.accent }]}
+            onPress={footerCta.handler}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.ctaText}>{footerCta.label}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
     </KeyboardAvoidingView>
   );
 }
 
+// ─── Sub-components ────────────────────────────────────────────────────────
+
+function NativeStep({ selected, onSelect, accent }: {
+  selected: Language | null;
+  onSelect: (l: Language) => void;
+  accent: string;
+}) {
+  return (
+    <View style={subStyles.grid}>
+      {NATIVE_LANGUAGES.map(lang => {
+        const active = selected?.code === lang.code;
+        return (
+          <TouchableOpacity
+            key={lang.code}
+            style={[subStyles.langCard, active && { borderColor: accent, backgroundColor: `${accent}18` }]}
+            onPress={() => onSelect(lang)}
+            activeOpacity={0.7}
+          >
+            <Text style={subStyles.flag}>{lang.flag}</Text>
+            <Text style={[subStyles.langName, active && { color: accent }]}>{lang.name}</Text>
+            {active && <View style={[subStyles.activeDot, { backgroundColor: accent }]} />}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function LanguageStep({ selected, excluded, onSelect, accent }: {
+  selected: Language | null;
+  excluded?: string;
+  onSelect: (l: Language) => void;
+  accent: string;
+}) {
+  const langs = LEARNING_LANGUAGES.filter(l => l.code !== excluded);
+  return (
+    <View style={subStyles.langBigGrid}>
+      {langs.map(lang => {
+        const active = selected?.code === lang.code;
+        return (
+          <TouchableOpacity
+            key={lang.code}
+            style={[subStyles.langBigCard, active && { borderColor: accent, backgroundColor: `${accent}18` }]}
+            onPress={() => onSelect(lang)}
+            activeOpacity={0.7}
+          >
+            <Text style={subStyles.bigFlag}>{lang.flag}</Text>
+            <Text style={[subStyles.bigLangName, active && { color: accent }]}>{lang.name}</Text>
+            {active && <View style={[subStyles.checkBadge, { backgroundColor: accent }]}>
+              <Text style={subStyles.checkMark}>✓</Text>
+            </View>}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function GoalStep({ selected, language, onSelect, accent }: {
+  selected: UserGoal | null;
+  language: Language | null;
+  onSelect: (g: UserGoal) => void;
+  accent: string;
+}) {
+  return (
+    <View style={subStyles.goalList}>
+      {language && (
+        <View style={[subStyles.langPill, { borderColor: `${accent}60` }]}>
+          <Text style={[subStyles.langPillText, { color: accent }]}>
+            {language.flag} {language.name}
+          </Text>
+        </View>
+      )}
+      {GOALS.map(goal => {
+        const active = selected?.id === goal.id;
+        return (
+          <TouchableOpacity
+            key={goal.id}
+            style={[subStyles.goalRow, active && { borderColor: accent, backgroundColor: `${accent}14` }]}
+            onPress={() => onSelect(goal)}
+            activeOpacity={0.7}
+          >
+            <Text style={subStyles.goalEmoji}>{goal.emoji}</Text>
+            <View style={subStyles.goalTextWrap}>
+              <Text style={[subStyles.goalLabel, active && { color: accent }]}>{goal.label}</Text>
+              <Text style={subStyles.goalDesc}>{goal.description}</Text>
+            </View>
+            <View style={[subStyles.goalCircle, active && { backgroundColor: accent, borderColor: accent }]}>
+              {active && <Text style={subStyles.goalCheck}>✓</Text>}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function TextStep({ value, onChange, hint, placeholder, accent }: {
+  value: string;
+  onChange: (t: string) => void;
+  hint: string;
+  placeholder: string;
+  accent: string;
+}) {
+  return (
+    <View style={[subStyles.inputBox, { borderColor: `${accent}40` }]}>
+      <Text style={subStyles.hintText}>{hint}</Text>
+      <View style={[subStyles.divider, { backgroundColor: `${accent}30` }]} />
+      <TextInput
+        style={subStyles.textInput}
+        placeholder={placeholder}
+        placeholderTextColor="rgba(255,255,255,0.25)"
+        multiline
+        numberOfLines={4}
+        value={value}
+        onChangeText={onChange}
+        selectionColor={accent}
+      />
+    </View>
+  );
+}
+
+// ─── Styles ────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#10211A',
+    backgroundColor: '#050508',
   },
-  backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+  progressTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    zIndex: 10,
   },
-  backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 22, 16, 0.48)',
+  progressFill: {
+    height: 3,
+    borderRadius: 2,
   },
   scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  contentPanel: {
-    backgroundColor: 'rgba(247, 250, 246, 0.94)',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-  },
-  stepDots: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 18,
-  },
-  heroImageCard: {
-    height: 190,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 24,
-    justifyContent: 'flex-end',
-  },
-  heroImageStyle: {
-    borderRadius: 20,
-  },
-  heroOverlay: {
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(7, 20, 15, 0.35)',
-  },
-  heroEyebrow: {
-    color: '#E8F8EE',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  heroCaption: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D4E8DC',
-  },
-  dotActive: {
-    backgroundColor: '#1B9C5A',
-    width: 20,
-  },
-  dotDone: {
-    backgroundColor: '#1B9C5A66',
-  },
-  stepContainer: {
     flex: 1,
   },
-  logo: {
-    fontSize: 28,
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: 58,
+    paddingBottom: 48,
+    paddingHorizontal: 24,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 52,
+  },
+  backArrow: {
+    fontSize: 26,
+    fontWeight: '300',
+    lineHeight: 30,
+    width: 32,
+  },
+  logoText: {
+    fontSize: 22,
     fontWeight: '900',
-    color: '#1B9C5A',
-    letterSpacing: -0.3,
-    marginBottom: 32,
+    letterSpacing: -0.5,
     fontFamily: 'PlayfairDisplay_900Black',
   },
-  title: {
-    fontSize: 28,
+  stepCounter: {
+    color: 'rgba(255,255,255,0.30)',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    width: 42,
+    textAlign: 'right',
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+    opacity: 0.9,
+  },
+  headline: {
+    color: '#FFFFFF',
+    fontSize: 42,
     fontWeight: '800',
-    color: '#1A2B3C',
-    marginBottom: 10,
-    lineHeight: 34,
-    fontFamily: 'PlayfairDisplay_700Bold',
+    lineHeight: 50,
+    letterSpacing: -1,
+    fontFamily: 'PlayfairDisplay_900Black',
+    marginBottom: 16,
   },
   subtitle: {
+    color: 'rgba(255,255,255,0.55)',
     fontSize: 15,
-    color: '#6B7B8D',
-    marginBottom: 32,
-    lineHeight: 22,
-    fontWeight: '500',
+    lineHeight: 23,
+    fontWeight: '400',
+    marginBottom: 40,
+    maxWidth: 300,
   },
-  backBtn: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
+  footer: {
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    paddingTop: 12,
+    backgroundColor: 'transparent',
   },
-  backText: {
-    color: '#6B7B8D',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  nativeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  nativeCard: {
-    width: '47%',
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
+  ctaBtn: {
+    borderRadius: 18,
+    paddingVertical: 18,
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1.5,
-    borderColor: '#E8EDF2',
   },
-  nativeFlag: {
-    fontSize: 22,
+  ctaText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  nativeName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A2B3C',
-    flex: 1,
-  },
-  langGrid: {
+});
+
+const subStyles = StyleSheet.create({
+  // Native / Language small grid
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   langCard: {
-    width: '46%',
-    backgroundColor: '#FFF',
+    width: (SCREEN_W - 58) / 2,
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E8EDF2',
-  },
-  langFlag: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  langName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A2B3C',
-  },
-  cardActive: {
-    borderColor: '#1B9C5A',
-    backgroundColor: '#F0FAF4',
-  },
-  goalsList: {
-    gap: 12,
-  },
-  goalCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 16,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    position: 'relative',
+  },
+  flag: {
+    fontSize: 22,
+  },
+  langName: {
+    color: 'rgba(255,255,255,0.80)',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  activeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+
+  // Language big grid
+  langBigGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  langBigCard: {
+    width: (SCREEN_W - 60) / 2,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#E8EDF2',
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 24,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bigFlag: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  bigLangName: {
+    color: 'rgba(255,255,255,0.80)',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMark: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Goal list
+  goalList: {
+    gap: 10,
+  },
+  langPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  langPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  goalRow: {
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 16,
   },
   goalEmoji: {
-    fontSize: 28,
+    fontSize: 26,
   },
-  goalText: {
+  goalTextWrap: {
     flex: 1,
   },
   goalLabel: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A2B3C',
     marginBottom: 2,
     fontFamily: 'PlayfairDisplay_700Bold',
   },
   goalDesc: {
-    fontSize: 13,
-    color: '#9AABB8',
+    color: 'rgba(255,255,255,0.40)',
+    fontSize: 12,
+    fontWeight: '400',
   },
-  dreamBox: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
+  goalCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E8EDF2',
+    borderColor: 'rgba(255,255,255,0.20)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dreamHint: {
+  goalCheck: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  inputBox: {
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 20,
+  },
+  hintText: {
+    color: 'rgba(255,255,255,0.35)',
     fontSize: 13,
-    color: '#9AABB8',
-    marginBottom: 12,
     fontStyle: 'italic',
     lineHeight: 20,
-    fontWeight: '500',
+    marginBottom: 14,
   },
-  dreamInput: {
-    color: '#1A2B3C',
-    fontSize: 15,
-    lineHeight: 24,
-    fontWeight: '500',
-    textAlignVertical: 'top',
-    minHeight: 100,
+  divider: {
+    height: 1,
+    marginBottom: 14,
   },
-  apiInput: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 18,
-    color: '#1A2B3C',
-    fontSize: 15,
-    borderWidth: 1.5,
-    borderColor: '#E8EDF2',
-    marginBottom: 24,
-  },
-  button: {
-    backgroundColor: '#1B9C5A',
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-  },
-  buttonText: {
+  textInput: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
-    fontFamily: 'PlayfairDisplay_700Bold',
+    lineHeight: 26,
+    fontWeight: '400',
+    textAlignVertical: 'top',
+    minHeight: 110,
   },
 });

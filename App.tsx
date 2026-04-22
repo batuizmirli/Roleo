@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
+import { NotoSerif_500Medium, NotoSerif_600SemiBold, NotoSerif_700Bold } from '@expo-google-fonts/noto-serif';
+import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold } from '@expo-google-fonts/manrope';
+import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -55,7 +59,17 @@ type Screen =
 export default function App() {
   type RunState = 'idle' | 'flash' | 'truefake' | 'scene' | 'complete';
 
-  const [fontsLoaded] = useFonts({ PlayfairDisplay_700Bold, PlayfairDisplay_900Black });
+  const [fontsLoaded] = useFonts({
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_900Black,
+    NotoSerif_500Medium,
+    NotoSerif_600SemiBold,
+    NotoSerif_700Bold,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Pacifico_400Regular,
+  });
 
   const [screen, setScreen] = useState<Screen>('onboarding');
   const [runState, setRunState] = useState<RunState>('idle');
@@ -411,34 +425,36 @@ export default function App() {
 
   const FAB_HIDDEN_SCREENS: Screen[] = [
     'intro', 'onboarding', 'startup-language', 'first-session-ready',
-    'first-session-next', 'instant-learn', 'stage-result', 'debug',
+    'first-session-next', 'instant-learn', 'stage-result', 'debug', 'home',
   ];
   const showFab = !loading && runState === 'idle' && !FAB_HIDDEN_SCREENS.includes(screen);
 
   if (loading || !fontsLoaded) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F6F0E5' }}>
-      <StatusBar style="dark" />
-      <Animated.View style={{ flex: 1, backgroundColor: '#F6F0E5', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        {renderScreen()}
-      </Animated.View>
-      {showFab && (
-        <TouchableOpacity style={fabStyles.fab} onPress={() => goTo('instant-learn')} activeOpacity={0.85}>
-          <Text style={fabStyles.fabIcon}>⚡</Text>
-        </TouchableOpacity>
-      )}
-      {runState === 'idle' && selectedScenario && (
-        <ScenarioPrepModal
-          visible={showPrepModal}
-          scenario={selectedScenario}
-          profile={currentProfile}
-          playCount={currentPlayCount}
-          onSkip={() => { setShowPrepModal(false); goTo('scenario'); }}
-          onEnter={(bonus) => { setPrepBonus(bonus); setShowPrepModal(false); goTo('scenario'); }}
-        />
-      )}
-    </View>
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: '#F6F0E5' }}>
+        <StatusBar style="dark" />
+        <Animated.View style={{ flex: 1, backgroundColor: '#F6F0E5', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          {renderScreen()}
+        </Animated.View>
+        {showFab && (
+          <TouchableOpacity style={fabStyles.fab} onPress={() => goTo('instant-learn')} activeOpacity={0.85}>
+            <Text style={fabStyles.fabIcon}>⚡</Text>
+          </TouchableOpacity>
+        )}
+        {runState === 'idle' && selectedScenario && (
+          <ScenarioPrepModal
+            visible={showPrepModal}
+            scenario={selectedScenario}
+            profile={currentProfile}
+            playCount={currentPlayCount}
+            onSkip={() => { setShowPrepModal(false); goTo('scenario'); }}
+            onEnter={(bonus) => { setPrepBonus(bonus); setShowPrepModal(false); goTo('scenario'); }}
+          />
+        )}
+      </View>
+    </SafeAreaProvider>
   );
 }
 

@@ -166,41 +166,45 @@ export default function PronunciationScreen({ onBack }: Props) {
         </View>
 
         {tab === 'words' ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
-            {topicOptions.map((topic) => {
-              const active = topic.id === wordTopic;
-              return (
-                <TouchableOpacity
-                  key={topic.id}
-                  onPress={() => setWordTopic(topic.id)}
-                  style={[styles.subTabBtn, active && styles.subTabBtnActive]}
-                >
-                  <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
-                    {WORD_TOPIC_ICONS[topic.id]} {topic.title}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.subTabBleed}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
+              {topicOptions.map((topic) => {
+                const active = topic.id === wordTopic;
+                return (
+                  <TouchableOpacity
+                    key={topic.id}
+                    onPress={() => setWordTopic(topic.id)}
+                    style={[styles.subTabBtn, active && styles.subTabBtnActive]}
+                  >
+                    <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
+                      {WORD_TOPIC_ICONS[topic.id]} {topic.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         ) : null}
 
         {tab === 'numbers' ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
-            {rangeOptions.map((range) => {
-              const active = range.id === numberRange;
-              return (
-                <TouchableOpacity
-                  key={range.id}
-                  onPress={() => setNumberRange(range.id)}
-                  style={[styles.subTabBtn, active && styles.subTabBtnActive]}
-                >
-                  <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
-                    {RANGE_ICONS[range.id]} {range.title}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.subTabBleed}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
+              {rangeOptions.map((range) => {
+                const active = range.id === numberRange;
+                return (
+                  <TouchableOpacity
+                    key={range.id}
+                    onPress={() => setNumberRange(range.id)}
+                    style={[styles.subTabBtn, active && styles.subTabBtnActive]}
+                  >
+                    <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
+                      {RANGE_ICONS[range.id]} {range.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         ) : null}
 
         <TextInput
@@ -293,10 +297,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
   },
+  /** Counteracts `scroll` horizontal padding so topic/range chips span full screen width. */
+  subTabBleed: {
+    marginHorizontal: -20,
+    alignSelf: 'stretch',
+  },
   subTabRow: {
     gap: 8,
     paddingBottom: 10,
-    paddingRight: 8,
+    paddingHorizontal: 12,
   },
   subTabBtn: {
     backgroundColor: colors.surface,

@@ -1,155 +1,139 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  ImageBackground,
+  Easing,
   PanResponder,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
-
-const crowdImg = require('../../assets/onboarding/crowd-conversation.jpg');
-const cafeImg = require('../../assets/onboarding/cafe-order.jpg');
-const meetingImg = require('../../assets/onboarding/meeting-confidence.jpg');
-const friendsImg = require('../../assets/onboarding/friends-social.jpg');
 
 type Props = {
   onFinish: () => void;
 };
 
-type IntroSlide = {
-  id: string;
-  image: any;
-  eyebrow: string;
+type IntroFeature = {
+  icon: string;
   title: string;
   subtitle: string;
-  bullets: string[];
-  overlayColor: string;
+};
+
+type IntroSlide = {
+  id: string;
+  heading: string;
+  lead: string;
+  description: string;
+  features: IntroFeature[];
 };
 
 const SLIDES: IntroSlide[] = [
   {
     id: 'welcome',
-    image: crowdImg,
-    eyebrow: "Roleo'ya Hoş Geldin",
-    title: 'Gerçek sahnelerde\npratik yap.',
-    subtitle: 'Dil öğrenmeyi hızlı, eğlenceli ve sürdürülebilir hale getirir.',
-    bullets: [
-      'Kısa ama etkili oyun döngüleri',
-      'Her gün devam etmeni sağlayan yapı',
-      'Gelişimini anlık görme',
+    heading: 'Hoş Geldin',
+    lead: 'Yeni Bir Dil, Yeni Bir Sen.',
+    description: 'Dünyayı kendi dillerinde keşfetmeye hazır mısın?',
+    features: [
+      { icon: '🌍', title: 'Gerçek Bağlamlar', subtitle: 'Kitaplardan değil, hayattan öğrenin.' },
+      { icon: '🗣️', title: 'Akıcı Konuşma', subtitle: 'Yapay zeka ile günlük pratikler yapın.' },
+      { icon: '🎓', title: 'Akıllı İlerleme', subtitle: 'Size özel hazırlanan öğrenme yolu.' },
     ],
-    overlayColor: 'rgba(6, 18, 12, 0.62)',
   },
   {
     id: 'speak',
-    image: cafeImg,
-    eyebrow: 'Sahne Modu',
-    title: 'Gerçek hayat\nkonuşmaları.',
-    subtitle: 'Kafeden iş toplantısına, seyahate kadar onlarca gerçek senaryo.',
-    bullets: [
-      'Farklı sosyal durumlar: kafe, iş, seyahat',
-      'Doğal / orta / garip cevap farkını öğrenme',
-      'Anlık geri bildirim ve toparlama ipuçları',
+    heading: 'Sahne Modu',
+    lead: 'Gerçek hayat konuşmaları.',
+    description: 'Kafeden iş toplantısına, seyahate kadar onlarca gerçek senaryo.',
+    features: [
+      { icon: '☕', title: 'Farklı sosyal durumlar', subtitle: 'Kafe, iş, seyahat ve dahası' },
+      { icon: '🧠', title: 'Nüansları keşfet', subtitle: 'Doğal / orta / garip cevap farkını öğrenme' },
+      { icon: '⚡', title: 'Anlık geri bildirim', subtitle: 'Toparlama ipuçları ve düzeltmeler' },
     ],
-    overlayColor: 'rgba(5, 14, 22, 0.60)',
   },
   {
     id: 'arcade',
-    image: meetingImg,
-    eyebrow: 'Mini-Game Modları',
-    title: 'Hızlı oyunlarla\nrefleks kazan.',
-    subtitle: 'Refleks ve dil hissini aynı anda güçlendiren kısa modlar.',
-    bullets: [
-      'Flash Pick ile hız ve kelime eşleştirme',
-      'True or Fake ile doğru/yanlış sezgisi',
-      'Combo sistemiyle akışa girme',
+    heading: 'Mini-Game Modları',
+    lead: 'Hızlı oyunlarla refleks kazan.',
+    description: 'Refleks ve dil hissini aynı anda güçlendiren kısa modlar.',
+    features: [
+      { icon: '⚡', title: 'Flash Pick', subtitle: 'Hız ve kelime eşleştirme' },
+      { icon: '📏', title: 'True or Fake', subtitle: 'Doğru/yanlış sezgisi' },
+      { icon: '🗲', title: 'Combo Sistemi', subtitle: 'Süreklilikle akışa girme' },
     ],
-    overlayColor: 'rgba(10, 8, 22, 0.65)',
   },
   {
     id: 'value',
-    image: friendsImg,
-    eyebrow: 'Sana Ne Katar?',
-    title: 'Özgüvenli ve\ndoğal konuş.',
-    subtitle: 'Kısa sürede daha akıcı ve kalıcı bir dil hissi.',
-    bullets: [
-      'Hata farkındalığı ve doğru kalıplar',
-      'Düzenli pratikle kalıcı ilerleme',
-      'Günlük kullanımda gerçek ifade üretimi',
+    heading: 'Sana Ne Katar?',
+    lead: 'Özgüvenli ve doğal konuş.',
+    description: 'Kısa sürede daha akıcı ve kalıcı bir dil hissi.',
+    features: [
+      { icon: '✓', title: 'Hata farkındalığı', subtitle: 'Hataları yakalayıp doğru kalıplarla yer değiştirin.' },
+      { icon: '↗', title: 'Kalıcı ilerleme', subtitle: 'Düzenli pratikle dil bilgisi kas hafızasına dönüşür.' },
+      { icon: '💬', title: 'Gerçek ifade üretimi', subtitle: 'Günlük kullanımda doğal ve özgün cümleler kurun.' },
     ],
-    overlayColor: 'rgba(4, 14, 10, 0.60)',
   },
 ];
 
 export default function RoleoIntroScreen({ onFinish }: Props) {
+  const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
-
-  // Two-layer crossfade state
-  const [bgBottom, setBgBottom] = useState<IntroSlide>(SLIDES[0]);
-  const [bgTop, setBgTop] = useState<IntroSlide>(SLIDES[0]);
-  const bgTopOpacity = useRef(new Animated.Value(0)).current;
-
-  // Text animation
-  const textOpacity = useRef(new Animated.Value(1)).current;
-  const textTranslateY = useRef(new Animated.Value(0)).current;
-
-  // Dot animations
-  const dotWidths = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 22 : 6))).current;
-  const dotAlphas = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-
+  const transitioningRef = useRef(false);
+  const [nextIndex, setNextIndex] = useState<number | null>(null);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value((index + 1) / SLIDES.length)).current;
   const slide = useMemo(() => SLIDES[index], [index]);
   const isLast = index === SLIDES.length - 1;
+  const cardWidth = Math.min(width - 28, 380);
+  const cardMinHeight = Math.min(Math.max(height * 0.62, 500), 700);
+  const contentWidth = Math.max(cardWidth - 40, 260);
+  const contentHeight = Math.max(cardMinHeight - 96, 380);
 
   const animateTo = (nextIndex: number) => {
-    const nextSlide = SLIDES[nextIndex];
-    const currentSlide = SLIDES[index];
+    if (transitioningRef.current || nextIndex === indexRef.current) return;
+    const dir: 1 | -1 = nextIndex > indexRef.current ? 1 : -1;
+    transitioningRef.current = true;
+    setDirection(dir);
+    setNextIndex(nextIndex);
+    slideAnim.setValue(0);
 
-    // Animate dots
     Animated.parallel([
-      Animated.timing(dotWidths[index], { toValue: 6, duration: 220, useNativeDriver: false }),
-      Animated.timing(dotWidths[nextIndex], { toValue: 22, duration: 220, useNativeDriver: false }),
-      Animated.timing(dotAlphas[index], { toValue: 0, duration: 220, useNativeDriver: false }),
-      Animated.timing(dotAlphas[nextIndex], { toValue: 1, duration: 220, useNativeDriver: false }),
-    ]).start();
-
-    if (nextSlide.image !== currentSlide.image) {
-      // Reset top opacity FIRST (bgBottom already shows currentSlide → no flash)
-      bgTopOpacity.setValue(0);
-      setBgTop(nextSlide);
-      Animated.timing(bgTopOpacity, {
+      Animated.timing(slideAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          // Silently sync bgBottom — don't touch opacity here (avoids 1-frame flash)
-          setBgBottom(nextSlide);
-        }
-      });
-    }
-
-    // Text: fade out → swap → fade in
-    Animated.parallel([
-      Animated.timing(textOpacity, { toValue: 0, duration: 130, useNativeDriver: true }),
-      Animated.timing(textTranslateY, { toValue: 10, duration: 130, useNativeDriver: true }),
-    ]).start(() => {
+      }),
+      Animated.timing(progressAnim, {
+        toValue: (nextIndex + 1) / SLIDES.length,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]).start(({ finished }) => {
+      if (!finished) return;
+      // Commit the new slide first, then reset animation on next frame.
+      // This prevents a 1-frame flash back to the old slide.
       setIndex(nextIndex);
       indexRef.current = nextIndex;
-      textTranslateY.setValue(-10);
-      Animated.parallel([
-        Animated.timing(textOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(textTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
+      setNextIndex(null);
+      requestAnimationFrame(() => {
+        slideAnim.setValue(0);
+        transitioningRef.current = false;
+      });
     });
   };
 
   const onNext = () => {
-    if (isLast) { onFinish(); return; }
+    if (isLast) {
+      onFinish();
+      return;
+    }
     animateTo(index + 1);
   };
 
@@ -161,15 +145,15 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
       onPanResponderRelease: (_, g) => {
-        const cur = indexRef.current;
+        if (transitioningRef.current) return;
+        const current = indexRef.current;
         if (g.dx < -40) {
-          if (cur >= SLIDES.length - 1) { onFinish(); return; }
-          animateTo(cur + 1);
-        } else if (g.dx > 40) {
-          if (cur <= 0) return;
-          animateTo(cur - 1);
+          if (current >= SLIDES.length - 1) onFinish();
+          else animateTo(current + 1);
+        } else if (g.dx > 40 && current > 0) {
+          animateTo(current - 1);
         }
       },
     })
@@ -177,214 +161,314 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
 
   return (
     <View style={styles.root} {...panResponder.panHandlers}>
-      {/* Bottom background layer (previous/stable image) */}
-      <ImageBackground source={bgBottom.image} style={StyleSheet.absoluteFill} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: bgBottom.overlayColor }]} />
-      </ImageBackground>
-
-      {/* Top background layer (new image crossfading in) */}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: bgTopOpacity }]}>
-        <ImageBackground source={bgTop.image} style={StyleSheet.absoluteFill} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: bgTop.overlayColor }]} />
-        </ImageBackground>
-      </Animated.View>
+      <LinearGradient
+        colors={['#1D3038', '#15343E', '#0E2633']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.leftGlow} />
+      <View style={styles.rightGlow} />
 
       <SafeAreaView style={styles.safe}>
-        {/* Top nav */}
-        <View style={styles.topRow}>
-          <TouchableOpacity
-            onPress={onBack}
-            style={[styles.navBtn, index === 0 && styles.hiddenBtn]}
-            disabled={index === 0}
-          >
-            <Text style={styles.navBtnLabel}>← Geri</Text>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={onBack} style={[styles.navBtn, index === 0 && styles.hiddenBtn]} disabled={index === 0}>
+            <Text style={[styles.navText, styles.backText]}>‹</Text>
           </TouchableOpacity>
-
-          <View style={styles.dotsWrap}>
-            {SLIDES.map((s, i) => {
-              const bg = dotAlphas[i].interpolate({
-                inputRange: [0, 1],
-                outputRange: ['rgba(255,255,255,0.3)', colors.primaryAccent],
-              });
-              return (
-                <Animated.View
-                  key={s.id}
-                  style={[styles.dot, { width: dotWidths[i], backgroundColor: bg }]}
-                />
-              );
-            })}
-          </View>
-
+          <Text style={styles.brand}>Roleo</Text>
           <TouchableOpacity onPress={onFinish} style={styles.navBtn}>
-            <Text style={styles.navBtnLabel}>Geç</Text>
+            <Text style={[styles.navText, styles.skipText]}>Skip</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Animated text content */}
-        <Animated.View
-          style={[
-            styles.contentWrap,
-            { opacity: textOpacity, transform: [{ translateY: textTranslateY }] },
-          ]}
-        >
-          <View style={styles.eyebrowRow}>
-            <View style={styles.eyebrowPill}>
-              <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+        <View style={styles.centerCanvas}>
+          <View style={[styles.cardWrap, { width: cardWidth }]}>
+            <View style={[styles.glassCard, { minHeight: cardMinHeight }]}>
+              <View style={[styles.contentViewport, { minHeight: contentHeight }]}>
+                <Animated.View
+                  style={[
+                    styles.contentPane,
+                    { width: contentWidth },
+                    {
+                      transform: [{
+                        translateX: slideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, -direction * contentWidth],
+                        }),
+                      }],
+                    },
+                  ]}
+                >
+                  <SlideContent slide={slide} />
+                </Animated.View>
+
+                {nextIndex !== null ? (
+                  <Animated.View
+                    style={[
+                      styles.contentPane,
+                      { width: contentWidth },
+                      {
+                        transform: [{
+                          translateX: slideAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [direction * contentWidth, 0],
+                          }),
+                        }],
+                      },
+                    ]}
+                  >
+                    <SlideContent slide={SLIDES[nextIndex]} />
+                  </Animated.View>
+                ) : null}
+              </View>
+
+              <View style={styles.progressTrack}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    },
+                  ]}
+                />
+              </View>
             </View>
           </View>
 
-          <Text style={styles.title}>{slide.title}</Text>
-          <Text style={styles.subtitle}>{slide.subtitle}</Text>
-
-          <View style={styles.bulletsWrap}>
-            {slide.bullets.map((b, i) => (
-              <View key={`${slide.id}-${i}`} style={styles.bulletRow}>
-                <View style={styles.bulletDot} />
-                <Text style={styles.bulletText}>{b}</Text>
-              </View>
-            ))}
+          <View style={[styles.bottomCtaWrap, { width: cardWidth }]}>
+            <TouchableOpacity style={styles.ctaBtn} onPress={onNext} activeOpacity={0.9} disabled={nextIndex !== null}>
+              <Text style={styles.ctaText}>{isLast ? "Roleo'ya Başla" : 'Devam Et'}</Text>
+            </TouchableOpacity>
           </View>
-        </Animated.View>
-
-        {/* CTA */}
-        <View style={styles.bottomArea}>
-          <TouchableOpacity style={styles.nextBtn} onPress={onNext} activeOpacity={0.88}>
-            <Text style={styles.nextBtnText}>
-              {isLast ? "Roleo'ya Başla →" : 'Devam Et →'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
+function SlideContent({ slide }: { slide: IntroSlide }) {
+  return (
+    <>
+      <View style={styles.headSection}>
+        <Text style={styles.headline}>{slide.heading}</Text>
+        <Text style={styles.lead}>{slide.lead}</Text>
+        <Text style={styles.description}>{slide.description}</Text>
+      </View>
+
+      <View style={styles.featureList}>
+        {slide.features.map((feature, i) => (
+          <View key={`${slide.id}-${i}`} style={styles.featureRow}>
+            <View style={styles.featureIconWrap}>
+              <Text style={styles.featureIcon}>{feature.icon}</Text>
+            </View>
+            <View style={styles.featureCopy}>
+              <Text style={styles.featureTitle}>{feature.title}</Text>
+              <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#081610',
+    backgroundColor: '#0F1F29',
+  },
+  leftGlow: {
+    position: 'absolute',
+    top: '26%',
+    left: -90,
+    width: 230,
+    height: 230,
+    borderRadius: 999,
+    backgroundColor: 'rgba(176, 109, 80, 0.16)',
+  },
+  rightGlow: {
+    position: 'absolute',
+    bottom: '18%',
+    right: -120,
+    width: 300,
+    height: 300,
+    borderRadius: 999,
+    backgroundColor: 'rgba(246, 240, 229, 0.10)',
   },
   safe: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 8,
-    paddingBottom: 28,
-    justifyContent: 'space-between',
+    paddingTop: 14,
   },
-  topRow: {
+  topBar: {
+    height: 72,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 0,
+    borderRadius: 18,
+    marginHorizontal: 12,
+    marginTop: 26,
+    marginBottom: 4,
+    backgroundColor: 'rgba(252, 249, 248, 0.04)',
   },
   navBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    minWidth: 48,
+    height: 44,
+    justifyContent: 'center',
   },
-  hiddenBtn: { opacity: 0 },
-  navBtnLabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 14,
-    fontWeight: '600',
+  hiddenBtn: {
+    opacity: 0,
   },
-  dotsWrap: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  dotActive: {
-    width: 22,
-    height: 6,
-    backgroundColor: colors.primaryAccent,
-  },
-  contentWrap: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 24,
-  },
-  eyebrowRow: { marginBottom: 14 },
-  eyebrowPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(166, 106, 76, 0.28)',
-    borderWidth: 1,
-    borderColor: 'rgba(166, 106, 76, 0.55)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-  },
-  eyebrow: {
-    color: '#F5C9A8',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  title: {
+  navText: {
     color: '#FFFFFF',
-    fontSize: 38,
-    fontWeight: '900',
-    lineHeight: 46,
-    letterSpacing: -0.5,
-    marginBottom: 14,
-    fontFamily: 'PlayfairDisplay_900Black',
+    fontSize: 22,
+    fontFamily: 'Manrope_600SemiBold',
   },
-  subtitle: {
-    color: 'rgba(255,255,255,0.72)',
+  skipText: {
     fontSize: 15,
-    lineHeight: 23,
-    fontWeight: '500',
-    marginBottom: 28,
+    color: 'rgba(255,255,255,0.62)',
+    textAlign: 'right',
+    marginLeft: 'auto',
   },
-  bulletsWrap: {
-    gap: 12,
-    backgroundColor: 'rgba(0,0,0,0.30)',
+  backText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.62)',
+  },
+  brand: {
+    color: '#7A7A7A',
+    fontSize: 34,
+    fontFamily: 'Pacifico_400Regular',
+    letterSpacing: -0.2,
+  },
+  centerCanvas: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  cardWrap: {
+    gap: 16,
+  },
+  glassCard: {
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
+    backgroundColor: 'rgba(252, 249, 248, 0.72)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.30)',
   },
-  bulletRow: {
+  contentViewport: {
+    position: 'relative',
+    overflow: 'hidden',
+    flex: 1,
+  },
+  contentPane: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  headSection: {
+    marginBottom: 20,
+  },
+  headline: {
+    color: colors.textPrimary,
+    fontSize: 36,
+    lineHeight: 42,
+    fontFamily: 'Manrope_700Bold',
+    marginBottom: 4,
+  },
+  lead: {
+    color: 'rgba(59, 49, 38, 0.92)',
+    fontSize: 17,
+    lineHeight: 25,
+    fontFamily: 'Manrope_600SemiBold',
+    marginBottom: 6,
+  },
+  description: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: 'Manrope_500Medium',
+  },
+  featureList: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  bulletDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 99,
-    backgroundColor: colors.primaryAccent,
-    flexShrink: 0,
-  },
-  bulletText: {
-    flex: 1,
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  bottomArea: { paddingTop: 16 },
-  nextBtn: {
-    backgroundColor: colors.primaryAccent,
     borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: colors.primaryAccent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.50)',
+    backgroundColor: 'rgba(255,255,255,0.42)',
   },
-  nextBtnText: {
-    color: '#FFFDF8',
+  featureIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(176, 109, 80, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureIcon: {
+    color: colors.terracottaDark,
+    fontSize: 20,
+    fontFamily: 'Manrope_700Bold',
+  },
+  featureCopy: {
+    flex: 1,
+  },
+  featureTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+  },
+  featureSubtitle: {
+    color: 'rgba(83, 67, 62, 0.9)',
+    fontSize: 12,
+    marginTop: 2,
+    fontFamily: 'Manrope_500Medium',
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 99,
+    overflow: 'hidden',
+    backgroundColor: colors.creamMuted,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 99,
+    backgroundColor: colors.terracottaDark,
+  },
+  ctaBtn: {
+    height: 58,
+    borderRadius: 16,
+    backgroundColor: colors.terracottaDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.terracottaDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  bottomCtaWrap: {
+    marginTop: 'auto',
+    paddingBottom: 2,
+  },
+  ctaText: {
+    color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 0.2,
-    fontFamily: 'PlayfairDisplay_900Black',
+    fontFamily: 'NotoSerif_600SemiBold',
   },
 });

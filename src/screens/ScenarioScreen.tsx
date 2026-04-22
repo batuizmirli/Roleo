@@ -381,14 +381,16 @@ export default function ScenarioScreen({
       ? openingMsg
       : pickByIndex(pack.followUp[lastQuality], idx);
 
+    const dialogOptions: DialogOption[] = [
+      { text: good, quality: 'good' },
+      { text: ok, quality: 'ok' },
+      { text: awkward, quality: 'awkward' },
+    ];
+
     return {
       npc_message: npcLine,
       npc_mood: lastQuality === 'awkward' ? 'confused' : lastQuality === 'good' ? 'happy' : 'neutral',
-      options: [
-        { text: good, quality: 'good' },
-        { text: ok, quality: 'ok' },
-        { text: awkward, quality: 'awkward' },
-      ].sort(() => Math.random() - 0.5),
+      options: [...dialogOptions].sort(() => Math.random() - 0.5),
       reactions: {
         good: pickByIndex(pack.reactions.good, idx),
         ok: pickByIndex(pack.reactions.ok, idx),
