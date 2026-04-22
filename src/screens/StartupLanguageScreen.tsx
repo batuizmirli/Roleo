@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
-import { colors } from '../theme/colors';
+import { refined } from '../theme/refinedTokens';
 
 const NATIVE_LANGUAGES: Language[] = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
@@ -67,7 +67,7 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={colors.primaryAccent} />
+        <ActivityIndicator size="large" color={refined.primary} />
       </View>
     );
   }
@@ -117,8 +117,8 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FCF9F8' },
-  loadingWrap: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: refined.surfaceMuted },
+  loadingWrap: { flex: 1, backgroundColor: refined.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
@@ -133,19 +133,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 34,
-    lineHeight: 42,
-    color: '#1B1C1C',
+    fontSize: 32,
+    lineHeight: 40,
+    color: refined.text,
     marginBottom: 8,
-    fontFamily: 'NotoSerif_600SemiBold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#53433E',
+    fontSize: 15,
+    lineHeight: 22,
+    color: refined.textMuted,
     textAlign: 'center',
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Manrope_400Regular',
     maxWidth: 300,
   },
   grid: {
@@ -159,48 +159,44 @@ const styles = StyleSheet.create({
   card: {
     width: '48.3%',
     minHeight: 106,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    backgroundColor: refined.surface,
     borderWidth: 1,
-    borderColor: 'rgba(216,194,186,0.35)',
+    borderColor: refined.border,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#333333',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
   cardActive: {
     borderWidth: 2,
-    borderColor: '#884C32',
-    backgroundColor: '#FFFBF8',
+    borderColor: refined.primary,
+    backgroundColor: 'rgba(59, 130, 246, 0.06)',
   },
   flagWrap: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 3,
-    borderColor: '#FCF9F8',
+    backgroundColor: refined.surfaceMuted,
+    borderWidth: 2,
+    borderColor: refined.border,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#333333',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
   },
   flagWrapActive: {
-    borderColor: '#F3E2D7',
+    borderColor: refined.primary,
   },
   flag: { fontSize: 28 },
   name: {
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
   },
-  nameActive: { color: '#1B1C1C' },
-  nameInactive: { color: '#53433E' },
+  nameActive: { color: refined.text },
+  nameInactive: { color: refined.textMuted },
   bottomSpacer: {
     height: 120,
     width: '100%',
@@ -213,24 +209,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     paddingTop: 16,
-    backgroundColor: 'rgba(252, 249, 248, 0.93)',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: refined.border,
   },
   button: {
-    backgroundColor: '#884C32',
-    borderRadius: 999,
+    backgroundColor: refined.primary,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#884C32',
+    shadowColor: refined.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.20,
+    shadowOpacity: 0.22,
     shadowRadius: 12,
     elevation: 5,
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    letterSpacing: 0.3,
+    color: refined.surface,
+    fontSize: 15,
+    letterSpacing: 0.2,
     fontFamily: 'Manrope_600SemiBold',
   },
 });

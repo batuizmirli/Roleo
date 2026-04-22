@@ -9,9 +9,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
+import { refined } from '../theme/refinedTokens';
 
 type Props = {
   onFinish: () => void;
@@ -161,14 +162,14 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
 
   return (
     <View style={styles.root} {...panResponder.panHandlers}>
+      <StatusBar style="dark" />
       <LinearGradient
-        colors={['#1D3038', '#15343E', '#0E2633']}
+        colors={[refined.surfaceMuted, refined.surface, refined.surfaceSubtle]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.leftGlow} />
-      <View style={styles.rightGlow} />
+      <View style={styles.accentGlow} />
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.topBar}>
@@ -177,13 +178,13 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
           </TouchableOpacity>
           <Text style={styles.brand}>Roleo</Text>
           <TouchableOpacity onPress={onFinish} style={styles.navBtn}>
-            <Text style={[styles.navText, styles.skipText]}>Skip</Text>
+            <Text style={[styles.navText, styles.skipText]}>Atla</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.centerCanvas}>
           <View style={[styles.cardWrap, { width: cardWidth }]}>
-            <View style={[styles.glassCard, { minHeight: cardMinHeight }]}>
+            <View style={[styles.card, { minHeight: cardMinHeight }]}>
               <View style={[styles.contentViewport, { minHeight: contentHeight }]}>
                 <Animated.View
                   style={[
@@ -278,43 +279,31 @@ function SlideContent({ slide }: { slide: IntroSlide }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0F1F29',
+    backgroundColor: refined.surfaceMuted,
   },
-  leftGlow: {
+  accentGlow: {
     position: 'absolute',
-    top: '26%',
-    left: -90,
-    width: 230,
-    height: 230,
+    top: '12%',
+    right: '-8%',
+    width: 220,
+    height: 220,
     borderRadius: 999,
-    backgroundColor: 'rgba(176, 109, 80, 0.16)',
-  },
-  rightGlow: {
-    position: 'absolute',
-    bottom: '18%',
-    right: -120,
-    width: 300,
-    height: 300,
-    borderRadius: 999,
-    backgroundColor: 'rgba(246, 240, 229, 0.10)',
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
   },
   safe: {
     flex: 1,
     paddingTop: 14,
   },
   topBar: {
-    height: 72,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 0,
-    paddingBottom: 0,
-    borderRadius: 18,
-    marginHorizontal: 12,
-    marginTop: 26,
-    marginBottom: 4,
-    backgroundColor: 'rgba(252, 249, 248, 0.04)',
+    marginHorizontal: 8,
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: 'transparent',
   },
   navBtn: {
     minWidth: 48,
@@ -325,25 +314,26 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   navText: {
-    color: '#FFFFFF',
+    color: refined.text,
     fontSize: 22,
     fontFamily: 'Manrope_600SemiBold',
   },
   skipText: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.62)',
+    fontSize: 14,
+    color: refined.textMuted,
     textAlign: 'right',
     marginLeft: 'auto',
+    fontFamily: 'Manrope_500Medium',
   },
   backText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.62)',
+    fontSize: 22,
+    color: refined.textSecondary,
   },
   brand: {
-    color: '#7A7A7A',
-    fontSize: 34,
-    fontFamily: 'Pacifico_400Regular',
-    letterSpacing: -0.2,
+    color: refined.text,
+    fontSize: 28,
+    fontFamily: 'PlayfairDisplay_700Bold',
+    letterSpacing: -0.5,
   },
   centerCanvas: {
     flex: 1,
@@ -356,12 +346,17 @@ const styles = StyleSheet.create({
   cardWrap: {
     gap: 16,
   },
-  glassCard: {
-    borderRadius: 16,
-    padding: 20,
-    backgroundColor: 'rgba(252, 249, 248, 0.72)',
+  card: {
+    borderRadius: 20,
+    padding: 24,
+    backgroundColor: refined.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
+    borderColor: refined.border,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 4,
   },
   contentViewport: {
     position: 'relative',
@@ -378,24 +373,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headline: {
-    color: colors.textPrimary,
-    fontSize: 36,
-    lineHeight: 42,
-    fontFamily: 'Manrope_700Bold',
-    marginBottom: 4,
+    color: refined.text,
+    fontSize: 32,
+    lineHeight: 38,
+    fontFamily: 'PlayfairDisplay_700Bold',
+    marginBottom: 8,
   },
   lead: {
-    color: 'rgba(59, 49, 38, 0.92)',
+    color: refined.textSecondary,
     fontSize: 17,
-    lineHeight: 25,
+    lineHeight: 24,
     fontFamily: 'Manrope_600SemiBold',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   description: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: 'Manrope_500Medium',
+    color: refined.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: 'Manrope_400Regular',
   },
   featureList: {
     gap: 16,
@@ -406,22 +401,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.50)',
-    backgroundColor: 'rgba(255,255,255,0.42)',
+    borderColor: refined.border,
+    backgroundColor: refined.surfaceMuted,
   },
   featureIconWrap: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(176, 109, 80, 0.14)',
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   featureIcon: {
-    color: colors.terracottaDark,
+    color: refined.primary,
     fontSize: 20,
     fontFamily: 'Manrope_700Bold',
   },
@@ -429,46 +424,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    color: colors.textPrimary,
+    color: refined.text,
     fontSize: 14,
     fontFamily: 'Manrope_600SemiBold',
   },
   featureSubtitle: {
-    color: 'rgba(83, 67, 62, 0.9)',
+    color: refined.textMuted,
     fontSize: 12,
     marginTop: 2,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Manrope_400Regular',
   },
   progressTrack: {
-    height: 8,
+    height: 6,
     borderRadius: 99,
     overflow: 'hidden',
-    backgroundColor: colors.creamMuted,
+    backgroundColor: refined.border,
   },
   progressFill: {
     height: '100%',
     borderRadius: 99,
-    backgroundColor: colors.terracottaDark,
+    backgroundColor: refined.primary,
   },
   ctaBtn: {
-    height: 58,
+    height: 56,
     borderRadius: 16,
-    backgroundColor: colors.terracottaDark,
+    backgroundColor: refined.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.terracottaDark,
+    shadowColor: refined.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 5,
   },
   bottomCtaWrap: {
     marginTop: 'auto',
     paddingBottom: 2,
   },
   ctaText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontFamily: 'NotoSerif_600SemiBold',
+    color: refined.surface,
+    fontSize: 16,
+    fontFamily: 'Manrope_600SemiBold',
+    letterSpacing: 0.2,
   },
 });

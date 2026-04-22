@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Scenario } from '../types';
 import { trackEvent } from '../services/telemetry';
+import { refined } from '../theme/refinedTokens';
 
 type Props = {
   onStart: () => void;
@@ -26,7 +27,7 @@ export default function FirstSessionReadyScreen({ onStart, scenario }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>roleo</Text>
+      <Text style={styles.logo}>Roleo</Text>
       <Text style={styles.title}>Hazırsın.</Text>
       <Text style={styles.subtitle}>İlk sahnene giriyoruz.</Text>
 
@@ -49,15 +50,40 @@ export default function FirstSessionReadyScreen({ onStart, scenario }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA', paddingHorizontal: 24, paddingTop: 90 },
-  logo: { color: '#1B9C5A', fontSize: 26, fontWeight: '900', letterSpacing: 2, marginBottom: 28 },
-  title: { color: '#1A2B3C', fontSize: 36, fontWeight: '900' },
-  subtitle: { color: '#6B7B8D', fontSize: 16, marginTop: 8, marginBottom: 24 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E8EDF2', padding: 16, marginBottom: 22 },
+  container: { flex: 1, backgroundColor: refined.surfaceMuted, paddingHorizontal: 24, paddingTop: 90 },
+  logo: {
+    color: refined.text,
+    fontSize: 28,
+    fontFamily: 'PlayfairDisplay_700Bold',
+    letterSpacing: -0.3,
+    marginBottom: 28,
+  },
+  title: { color: refined.text, fontSize: 34, fontFamily: 'PlayfairDisplay_700Bold', lineHeight: 40 },
+  subtitle: { color: refined.textMuted, fontSize: 16, marginTop: 8, marginBottom: 24, fontFamily: 'Manrope_400Regular' },
+  card: {
+    backgroundColor: refined.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: refined.border,
+    padding: 20,
+    marginBottom: 22,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
+  },
   cardEmoji: { fontSize: 28 },
-  cardTitle: { color: '#1A2B3C', fontSize: 18, fontWeight: '800', marginTop: 10 },
-  cardDesc: { color: '#9AABB8', fontSize: 13, marginTop: 6, lineHeight: 20 },
-  cardMission: { color: '#3DD68C', fontSize: 12, marginTop: 8, lineHeight: 18 },
-  button: { marginTop: 'auto', marginBottom: 34, backgroundColor: '#1B9C5A', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
+  cardTitle: { color: refined.text, fontSize: 18, fontFamily: 'PlayfairDisplay_700Bold', marginTop: 10 },
+  cardDesc: { color: refined.textMuted, fontSize: 14, marginTop: 6, lineHeight: 21, fontFamily: 'Manrope_400Regular' },
+  cardMission: { color: refined.secondary, fontSize: 13, marginTop: 8, lineHeight: 19, fontFamily: 'Manrope_500Medium' },
+  button: {
+    marginTop: 'auto',
+    marginBottom: 34,
+    backgroundColor: refined.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  buttonText: { color: refined.surface, fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
 });

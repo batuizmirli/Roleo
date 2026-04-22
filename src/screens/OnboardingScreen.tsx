@@ -16,6 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile } from '../types';
+import { refined } from '../theme/refinedTokens';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -68,51 +69,53 @@ type StepTheme = {
   sub: string;
 };
 
+const SLATE_OVERLAY = [...refined.overlaySlate] as [string, string, string];
+
 const THEMES: Record<Step, StepTheme> = {
   native: {
     image: IMG_CROWD,
-    overlay: ['rgba(6,6,18,0.55)', 'rgba(6,6,18,0.78)', 'rgba(6,6,18,0.97)'],
-    accent: '#8B8FFF',
+    overlay: SLATE_OVERLAY,
+    accent: refined.primary,
     label: 'Your language',
     headline: "What's your\nnative language?",
     sub: "We'll explain things in the words you grew up with.",
   },
   language: {
     image: IMG_TRAVEL,
-    overlay: ['rgba(4,14,10,0.50)', 'rgba(4,14,10,0.78)', 'rgba(4,14,10,0.97)'],
-    accent: '#34D399',
+    overlay: SLATE_OVERLAY,
+    accent: refined.primary,
     label: 'Your target',
     headline: 'Which language\nwill you speak?',
     sub: "Every session is built around real conversations in this language.",
   },
   goal: {
     image: IMG_SOCIAL,
-    overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
-    accent: '#F472B6',
+    overlay: SLATE_OVERLAY,
+    accent: refined.secondary,
     label: 'Your reason',
     headline: 'Why are you\nlearning?',
     sub: "Your goal shapes every scene we build for you.",
   },
   dream: {
     image: IMG_CAFE,
-    overlay: ['rgba(4,10,22,0.52)', 'rgba(4,10,22,0.80)', 'rgba(4,10,22,0.97)'],
-    accent: '#60A5FA',
+    overlay: SLATE_OVERLAY,
+    accent: refined.primary,
     label: 'Your vision',
     headline: 'Imagine the\nmoment.',
     sub: "Describe the exact scene you're working toward.",
   },
   context: {
     image: IMG_CAFE,
-    overlay: ['rgba(12,5,22,0.50)', 'rgba(12,5,22,0.80)', 'rgba(12,5,22,0.97)'],
-    accent: '#C084FC',
+    overlay: SLATE_OVERLAY,
+    accent: refined.secondary,
     label: 'Your scene',
     headline: 'Set the\nexact place.',
     sub: "Where are you? Who are you speaking with?",
   },
   emotion: {
     image: IMG_MEETING,
-    overlay: ['rgba(20,12,4,0.50)', 'rgba(20,12,4,0.80)', 'rgba(20,12,4,0.97)'],
-    accent: '#FBBF24',
+    overlay: SLATE_OVERLAY,
+    accent: refined.primary,
     label: 'Your feeling',
     headline: 'How do you\nwant to feel?',
     sub: "This becomes the emotional core of every practice session.",
@@ -565,10 +568,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctaText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    fontFamily: 'Manrope_600SemiBold',
   },
 });
 
@@ -647,7 +651,7 @@ const subStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkMark: {
-    color: '#000',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -707,7 +711,7 @@ const subStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   goalCheck: {
-    color: '#000',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
   },
