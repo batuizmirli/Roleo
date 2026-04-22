@@ -1,0 +1,141 @@
+---
+description: Roleo UI — Stitch-aligned tokens, typography, states, and QA (deneme / design reference).
+globs: src/screens/**/*.tsx,src/components/**/*.tsx,src/theme/**/*.ts,App.tsx
+alwaysApply: false
+---
+
+# Roleo UI guidelines (Stitch-aligned)
+
+**Intent:** Keep Roleo visually warm, minimal, and readable—**terracotta + cream**, serif headlines, sans body—without drifting into generic “template” UI or low-contrast decoration.
+
+**Scope:** This rule applies when editing UI in matched paths. It does **not** replace product copy decisions; it keeps layout, tokens, and interaction consistent with the current Stitch direction.
+
+---
+
+## Context and goals
+
+- **Brand:** Language-learning app with **stage / practice** metaphor; UI should feel calm and confident, not loud.
+- **North star:** Prefer **`src/theme/colors.ts`** tokens over new hex values. Screen-level hardcoded hex is allowed only when matching an existing Stitch reference **and** a comment ties it to that reference (otherwise add a token).
+- **Deneme branch:** Treat this file as the **design contract** for new polish; do not revert established Stitch screens unless explicitly asked.
+
+---
+
+## Design tokens and foundations
+
+**Semantic colors (must use from `colors`):**
+
+| Role | Token(s) | Hex (reference) |
+|------|-----------|-----------------|
+| Page / chrome background | `background`, `cream` | warm off-white |
+| Cards / sheets | `surface`, `creamSoft`, `primaryCard` | `#FFFDF8` / `#F6F3F2` |
+| Primary actions / key accents | `terracotta`, `terracottaDark`, `primaryAccent` | `#B06D50` / `#884C32` / `#A66A4C` |
+| Pressed / darker action | `primaryAccentPressed`, `terracottaDark` | darker browns |
+| Borders / hairlines | `primaryBorder`, `divider` | soft tan |
+| Body text | `textPrimary`, `textSecondary`, `textMuted` | `#3B3126` hierarchy |
+| Text on filled terracotta buttons | `textOnAccent`, `white` | `#FFFDF8` |
+| Success / warning / danger | `success`, `warning`, `danger` (+ `*Soft` variants) | sage / amber / terracotta-red |
+
+**Spacing rhythm (4-based, must):** `4 / 8 / 12 / 16 / 20 / 24 / 32` — pick one step per layer (padding, gap, margin). Do not mix arbitrary `13`, `18` unless aligning to an existing screen that already uses it.
+
+**Radii (should):** Cards and sheets **20–24**; pills **999**; small chips **12–14**. Keep one radius family per screen.
+
+**Elevation (should):** Subtle shadow on floating cards only; avoid heavy drop shadows on every row.
+
+---
+
+## Typography
+
+**Loaded families (must match usage):**
+
+- **Titles / wordmarks:** `NotoSerif_*` (`500`–`700`) — section titles, card titles.
+- **Body / labels / buttons:** `Manrope_400Regular`, `Manrope_500Medium`, `Manrope_600SemiBold`.
+- **Pacifico:** **Wordmark / intro-only** — do not use for dense body UI.
+
+**Scale (should):** `12` caption / meta · `14` secondary · `16` body · `18–20` lead · `22–28` section title · `32+` hero (sparingly).
+
+**Rules:** Max **2** font families per screen (Noto + Manrope). Line-height ≥ **1.35** for body Turkish copy.
+
+---
+
+## Component-level rules
+
+### Buttons (primary)
+
+- **Anatomy:** Label + optional icon; min height **44** pt touch target.
+- **States:** `default` → `pressed` (opacity ~0.88–0.92 or darker fill) → `disabled` (reduced opacity + no shadow). If async: `loading` (spinner or “…” + disabled hit).
+- **Colors:** Filled primary uses **`terracottaDark` or `primaryAccent`** fill + **`textOnAccent`** label. Secondary = outline on `surface` + `primaryBorder` + `textPrimary`.
+
+### Cards
+
+- **Anatomy:** Optional media / icon → title → supporting line → optional CTA row.
+- **Padding:** **16–24**; internal gap **8–12**.
+- **Borders:** `1` px `primaryBorder` or `rgba` hairline consistent with Home / Intro.
+
+### Navigation (top / bottom)
+
+- **Active** item: **`terracotta`** icon + label; optional dot indicator.
+- **Inactive:** `textMuted` or `#333` at **~45–55%** opacity — must stay **≥ 4.5:1** on `cream` if treated as text (test contrast).
+
+### Lists / lesson rows
+
+- Chevron in a **40** circle or trailing icon; entire row pressable with clear `activeOpacity`.
+
+### Modals / sheets
+
+- Backdrop: dark warm transparent (e.g. `rgba(59,49,38,0.2–0.28)`), not pure black **#000** at high opacity unless full-screen media.
+
+### Progress
+
+- Track: `creamMuted` / `divider`; fill: **`terracottaDark`** or `primaryAccent`.
+
+---
+
+## Accessibility (testable)
+
+- **Touch targets:** Interactive elements **≥ 44×44** pt (or hitSlop documented).
+- **Contrast:** Normal text on `surface` / `cream` must meet **WCAG 2.2 AA** (4.5:1); large titles 3:1 minimum against background.
+- **Focus / keyboard (where applicable):** Web builds need visible **focus** styles; native: ensure VoiceOver labels on icon-only buttons (`accessibilityLabel`).
+- **Motion:** Respect `Reduce Motion` where animations are decorative (optional but preferred for polish).
+
+---
+
+## Content and tone
+
+- **Turkish UI copy:** Short, direct; avoid vague “ihtiyacımız var” phrasing—tie CTA to the user action (“… için **anadilini seç**”, “**Hemen başla**”).
+- **Labels:** Prefer verb + outcome over jargon (“**Sahneye devam et**” vs internal codenames).
+
+---
+
+## Anti-patterns (don’t)
+
+- Introducing **blue/violet primary** (#3B82F6 / #8B5CF6) as Roleo brand—conflicts Stitch + `colors.ts`.
+- **Playfair** for new dense UI (not loaded as primary UI family; use Noto for serif).
+- **Random spacing** outside the 4-scale without reason.
+- **Low-contrast** gray text on `cream` for primary actions.
+- **Double FAB + bottom nav** overlap without extra `paddingBottom` on scroll content.
+
+---
+
+## Migration notes
+
+- When refactoring an old screen: replace **legacy** `PlayfairDisplay_*` titles with **`NotoSerif_*`** unless that screen is explicitly grandfathered.
+- If a hex already exists in a Stitch reference document, **add a token** in `colors.ts` first, then reference the token.
+
+---
+
+## QA checklist (code review)
+
+- [ ] No new primary hex outside `colors.ts` (or justified + token added).
+- [ ] Spacing uses **4-based** scale; padding/gaps consistent within the screen.
+- [ ] Typography: **Noto** titles, **Manrope** body; Pacifico only where intended.
+- [ ] Primary button: fill + `textOnAccent`; pressed/disabled states handled.
+- [ ] Scroll content clears **fixed** bottom nav / FAB (`paddingBottom` / safe area).
+- [ ] Contrast checked for `textSecondary` / muted on `cream` / `surface`.
+- [ ] Icon-only controls have **`accessibilityLabel`** (and `hint` if ambiguous).
+- [ ] No duplicate navigation patterns that fight each other (FAB + tab bar).
+
+---
+
+## Branch note
+
+This guideline was introduced on branch **`deneme`** as a **safe experiment**. Merge to `main` only after review; until then, treat `main` as the production design baseline.
