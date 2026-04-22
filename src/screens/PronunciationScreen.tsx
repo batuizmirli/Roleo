@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   fixedBackText: { fontSize: 20, color: colors.textPrimary },
   header: { marginBottom: 14, paddingLeft: 52 },
-  title: { color: colors.textPrimary, fontSize: 30, fontWeight: '900', fontFamily: 'PlayfairDisplay_700Bold' },
+  title: { color: colors.textPrimary, fontSize: 30, fontWeight: '900', fontFamily: 'Poppins_700Bold' },
   subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tabBtn: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     minHeight: 130,
     justifyContent: 'space-between',
   },
-  cardText: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', fontFamily: 'PlayfairDisplay_700Bold' },
+  cardText: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', fontFamily: 'Poppins_700Bold' },
   cardMeaning: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   cardDefinition: { color: colors.textMuted, fontSize: 11, marginTop: 6, lineHeight: 15 },
   speakerWrap: { marginTop: 10, alignSelf: 'flex-end' },

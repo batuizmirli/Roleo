@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
-import { NotoSerif_500Medium, NotoSerif_600SemiBold, NotoSerif_700Bold } from '@expo-google-fonts/noto-serif';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold } from '@expo-google-fonts/manrope';
-import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -26,6 +29,7 @@ import DebugPanelScreen from './src/screens/DebugPanelScreen';
 import InstantLearnScreen from './src/screens/InstantLearnScreen';
 import PronunciationScreen from './src/screens/PronunciationScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
+import AccountScreen from './src/screens/AccountScreen';
 import FlashPickScreen from './src/screens/FlashPickScreen';
 import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
 import RunResultScreen from './src/screens/RunResultScreen';
@@ -54,21 +58,17 @@ type Screen =
   | 'flash-pick'
   | 'true-or-fake'
   | 'progress'
+  | 'account'
   | 'debug';
 
 export default function App() {
   type RunState = 'idle' | 'flash' | 'truefake' | 'scene' | 'complete';
 
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_900Black,
-    NotoSerif_500Medium,
-    NotoSerif_600SemiBold,
-    NotoSerif_700Bold,
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Pacifico_400Regular,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
   });
 
   const [screen, setScreen] = useState<Screen>('onboarding');
@@ -321,7 +321,32 @@ export default function App() {
     }
 
     if (screen === 'home') {
-      return <HomeScreen onModeSelect={handleModeSelect} onStartDailyRun={(gid) => startDailyRun(gid)} onRevisitIntro={() => goTo('intro')} onDebug={() => goTo('debug')} onOpenInstantLearn={() => goTo('instant-learn')} onOpenPronunciation={() => goTo('pronunciation')} onOpenFlashPick={() => goTo('flash-pick')} onOpenTrueOrFake={() => goTo('true-or-fake')} onOpenProgress={() => goTo('progress')} onStartDailyMission={startDailyMission} />;
+      return (
+        <HomeScreen
+          onModeSelect={handleModeSelect}
+          onStartDailyRun={gid => startDailyRun(gid)}
+          onRevisitIntro={() => goTo('intro')}
+          onDebug={() => goTo('debug')}
+          onOpenInstantLearn={() => goTo('instant-learn')}
+          onOpenPronunciation={() => goTo('pronunciation')}
+          onOpenFlashPick={() => goTo('flash-pick')}
+          onOpenTrueOrFake={() => goTo('true-or-fake')}
+          onOpenProgress={() => goTo('progress')}
+          onOpenAccount={() => goTo('account')}
+          onStartDailyMission={startDailyMission}
+        />
+      );
+    }
+
+    if (screen === 'account') {
+      return (
+        <AccountScreen
+          onBack={() => goTo('home')}
+          onOpenScenarios={() => goTo('scenarios')}
+          onOpenProgress={() => goTo('progress')}
+          onRevisitIntro={() => goTo('intro')}
+        />
+      );
     }
 
     if (screen === 'instant-learn') {
@@ -425,7 +450,7 @@ export default function App() {
 
   const FAB_HIDDEN_SCREENS: Screen[] = [
     'intro', 'onboarding', 'startup-language', 'first-session-ready',
-    'first-session-next', 'instant-learn', 'stage-result', 'debug', 'home',
+    'first-session-next', 'instant-learn', 'stage-result', 'debug', 'home', 'account',
   ];
   const showFab = !loading && runState === 'idle' && !FAB_HIDDEN_SCREENS.includes(screen);
 

@@ -1,4 +1,7 @@
+import { F, linguaType } from './fonts';
+
 export const typography = {
+  /** @deprecated prefer `linguaType` + `F` for new UI */
   size: {
     xs: 12,
     sm: 13,
@@ -14,4 +17,6 @@ export const typography = {
     bold: '700' as const,
     black: '900' as const,
   },
+  font: F,
+  lingua: linguaType,
 };

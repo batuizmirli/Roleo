@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   navText: {
     color: '#FFFFFF',
     fontSize: 22,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   skipText: {
     fontSize: 15,
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   brand: {
     color: '#7A7A7A',
     fontSize: 34,
-    fontFamily: 'Pacifico_400Regular',
+    fontFamily: 'Poppins_700Bold',
     letterSpacing: -0.2,
   },
   centerCanvas: {
@@ -381,21 +381,21 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 36,
     lineHeight: 42,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'Poppins_700Bold',
     marginBottom: 4,
   },
   lead: {
     color: 'rgba(59, 49, 38, 0.92)',
     fontSize: 17,
     lineHeight: 25,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: 6,
   },
   description: {
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 21,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Poppins_500Medium',
   },
   featureList: {
     gap: 16,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   featureIcon: {
     color: colors.terracottaDark,
     fontSize: 20,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'Poppins_700Bold',
   },
   featureCopy: {
     flex: 1,
@@ -431,13 +431,13 @@ const styles = StyleSheet.create({
   featureTitle: {
     color: colors.textPrimary,
     fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   featureSubtitle: {
     color: 'rgba(83, 67, 62, 0.9)',
     fontSize: 12,
     marginTop: 2,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Poppins_500Medium',
   },
   progressTrack: {
     height: 8,
@@ -469,6 +469,6 @@ const styles = StyleSheet.create({
   ctaText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontFamily: 'NotoSerif_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

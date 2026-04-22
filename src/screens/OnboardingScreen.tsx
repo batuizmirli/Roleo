@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Language, UserGoal, UserProfile } from '../types';
+import { Language, UserGoal, UserProfile, UserLevel } from '../types';
+import { colors } from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -56,8 +57,10 @@ const GOALS: UserGoal[] = [
 ];
 
 // ─── Step config ───────────────────────────────────────────────────────────
-type Step = 'native' | 'language' | 'goal' | 'dream' | 'context' | 'emotion';
-const STEPS: Step[] = ['native', 'language', 'goal', 'dream', 'context', 'emotion'];
+type Step = 'welcome' | 'native' | 'language' | 'level' | 'goal' | 'dailyGoal' | 'dream' | 'context' | 'emotion';
+const STEPS: Step[] = ['welcome', 'native', 'language', 'level', 'goal', 'dailyGoal', 'dream', 'context', 'emotion'];
+
+const ACCENT = colors.primaryAccent;
 
 type StepTheme = {
   image: any;
@@ -69,53 +72,77 @@ type StepTheme = {
 };
 
 const THEMES: Record<Step, StepTheme> = {
+  welcome: {
+    image: IMG_TRAVEL,
+    overlay: ['rgba(20,18,16,0.45)', 'rgba(20,18,16,0.72)', 'rgba(20,18,16,0.92)'],
+    accent: ACCENT,
+    label: 'Roleo',
+    headline: 'Konuşarak\nöğren.',
+    sub: 'Kısa sahneler, anlık geri bildirim ve mini oyunlarla dili gerçek hayatta kullan.',
+  },
   native: {
     image: IMG_CROWD,
     overlay: ['rgba(6,6,18,0.55)', 'rgba(6,6,18,0.78)', 'rgba(6,6,18,0.97)'],
-    accent: '#8B8FFF',
-    label: 'Your language',
-    headline: "What's your\nnative language?",
-    sub: "We'll explain things in the words you grew up with.",
+    accent: ACCENT,
+    label: 'Ana dilin',
+    headline: 'Ana dilin\nhangisi?',
+    sub: 'İpuçlarını ve açıklamaları bu dilde göstereceğiz.',
   },
   language: {
     image: IMG_TRAVEL,
     overlay: ['rgba(4,14,10,0.50)', 'rgba(4,14,10,0.78)', 'rgba(4,14,10,0.97)'],
-    accent: '#34D399',
-    label: 'Your target',
-    headline: 'Which language\nwill you speak?',
-    sub: "Every session is built around real conversations in this language.",
+    accent: ACCENT,
+    label: 'Hedef dil',
+    headline: 'Hangi dili\nkonuşmak istiyorsun?',
+    sub: 'Her sahne bu dilde gerçek diyaloglara göre hazırlanır.',
+  },
+  level: {
+    image: IMG_SOCIAL,
+    overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
+    accent: ACCENT,
+    label: 'Seviye',
+    headline: 'Şu anki seviyen\nnerede?',
+    sub: 'Ders zorluğunu ve ipuçlarını buna göre ayarlayalım.',
   },
   goal: {
     image: IMG_SOCIAL,
     overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
-    accent: '#F472B6',
-    label: 'Your reason',
-    headline: 'Why are you\nlearning?',
-    sub: "Your goal shapes every scene we build for you.",
+    accent: ACCENT,
+    label: 'Motivasyon',
+    headline: 'Neden\nöğreniyorsun?',
+    sub: 'Hedefine uygun sahneler önereceğiz.',
+  },
+  dailyGoal: {
+    image: IMG_CAFE,
+    overlay: ['rgba(4,10,22,0.52)', 'rgba(4,10,22,0.80)', 'rgba(4,10,22,0.97)'],
+    accent: ACCENT,
+    label: 'Günlük hedef',
+    headline: 'Günlük\nkaç dakika?',
+    sub: 'Tutarlı küçük oturumlar daha kalıcı ilerleme sağlar.',
   },
   dream: {
     image: IMG_CAFE,
     overlay: ['rgba(4,10,22,0.52)', 'rgba(4,10,22,0.80)', 'rgba(4,10,22,0.97)'],
-    accent: '#60A5FA',
-    label: 'Your vision',
-    headline: 'Imagine the\nmoment.',
-    sub: "Describe the exact scene you're working toward.",
+    accent: ACCENT,
+    label: 'Hayalin',
+    headline: 'Hayalindeki\nan.',
+    sub: 'Tam olarak hangi anda akıcı hissetmek istiyorsun?',
   },
   context: {
     image: IMG_CAFE,
     overlay: ['rgba(12,5,22,0.50)', 'rgba(12,5,22,0.80)', 'rgba(12,5,22,0.97)'],
-    accent: '#C084FC',
-    label: 'Your scene',
-    headline: 'Set the\nexact place.',
-    sub: "Where are you? Who are you speaking with?",
+    accent: ACCENT,
+    label: 'Ortam',
+    headline: 'Nerede,\nkiminle?',
+    sub: 'Mekân ve karşıdaki kişiyi netleştir.',
   },
   emotion: {
     image: IMG_MEETING,
     overlay: ['rgba(20,12,4,0.50)', 'rgba(20,12,4,0.80)', 'rgba(20,12,4,0.97)'],
-    accent: '#FBBF24',
-    label: 'Your feeling',
-    headline: 'How do you\nwant to feel?',
-    sub: "This becomes the emotional core of every practice session.",
+    accent: ACCENT,
+    label: 'Duygu',
+    headline: 'Nasıl\nhissetmek istersin?',
+    sub: 'Her pratikte bu duyguyu hatırlatacağız.',
   },
 };
 
@@ -124,13 +151,15 @@ type Props = { onComplete: () => void };
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function OnboardingScreen({ onComplete }: Props) {
-  const [step, setStep]                 = useState<Step>('native');
-  const [selectedNative, setSelectedNative]     = useState<Language | null>(null);
+  const [step, setStep] = useState<Step>('welcome');
+  const [selectedNative, setSelectedNative] = useState<Language | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
-  const [selectedGoal, setSelectedGoal]         = useState<UserGoal | null>(null);
-  const [dreamText, setDreamText]       = useState('');
-  const [contextText, setContextText]   = useState('');
-  const [emotionText, setEmotionText]   = useState('');
+  const [selectedLevel, setSelectedLevel] = useState<UserLevel | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(20);
+  const [dreamText, setDreamText] = useState('');
+  const [contextText, setContextText] = useState('');
+  const [emotionText, setEmotionText] = useState('');
 
   const fadeAnim   = useRef(new Animated.Value(1)).current;
   const slideAnim  = useRef(new Animated.Value(0)).current;
@@ -174,12 +203,22 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
+    setTimeout(() => transition('level'), 260);
+  };
+
+  const handleLevelSelect = (lvl: UserLevel) => {
+    setSelectedLevel(lvl);
     setTimeout(() => transition('goal'), 260);
   };
 
   const handleGoalSelect = (goal: UserGoal) => {
     setSelectedGoal(goal);
-    setTimeout(() => transition('dream'), 260);
+    setTimeout(() => transition('dailyGoal'), 260);
+  };
+
+  const handleDailyGoalPick = (mins: number) => {
+    setDailyGoalMinutes(mins);
+    setTimeout(() => transition('dream'), 220);
   };
 
   const handleDreamContinue = () => {
@@ -207,7 +246,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
       streak: 0,
       completedScenarios: [],
       xp: 0,
-      level: 'beginner',
+      level: selectedLevel ?? 'beginner',
+      dailyGoalMinutes,
     };
     await AsyncStorage.setItem('userProfile', JSON.stringify(profile));
     onComplete();
@@ -219,9 +259,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
   });
 
   const TEXT_STEPS: Partial<Record<Step, { label: string; handler: () => void }>> = {
-    dream:   { label: 'Devam Et',      handler: handleDreamContinue },
-    context: { label: 'Devam Et',      handler: handleContextContinue },
-    emotion: { label: 'Roleoya Başla', handler: handleEmotionContinue },
+    welcome: { label: 'Başla', handler: () => transition('native') },
+    dream: { label: 'Devam Et', handler: handleDreamContinue },
+    context: { label: 'Devam Et', handler: handleContextContinue },
+    emotion: { label: "Roleo'ya Başla", handler: handleEmotionContinue },
   };
 
   const footerCta = TEXT_STEPS[step];
@@ -262,7 +303,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             ) : (
               <View style={{ width: 32 }} />
             )}
-            <Text style={[styles.logoText, { color: theme.accent }]}>roleo</Text>
+            <Text style={[styles.logoText, { color: theme.accent }]}>Roleo</Text>
             <Text style={styles.stepCounter}>{currentIdx + 1} / {STEPS.length}</Text>
           </View>
 
@@ -276,6 +317,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
           <Text style={styles.subtitle}>{theme.sub}</Text>
 
           {/* ── Step content ── */}
+          {step === 'welcome' ? <WelcomeVisual accent={theme.accent} /> : null}
+
           {step === 'native' && (
             <NativeStep
               selected={selectedNative}
@@ -293,6 +336,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
             />
           )}
 
+          {step === 'level' && (
+            <LevelStep selected={selectedLevel} onSelect={handleLevelSelect} accent={theme.accent} />
+          )}
+
           {step === 'goal' && (
             <GoalStep
               selected={selectedGoal}
@@ -300,6 +347,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
               onSelect={handleGoalSelect}
               accent={theme.accent}
             />
+          )}
+
+          {step === 'dailyGoal' && (
+            <DailyGoalStep selectedMinutes={dailyGoalMinutes} onSelect={handleDailyGoalPick} accent={theme.accent} />
           )}
 
           {step === 'dream' && (
@@ -353,6 +404,99 @@ export default function OnboardingScreen({ onComplete }: Props) {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
+
+function WelcomeVisual({ accent }: { accent: string }) {
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+      <View
+        style={{
+          width: 76,
+          height: 76,
+          borderRadius: 20,
+          backgroundColor: `${accent}28`,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: `${accent}55`,
+        }}
+      >
+        <Text style={{ fontSize: 36 }}>🎭</Text>
+      </View>
+    </View>
+  );
+}
+
+const LEVEL_OPTIONS: { id: UserLevel; title: string; sub: string }[] = [
+  { id: 'beginner', title: 'Başlangıç', sub: 'Temel kalıplar ve güvenli pratik' },
+  { id: 'intermediate', title: 'Orta', sub: 'Konuşuyorum, akıcılığı güçlendiriyorum' },
+  { id: 'advanced', title: 'İleri', sub: 'Akıcıyım, nüans ve hız istiyorum' },
+];
+
+function LevelStep({
+  selected,
+  onSelect,
+  accent,
+}: {
+  selected: UserLevel | null;
+  onSelect: (lvl: UserLevel) => void;
+  accent: string;
+}) {
+  return (
+    <View style={subStyles.goalList}>
+      {LEVEL_OPTIONS.map(opt => {
+        const active = selected === opt.id;
+        return (
+          <TouchableOpacity
+            key={opt.id}
+            style={[subStyles.goalRow, active && { borderColor: accent, backgroundColor: `${accent}14` }]}
+            onPress={() => onSelect(opt.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={subStyles.goalEmoji}>◆</Text>
+            <View style={subStyles.goalTextWrap}>
+              <Text style={[subStyles.goalLabel, active && { color: accent }]}>{opt.title}</Text>
+              <Text style={subStyles.goalDesc}>{opt.sub}</Text>
+            </View>
+            <View style={[subStyles.goalCircle, active && { backgroundColor: accent, borderColor: accent }]}>
+              {active ? <Text style={subStyles.goalCheck}>✓</Text> : null}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const MINUTE_CHOICES = [10, 20, 30, 60, 90] as const;
+
+function DailyGoalStep({
+  selectedMinutes,
+  onSelect,
+  accent,
+}: {
+  selectedMinutes: number;
+  onSelect: (m: number) => void;
+  accent: string;
+}) {
+  return (
+    <View style={subStyles.dailyGrid}>
+      {MINUTE_CHOICES.map(m => {
+        const active = selectedMinutes === m;
+        return (
+          <TouchableOpacity
+            key={m}
+            style={[subStyles.dailyChip, active && { borderColor: accent, backgroundColor: `${accent}18` }]}
+            onPress={() => onSelect(m)}
+            activeOpacity={0.85}
+          >
+            <Text style={[subStyles.dailyChipTitle, active && { color: accent }]}>{m}</Text>
+            <Text style={subStyles.dailyChipSub}>dakika</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
 
 function NativeStep({ selected, onSelect, accent }: {
   selected: Language | null;
@@ -516,9 +660,9 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-    fontFamily: 'PlayfairDisplay_900Black',
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    fontFamily: 'Poppins_700Bold',
   },
   stepCounter: {
     color: 'rgba(255,255,255,0.30)',
@@ -538,11 +682,11 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: '#FFFFFF',
-    fontSize: 42,
-    fontWeight: '800',
-    lineHeight: 50,
-    letterSpacing: -1,
-    fontFamily: 'PlayfairDisplay_900Black',
+    fontSize: 36,
+    fontWeight: '700',
+    lineHeight: 44,
+    letterSpacing: -0.6,
+    fontFamily: 'Poppins_700Bold',
     marginBottom: 16,
   },
   subtitle: {
@@ -565,10 +709,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctaText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
 
@@ -647,7 +792,7 @@ const subStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkMark: {
-    color: '#000',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -655,6 +800,33 @@ const subStyles = StyleSheet.create({
   // Goal list
   goalList: {
     gap: 10,
+  },
+  dailyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  dailyChip: {
+    width: (SCREEN_W - 60) / 2,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  dailyChipTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: 'Poppins_700Bold',
+  },
+  dailyChipSub: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Poppins_500Medium',
   },
   langPill: {
     alignSelf: 'flex-start',
@@ -688,9 +860,9 @@ const subStyles = StyleSheet.create({
   goalLabel: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 2,
-    fontFamily: 'PlayfairDisplay_700Bold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   goalDesc: {
     color: 'rgba(255,255,255,0.40)',
@@ -707,7 +879,7 @@ const subStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   goalCheck: {
-    color: '#000',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
   },

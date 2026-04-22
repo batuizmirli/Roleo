@@ -60,6 +60,10 @@ export type UserProfile = {
   streak: number;
   completedScenarios: string[];
   level?: UserLevel;
+  /** Günlük hedef (dakika), onboarding. */
+  dailyGoalMinutes?: number;
+  displayName?: string;
+  email?: string;
   xp?: number;
   coins?: number;
   hearts?: number;

@@ -12,7 +12,7 @@ import ActionCard from '../components/ActionCard';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/telemetry';
 
 type AsyncAction = () => void | Promise<void>;
 
@@ -86,7 +86,10 @@ export default function FirstSessionNextScreen({
     setPendingAction(type);
 
     Vibration.vibrate(10);
-    trackEvent(type + '_clicked', { screen: 'FirstSessionNextScreen' });
+    await trackEvent(
+      type === 'stage' ? 'first_session_next_stage_clicked' : 'first_session_next_mission_clicked',
+      { screen: 'FirstSessionNextScreen' },
+    );
 
     try {
       await Promise.resolve(callback());
@@ -198,16 +201,19 @@ const styles = StyleSheet.create({
     color: colors.primaryAccent,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.semibold,
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: spacing.sm,
   },
   title: {
     color: colors.textPrimary,
     fontSize: typography.size.xxl,
-    fontWeight: typography.weight.black,
+    fontWeight: typography.weight.bold,
+    fontFamily: 'Poppins_700Bold',
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: typography.size.md,
+    fontFamily: 'Poppins_400Regular',
     marginTop: spacing.sm,
     marginBottom: spacing.xl,
   },
@@ -223,10 +229,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,
+    fontFamily: 'Poppins_700Bold',
   },
   noticeText: {
     color: colors.textSecondary,
     fontSize: typography.size.sm,
+    fontFamily: 'Poppins_400Regular',
     lineHeight: 20,
     marginTop: spacing.xs,
   },
@@ -241,5 +249,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FFD7DF',
     fontSize: typography.size.sm,
+    fontFamily: 'Poppins_400Regular',
   },
 });

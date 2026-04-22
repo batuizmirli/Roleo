@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     color: '#1B1C1C',
     marginBottom: 8,
-    fontFamily: 'NotoSerif_600SemiBold',
+    fontFamily: 'Poppins_700Bold',
     textAlign: 'center',
   },
   subtitle: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: '#53433E',
     textAlign: 'center',
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Poppins_500Medium',
     maxWidth: 300,
   },
   grid: {
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   flag: { fontSize: 28 },
   name: {
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   nameActive: { color: '#1B1C1C' },
   nameInactive: { color: '#53433E' },
@@ -231,6 +231,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 0.3,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

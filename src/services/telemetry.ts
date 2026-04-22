@@ -18,7 +18,9 @@ export type TelemetryEventName =
   | 'screen_view'
   | 'run_started'
   | 'module_completed'
-  | 'run_completed';
+  | 'run_completed'
+  | 'first_session_next_stage_clicked'
+  | 'first_session_next_mission_clicked';
 
 export type EventPayload = Record<string, string | number | boolean | null | undefined>;
 

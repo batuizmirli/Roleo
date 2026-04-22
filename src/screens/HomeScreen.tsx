@@ -5,23 +5,19 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
+  Image,
   LayoutAnimation,
   Platform,
   UIManager,
-  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
-import { SUPPORTED_LANGUAGES } from '../data/scenarios';
+import NotificationsSheet from '../components/NotificationsSheet';
 import { tryParseJson } from '../services/json';
 import { getLevelFromXp, getProgress, getWeeklyXp } from '../services/progress';
 import { colors } from '../theme/colors';
-
-const PROFILE_IMG =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAOrXu2DvdRpYCZcKGbpFaKDeh47Omk180V2hsOHt4hljk-86mNvE5CLhaovCYPEl--_tObWAaQoXhJKIMgufmlxZZnZTYS2gZ5TcJOq4dP3477d3zmpMU4ycZDPIb6dGJZw28CSrtmjPsE74ksPaUep8eQm-qwHnYutT7hNX5UphPc-Xc9HsEFGtrCWbpLwPO6SJ9c0NXoOOqnm70SdhiWryCJTFWKWyCMnU7aWn8cTY1aoxSS08iXK_-834LZvGIC9aPhGtogl5';
 
 const LESSON_IMAGES = {
   scenarios:
@@ -106,6 +102,7 @@ type Props = {
   onOpenFlashPick?: () => void;
   onOpenTrueOrFake?: () => void;
   onOpenProgress?: () => void;
+  onOpenAccount?: () => void;
   onStartDailyMission?: () => void;
 };
 
@@ -129,10 +126,11 @@ export default function HomeScreen({
   onOpenFlashPick,
   onOpenTrueOrFake,
   onOpenProgress,
+  onOpenAccount,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [targetExpanded, setTargetExpanded] = useState(false);
   const [weeklyTotal, setWeeklyTotal] = useState(0);
   const [selectedTarget, setSelectedTarget] = useState<string>(PRACTICE_TARGETS[0].label);
@@ -228,14 +226,6 @@ export default function HomeScreen({
     await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
   };
 
-  const handleLanguageChange = async (lang: (typeof SUPPORTED_LANGUAGES)[0]) => {
-    if (!profile) return;
-    const updated = { ...profile, language: lang };
-    await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
-    setProfile(updated);
-    setLangModalVisible(false);
-  };
-
   const heroDescription = profile?.language?.name
     ? `${profile.language.name} pratiğinde bugün: ${matchedTarget.hint}`
     : matchedTarget.hint;
@@ -256,16 +246,23 @@ export default function HomeScreen({
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.topBar}>
           <TouchableOpacity
-            onPress={() => setLangModalVisible(true)}
+            onPress={() => onOpenAccount?.()}
             onLongPress={onDebug}
             delayLongPress={480}
             activeOpacity={0.88}
             style={styles.avatarWrap}
+            accessibilityLabel="Hesap"
           >
-            <Image source={{ uri: PROFILE_IMG }} style={styles.avatarImg} />
+            <MaterialIcons name="person" size={24} color={terracotta} />
           </TouchableOpacity>
           <Text style={styles.wordmark}>Roleo</Text>
-          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.88} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            activeOpacity={0.88}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setNotifOpen(true)}
+            accessibilityLabel="Bildirimler"
+          >
             <MaterialIcons name="notifications-none" size={22} color={terracotta} />
           </TouchableOpacity>
         </View>
@@ -408,32 +405,14 @@ export default function HomeScreen({
             <MaterialIcons name="record-voice-over" size={24} color="#333" style={{ opacity: 0.45 }} />
             <Text style={styles.navLabel}>Practice</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={() => onOpenProgress?.()} activeOpacity={0.88}>
+          <TouchableOpacity style={styles.navItem} onPress={() => onOpenAccount?.()} activeOpacity={0.88}>
             <MaterialIcons name="person-outline" size={24} color="#333" style={{ opacity: 0.45 }} />
             <Text style={styles.navLabel}>Profile</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <Modal visible={langModalVisible} transparent animationType="fade" onRequestClose={() => setLangModalVisible(false)}>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setLangModalVisible(false)} />
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Hedef dil</Text>
-            {SUPPORTED_LANGUAGES.map(lang => (
-              <TouchableOpacity
-                key={lang.code}
-                style={[styles.modalItem, profile?.language.code === lang.code && styles.modalItemActive]}
-                onPress={() => handleLanguageChange(lang)}
-              >
-                <Text style={styles.modalFlag}>{lang.flag}</Text>
-                <Text style={styles.modalName}>{lang.name}</Text>
-                {profile?.language.code === lang.code ? <MaterialIcons name="check" size={20} color={primary} /> : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
+      <NotificationsSheet visible={notifOpen} onClose={() => setNotifOpen(false)} />
     </View>
   );
 }
@@ -455,15 +434,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'rgba(136, 76, 50, 0.2)',
+    backgroundColor: surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarImg: { width: '100%', height: '100%' },
   wordmark: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: 'NotoSerif_700Bold',
+    fontFamily: 'Poppins_700Bold',
     color: terracotta,
   },
   iconBtn: {
@@ -512,14 +492,14 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     fontSize: 11,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: white,
     letterSpacing: 0.8,
   },
   heroHeadline: {
     fontSize: 26,
     lineHeight: 32,
-    fontFamily: 'NotoSerif_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: white,
     marginBottom: 6,
     maxWidth: 280,
@@ -527,7 +507,7 @@ const styles = StyleSheet.create({
   heroGoalLine: {
     fontSize: 15,
     lineHeight: 20,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: 'rgba(255,255,255,0.95)',
     marginBottom: 8,
     maxWidth: 280,
@@ -535,7 +515,7 @@ const styles = StyleSheet.create({
   heroBody: {
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: 'Manrope_400Regular',
+    fontFamily: 'Poppins_400Regular',
     color: 'rgba(255,255,255,0.88)',
     maxWidth: 260,
     marginBottom: 16,
@@ -555,12 +535,12 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.12)',
   },
   targetRowActive: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  targetRowTitle: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.92)' },
+  targetRowTitle: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: 'rgba(255,255,255,0.92)' },
   targetRowTitleActive: { color: white },
-  targetRowHint: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  targetRowHint: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   notice: {
     fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: 'rgba(255,255,255,0.9)',
     marginBottom: 10,
   },
@@ -576,7 +556,7 @@ const styles = StyleSheet.create({
   },
   heroCtaText: {
     fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: primary,
     letterSpacing: 0.3,
   },
@@ -589,12 +569,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: 'NotoSerif_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: onSurface,
   },
   sectionMeta: {
     fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: primary,
   },
   rhythmGrid: {
@@ -630,7 +610,7 @@ const styles = StyleSheet.create({
   rhythmIconCircleMuted: { backgroundColor: '#F0EDED' },
   rhythmLabel: {
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: onSurfaceVariant,
     marginBottom: 8,
   },
@@ -680,20 +660,20 @@ const styles = StyleSheet.create({
   },
   tagPillText: {
     fontSize: 10,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: tagText,
     letterSpacing: 1.2,
   },
   lessonTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'NotoSerif_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: onSurface,
   },
   lessonSub: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
     marginTop: 4,
   },
@@ -715,11 +695,11 @@ const styles = StyleSheet.create({
   },
   progressLinkText: {
     fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     color: terracotta,
   },
   introLink: { alignItems: 'center', paddingBottom: 8 },
-  introLinkText: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: onSurfaceVariant },
+  introLinkText: { fontSize: 13, fontFamily: 'Poppins_500Medium', color: onSurfaceVariant },
   bottomNav: {
     position: 'absolute',
     left: 0,
@@ -747,7 +727,7 @@ const styles = StyleSheet.create({
   navLabel: {
     marginTop: 4,
     fontSize: 10,
-    fontFamily: 'NotoSerif_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: '#333',
     opacity: 0.5,
     letterSpacing: 0.6,
@@ -756,7 +736,7 @@ const styles = StyleSheet.create({
   navLabelActive: {
     marginTop: 4,
     fontSize: 10,
-    fontFamily: 'NotoSerif_500Medium',
+    fontFamily: 'Poppins_500Medium',
     color: terracotta,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
@@ -768,36 +748,4 @@ const styles = StyleSheet.create({
     backgroundColor: terracotta,
     marginTop: 4,
   },
-  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(59,49,38,0.25)' },
-  modal: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: white,
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: outlineVariant,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'NotoSerif_600SemiBold',
-    color: onSurface,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 8,
-    backgroundColor: colors.creamSoft,
-    borderWidth: 1,
-    borderColor: outlineVariant,
-  },
-  modalItemActive: { borderColor: primary, borderWidth: 2, backgroundColor: 'rgba(255,219,204,0.35)' },
-  modalFlag: { fontSize: 22 },
-  modalName: { flex: 1, fontSize: 16, fontFamily: 'Manrope_500Medium', color: onSurface },
 });
