@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile, UserLevel } from '../types';
 import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
 import { defaultPracticeTarget, type PracticeTarget } from '../data/practiceGoals';
 import PracticeFocusGoalCard from '../components/PracticeFocusGoalCard';
 
@@ -311,14 +312,24 @@ export default function OnboardingScreen({ onComplete }: Props) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* ── Full-bleed background image ── */}
-      <ImageBackground source={theme.image} style={StyleSheet.absoluteFill} resizeMode="cover">
+      {/* ── Bugünün odağı: foto filtresi yok, ortada mavi gradient ── */}
+      {step === 'practiceFocus' ? (
         <LinearGradient
-          colors={theme.overlay}
-          locations={[0, 0.45, 1]}
+          colors={['#0c2744', '#1d4ed8', '#2563eb', '#1e3a8a', '#0f172a']}
+          locations={[0, 0.28, 0.48, 0.72, 1]}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.85, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-      </ImageBackground>
+      ) : (
+        <ImageBackground source={theme.image} style={StyleSheet.absoluteFill} resizeMode="cover">
+          <LinearGradient
+            colors={theme.overlay}
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
+      )}
 
       {/* ── Progress bar ── */}
       <View style={styles.progressTrack}>
@@ -708,7 +719,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 52,
+    marginBottom: 36,
   },
   backArrow: {
     fontSize: 26,
@@ -731,29 +742,23 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2.5,
+    ...typography.lingua.caption,
+    color: 'rgba(255,255,255,0.72)',
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 16,
-    opacity: 0.9,
+    marginBottom: 10,
   },
   headline: {
+    ...typography.lingua.heading2,
     color: '#FFFFFF',
-    fontSize: 36,
-    fontWeight: '700',
-    lineHeight: 44,
-    letterSpacing: -0.6,
-    fontFamily: 'Poppins_700Bold',
-    marginBottom: 16,
+    letterSpacing: -0.4,
+    marginBottom: 10,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 15,
-    lineHeight: 23,
-    fontWeight: '400',
-    marginBottom: 40,
-    maxWidth: 300,
+    ...typography.lingua.description,
+    color: 'rgba(255,255,255,0.58)',
+    marginBottom: 28,
+    maxWidth: 320,
   },
   footer: {
     paddingHorizontal: 24,

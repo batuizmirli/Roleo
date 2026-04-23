@@ -11,14 +11,18 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 type Props = {
   onFinish: () => void;
 };
 
+type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
+
 type IntroFeature = {
-  icon: string;
+  icon: IconName;
   title: string;
   subtitle: string;
 };
@@ -38,9 +42,9 @@ const SLIDES: IntroSlide[] = [
     lead: 'Yeni Bir Dil, Yeni Bir Sen.',
     description: 'Dünyayı kendi dillerinde keşfetmeye hazır mısın?',
     features: [
-      { icon: '🌍', title: 'Gerçek Bağlamlar', subtitle: 'Kitaplardan değil, hayattan öğrenin.' },
-      { icon: '🗣️', title: 'Akıcı Konuşma', subtitle: 'Yapay zeka ile günlük pratikler yapın.' },
-      { icon: '🎓', title: 'Akıllı İlerleme', subtitle: 'Size özel hazırlanan öğrenme yolu.' },
+      { icon: 'explore', title: 'Gerçek Bağlamlar', subtitle: 'Kitaplardan değil, hayattan öğrenin.' },
+      { icon: 'mic', title: 'Akıcı Konuşma', subtitle: 'Yapay zeka ile günlük pratikler yapın.' },
+      { icon: 'school', title: 'Akıllı İlerleme', subtitle: 'Size özel hazırlanan öğrenme yolu.' },
     ],
   },
   {
@@ -49,9 +53,9 @@ const SLIDES: IntroSlide[] = [
     lead: 'Gerçek hayat konuşmaları.',
     description: 'Kafeden iş toplantısına, seyahate kadar onlarca gerçek senaryo.',
     features: [
-      { icon: '☕', title: 'Farklı sosyal durumlar', subtitle: 'Kafe, iş, seyahat ve dahası' },
-      { icon: '🧠', title: 'Nüansları keşfet', subtitle: 'Doğal / orta / garip cevap farkını öğrenme' },
-      { icon: '⚡', title: 'Anlık geri bildirim', subtitle: 'Toparlama ipuçları ve düzeltmeler' },
+      { icon: 'local-cafe', title: 'Farklı sosyal durumlar', subtitle: 'Kafe, iş, seyahat ve dahası' },
+      { icon: 'psychology', title: 'Nüansları keşfet', subtitle: 'Doğal / orta / garip cevap farkını öğrenme' },
+      { icon: 'offline-bolt', title: 'Anlık geri bildirim', subtitle: 'Toparlama ipuçları ve düzeltmeler' },
     ],
   },
   {
@@ -60,9 +64,9 @@ const SLIDES: IntroSlide[] = [
     lead: 'Hızlı oyunlarla refleks kazan.',
     description: 'Refleks ve dil hissini aynı anda güçlendiren kısa modlar.',
     features: [
-      { icon: '⚡', title: 'Flash Pick', subtitle: 'Hız ve kelime eşleştirme' },
-      { icon: '📏', title: 'True or Fake', subtitle: 'Doğru/yanlış sezgisi' },
-      { icon: '🗲', title: 'Combo Sistemi', subtitle: 'Süreklilikle akışa girme' },
+      { icon: 'flash-on', title: 'Flash Pick', subtitle: 'Hız ve kelime eşleştirme' },
+      { icon: 'quiz', title: 'True or Fake', subtitle: 'Doğru/yanlış sezgisi' },
+      { icon: 'whatshot', title: 'Combo Sistemi', subtitle: 'Süreklilikle akışa girme' },
     ],
   },
   {
@@ -71,12 +75,14 @@ const SLIDES: IntroSlide[] = [
     lead: 'Özgüvenli ve doğal konuş.',
     description: 'Kısa sürede daha akıcı ve kalıcı bir dil hissi.',
     features: [
-      { icon: '✓', title: 'Hata farkındalığı', subtitle: 'Hataları yakalayıp doğru kalıplarla yer değiştirin.' },
-      { icon: '↗', title: 'Kalıcı ilerleme', subtitle: 'Düzenli pratikle dil bilgisi kas hafızasına dönüşür.' },
-      { icon: '💬', title: 'Gerçek ifade üretimi', subtitle: 'Günlük kullanımda doğal ve özgün cümleler kurun.' },
+      { icon: 'verified', title: 'Hata farkındalığı', subtitle: 'Hataları yakalayıp doğru kalıplarla yer değiştirin.' },
+      { icon: 'trending-up', title: 'Kalıcı ilerleme', subtitle: 'Düzenli pratikle dil bilgisi kas hafızasına dönüşür.' },
+      { icon: 'chat-bubble-outline', title: 'Gerçek ifade üretimi', subtitle: 'Günlük kullanımda doğal ve özgün cümleler kurun.' },
     ],
   },
 ];
+
+const ICON_COLOR = colors.terracottaDark;
 
 export default function RoleoIntroScreen({ onFinish }: Props) {
   const { width, height } = useWindowDimensions();
@@ -94,12 +100,12 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
   const contentWidth = Math.max(cardWidth - 40, 260);
   const contentHeight = Math.max(cardMinHeight - 96, 380);
 
-  const animateTo = (nextIndex: number) => {
-    if (transitioningRef.current || nextIndex === indexRef.current) return;
-    const dir: 1 | -1 = nextIndex > indexRef.current ? 1 : -1;
+  const animateTo = (nextIdx: number) => {
+    if (transitioningRef.current || nextIdx === indexRef.current) return;
+    const dir: 1 | -1 = nextIdx > indexRef.current ? 1 : -1;
     transitioningRef.current = true;
     setDirection(dir);
-    setNextIndex(nextIndex);
+    setNextIndex(nextIdx);
     slideAnim.setValue(0);
 
     Animated.parallel([
@@ -110,17 +116,15 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
         useNativeDriver: true,
       }),
       Animated.timing(progressAnim, {
-        toValue: (nextIndex + 1) / SLIDES.length,
+        toValue: (nextIdx + 1) / SLIDES.length,
         duration: 220,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }),
     ]).start(({ finished }) => {
       if (!finished) return;
-      // Commit the new slide first, then reset animation on next frame.
-      // This prevents a 1-frame flash back to the old slide.
-      setIndex(nextIndex);
-      indexRef.current = nextIndex;
+      setIndex(nextIdx);
+      indexRef.current = nextIdx;
       setNextIndex(null);
       requestAnimationFrame(() => {
         slideAnim.setValue(0);
@@ -250,26 +254,31 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
 }
 
 function SlideContent({ slide }: { slide: IntroSlide }) {
+  const scene = slide.id === 'speak';
   return (
     <>
       <View style={styles.headSection}>
-        <Text style={styles.headline}>{slide.heading}</Text>
+        <Text style={[styles.headline, scene && styles.headlineScene]}>{slide.heading}</Text>
         <Text style={styles.lead}>{slide.lead}</Text>
         <Text style={styles.description}>{slide.description}</Text>
       </View>
 
       <View style={styles.featureList}>
-        {slide.features.map((feature, i) => (
-          <View key={`${slide.id}-${i}`} style={styles.featureRow}>
-            <View style={styles.featureIconWrap}>
-              <Text style={styles.featureIcon}>{feature.icon}</Text>
+        {slide.features.map((feature, i) => {
+          const last = i === slide.features.length - 1;
+          return (
+            <View
+              key={`${slide.id}-${i}`}
+              style={[styles.featureRow, !last && styles.featureRowSep]}
+            >
+              <MaterialIcons name={feature.icon} size={24} color={ICON_COLOR} style={styles.featureIcon} />
+              <View style={styles.featureCopy}>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
+              </View>
             </View>
-            <View style={styles.featureCopy}>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </>
   );
@@ -375,69 +384,57 @@ const styles = StyleSheet.create({
     right: 0,
   },
   headSection: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   headline: {
+    ...typography.lingua.heading2,
     color: colors.textPrimary,
-    fontSize: 36,
-    lineHeight: 42,
-    fontFamily: 'Poppins_700Bold',
     marginBottom: 4,
+  },
+  /** Sahne Modu slaytı — daha küçük başlık */
+  headlineScene: {
+    fontSize: 22,
+    lineHeight: 28,
   },
   lead: {
     color: 'rgba(59, 49, 38, 0.92)',
-    fontSize: 17,
-    lineHeight: 25,
-    fontFamily: 'Poppins_600SemiBold',
     marginBottom: 6,
+    ...typography.lingua.title2,
   },
   description: {
     color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: 'Poppins_500Medium',
+    ...typography.lingua.description,
   },
   featureList: {
-    gap: 16,
     marginBottom: 24,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.50)',
-    backgroundColor: 'rgba(255,255,255,0.42)',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 0,
   },
-  featureIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(176, 109, 80, 0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  featureRowSep: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(59, 49, 38, 0.14)',
   },
   featureIcon: {
-    color: colors.terracottaDark,
-    fontSize: 20,
-    fontFamily: 'Poppins_700Bold',
+    marginTop: 2,
   },
   featureCopy: {
     flex: 1,
   },
   featureTitle: {
     color: colors.textPrimary,
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
+    ...typography.lingua.title2,
   },
   featureSubtitle: {
-    color: 'rgba(83, 67, 62, 0.9)',
-    fontSize: 12,
-    marginTop: 2,
-    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(83, 67, 62, 0.88)',
+    marginTop: 4,
+    ...typography.lingua.caption,
+    fontSize: 13,
+    lineHeight: 18,
   },
   progressTrack: {
     height: 8,

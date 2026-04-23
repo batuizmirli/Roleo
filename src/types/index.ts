@@ -71,6 +71,30 @@ export type UserProfile = {
   completedMissions?: string[];
 };
 
+export type SceneFlowPath = 'smooth' | 'friction';
+
+export type ReplayHookKind = 'fix_mistake' | 'keep_flow' | 'beat_combo' | 'perfect_run' | 'none';
+
+export type SceneRunSnapshot = {
+  ts: string;
+  comboMax: number;
+  accuracy: number;
+  flowPath?: SceneFlowPath;
+  hadAwkward: boolean;
+  failed: boolean;
+  turnCount: number;
+  nearMiss?: boolean;
+  hookKind?: ReplayHookKind;
+  awkwardTurns?: number;
+  /** Son tur(lar)daki üst üste garip seçim sayısı (fail CTA için) */
+  trailingAwkward?: number;
+};
+
+export type RunComparePayload = {
+  previous: SceneRunSnapshot | null;
+  current: SceneRunSnapshot;
+};
+
 export type StageResult = {
   scenarioId: string;
   scenarioTitle: string;
@@ -82,6 +106,16 @@ export type StageResult = {
   rewardLine?: string;
   naturalTip?: string;
   suggestedNextStage?: string;
+  /** Game layer: sahne performansı */
+  comboMax?: number;
+  sceneAccuracy?: number;
+  flowPath?: SceneFlowPath;
+  nativePhraseHighlight?: string;
+  timedOutTurns?: number;
+  awkwardTurns?: number;
+  goodTurns?: number;
+  /** Önceki koşu vs bu koşu — “one more run” metni için */
+  runCompare?: RunComparePayload;
 };
 
 export type ModuleResult = {
@@ -89,6 +123,8 @@ export type ModuleResult = {
   accuracy: number;
   comboMax?: number;
   speed?: number;
+  flowPath?: SceneFlowPath;
+  nativePhrase?: string;
 };
 
 export type GameMode = {

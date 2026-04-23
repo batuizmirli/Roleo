@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { PracticeTarget } from '../data/practiceGoals';
 import PracticeFocusPicker from './PracticeFocusPicker';
+import { typography } from '../theme/typography';
 
 type Variant = 'onboarding' | 'startup';
 
@@ -9,13 +10,12 @@ type Props = {
   selected: PracticeTarget | null;
   onSelect: (t: PracticeTarget) => void;
   variant: Variant;
-  /** Varsayılan: Bugünün odağı */
   title?: string;
   subtitle?: string;
 };
 
 /**
- * Ana dil sonrası hedef seçimi: tek kart içinde başlık + gruplu hedef listesi.
+ * Ana dil sonrası hedef seçimi: beyaz kart + akordiyon hedef listesi.
  */
 export default function PracticeFocusGoalCard({
   selected,
@@ -30,14 +30,14 @@ export default function PracticeFocusGoalCard({
     : 'Günlük koşu ve ipuçları bu hedefe göre ayarlanır. İstersen değiştir.';
 
   return (
-    <View style={[styles.card, onb ? styles.cardOnb : styles.cardStartup]}>
-      <Text style={onb ? styles.titleOnb : styles.titleStartup}>{title}</Text>
-      <Text style={onb ? styles.subOnb : styles.subStartup}>{subtitle ?? defaultSub}</Text>
-      <View style={[styles.divider, onb ? styles.dividerOnb : styles.dividerStartup]} />
+    <View style={styles.card}>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.sub}>{subtitle ?? defaultSub}</Text>
+      <View style={styles.divider} />
       <PracticeFocusPicker
         selected={selected}
         onSelect={onSelect}
-        variant={onb ? 'dark' : 'light'}
+        variant="light"
         scrollable={onb}
       />
     </View>
@@ -53,54 +53,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 14,
-  },
-  cardOnb: {
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  cardStartup: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(216,194,186,0.45)',
-    shadowColor: '#333',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  titleOnb: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontFamily: 'Poppins_700Bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  titleStartup: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontFamily: 'Poppins_700Bold',
+  title: {
+    ...typography.lingua.heading3,
     color: '#1B1C1C',
     marginBottom: 8,
   },
-  subOnb: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.72)',
-    marginBottom: 14,
-  },
-  subStartup: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: 'Poppins_400Regular',
+  sub: {
+    ...typography.lingua.description,
     color: '#53433E',
     marginBottom: 14,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(136, 76, 50, 0.15)',
     marginBottom: 10,
   },
-  dividerOnb: { backgroundColor: 'rgba(255,255,255,0.14)' },
-  dividerStartup: { backgroundColor: 'rgba(136, 76, 50, 0.15)' },
 });

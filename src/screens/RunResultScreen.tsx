@@ -1,59 +1,161 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { ModuleResult } from '../types';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, Easing } from 'react-native';
+import { ModuleResult, SceneFlowPath } from '../types';
+import type { DailyRunSnapshot } from '../services/runHook';
 
 type Props = {
   results: ModuleResult[];
   onExit: () => void;
+  dailyRunBoard?: {
+    prev: DailyRunSnapshot | null;
+    overallAccuracy: number;
+    maxCombo: number;
+    sceneAccuracy: number;
+    sceneFlow?: SceneFlowPath;
+  } | null;
 };
 
-export default function RunResultScreen({ results, onExit }: Props) {
+export default function RunResultScreen({ results, onExit, dailyRunBoard }: Props) {
+  const intro = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    intro.setValue(0);
+    Animated.timing(intro, {
+      toValue: 1,
+      duration: 480,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [intro]);
+
   const overallAccuracy = results.length
     ? Math.round((results.reduce((s, r) => s + r.accuracy, 0) / results.length) * 100)
     : 0;
   const maxCombo = results.reduce((m, r) => Math.max(m, r.comboMax ?? 0), 0);
+  const scene = results.find(r => r.module === 'scene');
 
   const message = overallAccuracy >= 80
-    ? 'You handled it smoothly'
+    ? 'Akıcı bir koşuydu — ritmi tuttun.'
     : overallAccuracy >= 55
-    ? 'You hesitated but recovered'
-    : 'You struggled but pushed through';
+    ? 'Biraz tereddüt ettin ama toparladın.'
+    : 'You can do better — yarın aynı koşuyu tekrar al.';
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scroll} style={styles.scrollView}>
+      <Animated.View style={{ opacity: intro, transform: [{ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }], width: '100%', alignItems: 'center' }}>
       <Text style={styles.emoji}>{overallAccuracy >= 80 ? '🏆' : overallAccuracy >= 55 ? '🎯' : '💪'}</Text>
-      <Text style={styles.title}>Daily Run Complete</Text>
-      <Text style={styles.metric}>Overall Accuracy: %{overallAccuracy}</Text>
-      <Text style={styles.metric}>Max Combo: {maxCombo}</Text>
+      <Text style={styles.title}>Günlük koşu bitti</Text>
+      <Text style={styles.sub}>Flash → True/False → Sahne zinciri</Text>
+
+      {dailyRunBoard?.prev && (
+        <View style={styles.compareStrip}>
+          <Text style={styles.compareStripTitle}>VS LAST DAILY RUN</Text>
+          {dailyRunBoard.overallAccuracy > dailyRunBoard.prev.overallAccuracy + 0.03 ? (
+            <Text style={styles.compareStripLine}>Genel isabet ↑ (%{Math.round(dailyRunBoard.prev.overallAccuracy * 100)} → %{overallAccuracy})</Text>
+          ) : dailyRunBoard.overallAccuracy + 0.03 < dailyRunBoard.prev.overallAccuracy ? (
+            <Text style={styles.compareStripLine}>Genel isabet ↓ — bir tur daha, telafi et.</Text>
+          ) : (
+            <Text style={styles.compareStripLine}>Önceki günlük koşuya yakın seviyedesin — küçük hamleyle geçersin.</Text>
+          )}
+          {dailyRunBoard.maxCombo > (dailyRunBoard.prev.maxCombo ?? 0) ? (
+            <Text style={styles.compareStripLine}>Combo ↑ ({dailyRunBoard.prev.maxCombo ?? 0} → {dailyRunBoard.maxCombo})</Text>
+          ) : null}
+          <Text style={styles.challengeStrip}>
+            {overallAccuracy < 80
+              ? 'You almost had a clean daily — Fix it tomorrow.'
+              : 'Personal challenge: stack an even cleaner scene next time.'}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Performans</Text>
+        <Text style={styles.metric}>Genel isabet: %{overallAccuracy}</Text>
+        <Text style={styles.metric}>En yüksek combo: {maxCombo}</Text>
+        {scene?.flowPath && (
+          <Text style={styles.metricSmall}>
+            Sahne hattı: {scene.flowPath === 'smooth' ? '✨ Akıcı' : '⚡ Gergin'}
+          </Text>
+        )}
+      </View>
+
+      {!!scene?.nativePhrase && (
+        <View style={styles.phraseCard}>
+          <Text style={styles.phraseLabel}>Öne çıkan ifade</Text>
+          <Text style={styles.phraseText}>"{scene.nativePhrase}"</Text>
+        </View>
+      )}
+
       <Text style={styles.message}>{message}</Text>
 
-      <TouchableOpacity style={styles.btn} onPress={onExit}>
-        <Text style={styles.btnText}>Back to Home</Text>
+      <TouchableOpacity style={styles.btnPrimary} onPress={onExit}>
+        <Text style={styles.btnPrimaryText}>
+          {overallAccuracy >= 65 ? 'Ana ekrana dön →' : 'Run it again soon — ana ekran →'}
+        </Text>
       </TouchableOpacity>
-    </View>
+      <Text style={styles.footerHint}>Yarın yeni günlük sıralama ve misyon seni bekliyor.</Text>
+      </Animated.View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
+  scrollView: { flex: 1, backgroundColor: '#F5F7FA' },
+  scroll: {
     paddingHorizontal: 24,
-    justifyContent: 'center',
+    paddingTop: 56,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   emoji: { fontSize: 56 },
-  title: { color: '#1A2B3C', fontSize: 28, fontWeight: '900', marginTop: 10 },
-  metric: { color: '#CBD5E1', fontSize: 16, marginTop: 8 },
-  message: { color: '#A78BFA', fontSize: 16, marginTop: 14, fontWeight: '700' },
-  btn: {
+  title: { color: '#1A2B3C', fontSize: 28, fontWeight: '900', marginTop: 10, textAlign: 'center' },
+  sub: { color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  compareStrip: {
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  compareStripTitle: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.2, marginBottom: 8 },
+  compareStripLine: { fontSize: 14, fontWeight: '800', color: '#F1F5F9', marginBottom: 6 },
+  challengeStrip: { fontSize: 13, fontWeight: '900', color: '#FBBF24', marginTop: 6, lineHeight: 20 },
+  card: {
+    width: '100%',
+    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E8EDF2',
+    gap: 6,
+  },
+  cardTitle: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1 },
+  metric: { color: '#1A2B3C', fontSize: 16, fontWeight: '800' },
+  metricSmall: { color: '#64748B', fontSize: 14, marginTop: 4 },
+  phraseCard: {
+    width: '100%',
+    marginTop: 14,
+    backgroundColor: '#F0FAF4',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  phraseLabel: { fontSize: 10, fontWeight: '900', color: '#15803D', letterSpacing: 1, marginBottom: 6 },
+  phraseText: { fontSize: 16, color: '#14532D', fontWeight: '700', lineHeight: 24 },
+  message: { color: '#7C6CF2', fontSize: 16, marginTop: 18, fontWeight: '700', textAlign: 'center', lineHeight: 24 },
+  btnPrimary: {
     marginTop: 22,
     backgroundColor: '#1B9C5A',
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    minWidth: 220,
+    width: '100%',
     alignItems: 'center',
   },
-  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  btnPrimaryText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  footerHint: { marginTop: 14, fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
 });

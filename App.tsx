@@ -36,7 +36,10 @@ import RunResultScreen from './src/screens/RunResultScreen';
 import ScenarioPrepModal from './src/components/ScenarioPrepModal';
 import { ModuleResult, UserProfile } from './src/types';
 import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario } from './src/data/scenarios';
+import { getProgress } from './src/services/progress';
+import { getDailyRunSnapshot, saveDailyRunSnapshot, type DailyRunSnapshot } from './src/services/runHook';
 import { trackEvent } from './src/services/telemetry';
+import type { SceneFlowPath } from './src/types';
 
 type Screen =
   | 'intro'
@@ -85,6 +88,13 @@ export default function App() {
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [currentPlayCount, setCurrentPlayCount] = useState(0);
   const [firstSessionScenario, setFirstSessionScenario] = useState<Scenario | null>(null);
+  const [dailyRunBoard, setDailyRunBoard] = useState<{
+    prev: DailyRunSnapshot | null;
+    overallAccuracy: number;
+    maxCombo: number;
+    sceneAccuracy: number;
+    sceneFlow?: SceneFlowPath;
+  } | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   /** Grammar ekranına `home` veya sahne sonucundan girildiğini ayırt etmek için. */
@@ -174,6 +184,8 @@ export default function App() {
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
     const languageCode = profile?.language?.code ?? 'es';
     const missionScenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    const progress = await getProgress();
+    setCurrentPlayCount(progress.scenarioPlayCounts?.[missionScenario.id] ?? 0);
 
     setSelectedScenario(missionScenario);
     setRunType('daily-mission');
@@ -188,6 +200,7 @@ export default function App() {
 
   const startDailyRun = async (goalId?: string) => {
     setRunResults([]);
+    setDailyRunBoard(null);
     setRunScenario(null);
     setRunGoalId(goalId);
     setRunState('flash');
@@ -207,6 +220,8 @@ export default function App() {
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
     const languageCode = profile?.language?.code ?? 'es';
     const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    const progress = await getProgress();
+    setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
     setRunScenario(scenario);
 
     setRunState('scene');
@@ -214,12 +229,30 @@ export default function App() {
   };
 
   const handleSceneComplete = async (result: ModuleResult) => {
-    setRunResults(r => [...r, result]);
+    const prev = await getDailyRunSnapshot();
+    const next = [...runResults, result];
+    const overallAccuracy = next.reduce((s, x) => s + x.accuracy, 0) / Math.max(next.length, 1);
+    const maxCombo = next.reduce((m, x) => Math.max(m, x.comboMax ?? 0), 0);
+    await saveDailyRunSnapshot({
+      ts: new Date().toISOString(),
+      overallAccuracy,
+      maxCombo,
+      sceneAccuracy: result.accuracy,
+      sceneFlow: result.flowPath,
+    });
+    setDailyRunBoard({
+      prev,
+      overallAccuracy,
+      maxCombo,
+      sceneAccuracy: result.accuracy,
+      sceneFlow: result.flowPath,
+    });
+    setRunResults(next);
     setRunState('complete');
     await trackEvent('module_completed', { module: 'scene', accuracy: result.accuracy, comboMax: result.comboMax });
     await trackEvent('run_completed', {
       moduleCount: 3,
-      overallAccuracy: [...runResults, result].reduce((s, x) => s + x.accuracy, 0) / Math.max(runResults.length + 1, 1),
+      overallAccuracy,
     });
   };
 
@@ -227,6 +260,7 @@ export default function App() {
     setRunResults([]);
     setRunScenario(null);
     setRunGoalId(undefined);
+    setDailyRunBoard(null);
     setRunState('idle');
   };
 
@@ -247,6 +281,7 @@ export default function App() {
       return (
         <ScenarioScreen
           scenario={runScenario}
+          playCount={currentPlayCount}
           onBack={resetRun}
           easyStart={easyStart}
           goalId={runGoalId}
@@ -259,7 +294,13 @@ export default function App() {
     }
 
     if (runState === 'complete') {
-      return <RunResultScreen results={runResults} onExit={() => { resetRun(); goTo('home'); }} />;
+      return (
+        <RunResultScreen
+          results={runResults}
+          dailyRunBoard={dailyRunBoard}
+          onExit={() => { resetRun(); goTo('home'); }}
+        />
+      );
     }
 
     if (screen === 'intro') {
@@ -402,6 +443,7 @@ export default function App() {
       return (
         <ScenarioScreen
           scenario={selectedScenario}
+          playCount={currentPlayCount}
           firstSessionMode={runType === 'first'}
           prepBonus={prepBonus}
           onBack={() => goTo(runType === 'first' ? 'first-session-ready' : 'scenarios')}

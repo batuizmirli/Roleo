@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { getProgress, getUnlockState, getLevelFromXp, getLevelProgress, getWeeklyXp, ProgressState, UnlockState, DailyXpEntry } from '../services/progress';
+import { getDailyLeaderboard, LeaderboardEntry } from '../services/leaderboard';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -22,6 +23,7 @@ export default function ProgressScreen({ onBack }: Props) {
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [unlockState, setUnlockState] = useState<UnlockState | null>(null);
   const [weeklyXp, setWeeklyXp] = useState<DailyXpEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<(LeaderboardEntry & { rank: number })[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -29,6 +31,7 @@ export default function ProgressScreen({ onBack }: Props) {
       setProgress(p);
       setUnlockState(getUnlockState(p));
       setWeeklyXp(getWeeklyXp(p.dailyXpLog ?? {}));
+      setLeaderboard(await getDailyLeaderboard());
     };
     load();
   }, []);
@@ -116,6 +119,24 @@ export default function ProgressScreen({ onBack }: Props) {
         </View>
         <Text style={styles.chartTotal}>Toplam: {weeklyXp.reduce((s, d) => s + d.xp, 0)} XP</Text>
       </View>
+
+      {leaderboard.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Günlük Arena</Text>
+          <View style={styles.lbCard}>
+            <Text style={styles.lbHint}>Bugünkü sahne skorlarına göre sıra (yerel).</Text>
+            {leaderboard.slice(0, 6).map(row => (
+              <View key={row.id} style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}>
+                <Text style={styles.lbRank}>#{row.rank}</Text>
+                <Text style={[styles.lbName, row.isSelf && styles.lbNameSelf]} numberOfLines={1}>
+                  {row.name}{row.isSelf ? ' (sen)' : ''}
+                </Text>
+                <Text style={styles.lbScore}>{row.score}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* Stage Breakdown */}
       <Text style={styles.sectionTitle}>Stage Tipleri</Text>
@@ -212,4 +233,19 @@ const styles = StyleSheet.create({
   goalCard: { marginTop: 24, backgroundColor: colors.primaryAccentSoft, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E8CBB5' },
   goalLabel: { fontSize: 10, fontWeight: '900', color: colors.primaryAccent, letterSpacing: 1.5, marginBottom: 8 },
   goalText: { fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
+  lbCard: {
+    backgroundColor: colors.primaryCard,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  lbHint: { fontSize: 12, color: colors.textSecondary, marginBottom: 10, lineHeight: 18 },
+  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.primaryBorder },
+  lbRowSelf: { backgroundColor: colors.surface, marginHorizontal: -6, paddingHorizontal: 8, borderRadius: 10, borderBottomWidth: 0 },
+  lbRank: { width: 34, fontSize: 12, fontWeight: '800', color: colors.textMuted },
+  lbName: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  lbNameSelf: { color: colors.secondaryAccent },
+  lbScore: { fontSize: 13, fontWeight: '900', color: colors.primaryAccent },
 });
