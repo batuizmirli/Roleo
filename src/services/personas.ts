@@ -102,7 +102,15 @@ export type GoalId =
   | 'meeting-confidence'
   | 'pronunciation'
   | 'small-talk'
-  | 'travel-survival';
+  | 'travel-survival'
+  | 'service-clarity'
+  | 'written-tone'
+  | 'media-summarize'
+  | 'reasoned-pushback'
+  | 'register-shading'
+  | 'specialist-niche'
+  | 'irony-nuance'
+  | 'hard-negotiation';
 
 export type GoalContext = {
   /** Short label shown in prompts */
@@ -171,6 +179,71 @@ const GOAL_CONTEXTS: Record<GoalId, GoalContext> = {
     difficultyNote: `Prioritise practical travel phrases; options should feel high-stakes and realistic.`,
     flavourHint: '',
   },
+  'service-clarity': {
+    label: 'Mağaza / servis',
+    toneInstruction:
+      `The user is practising clear requests in shops, cafés, or customer service (returns, sizes, wrong order, directions to the counter). ` +
+      `NPCs are staff or fellow customers. Keep turns short and transactional; one "good" option must be polite and unambiguous.`,
+    difficultyNote: `Options contrast vague vs clear requests; reward specific details (item, time, receipt).`,
+    flavourHint: '',
+  },
+  'written-tone': {
+    label: 'Yazılı iş iletişimi',
+    toneInstruction:
+      `Frame scenes as workplace writing: Slack, email, or a quick note to a colleague. ` +
+      `NPC reactions should reflect how the message lands (too blunt, too vague, or just right). ` +
+      `When the user "speaks", treat it as the message they would send — coach register and brevity.`,
+    difficultyNote: `One option should model concise professional English; another too casual or rambling.`,
+    flavourHint: '',
+  },
+  'media-summarize': {
+    label: 'Haber / özet',
+    toneInstruction:
+      `NPCs share a quick news-style snippet, a headline, or a fast spoken update. ` +
+      `Ask the user to respond with the gist, main risk, or next step. Push slightly dense but realistic phrasing.`,
+    difficultyNote: `Good options capture the core idea without copying every detail; bad options miss the main point.`,
+    flavourHint: '',
+  },
+  'reasoned-pushback': {
+    label: 'Tartışma / karşı görüş',
+    toneInstruction:
+      `This is a respectful disagreement — planning meeting, debate, or friend disagreeing on plans. ` +
+      `NPC pushes back with a counter-argument. Reward calm, specific pushback ("I see your point, but…") and penalise hostile or vague replies.`,
+    difficultyNote: `Options differ by tone and reasoning quality, not only grammar.`,
+    flavourHint: '',
+  },
+  'register-shading': {
+    label: 'C1 register',
+    toneInstruction:
+      `C1-level register control: the same NPC relationship shifts between warm peer chat, neutral professional, and careful diplomatic distance. ` +
+      `User must match subtle cues (first names vs titles, contractions vs full forms, hedging density). Wrong options should be grammatically fine but socially "off".`,
+    difficultyNote: `Distinguish options by register fit, not vocabulary size alone.`,
+    flavourHint: '',
+  },
+  'specialist-niche': {
+    label: 'Niş uzman sohbeti',
+    toneInstruction:
+      `Pick a narrow domain (e.g. audio engineering, urban planning permits, wine tasting notes, climbing gear). ` +
+      `NPC speaks as a knowledgeable specialist with precise jargon and implicit assumptions. User must ask clarifying questions, challenge assumptions politely, or contribute accurately.`,
+    difficultyNote: `Good options show domain-appropriate precision; bad ones are vague, wrong register, or hand-wavy.`,
+    flavourHint: '',
+  },
+  'irony-nuance': {
+    label: 'İroni / nüans',
+    toneInstruction:
+      `NPC uses dry humour, understatement, or gentle sarcasm common among fluent native speakers. ` +
+      `Include lines that could be read straight or ironic depending on tone. User responses should show they caught (or missed) the nuance.`,
+    difficultyNote: `One option must reflect correct interpretation of subtext; trap options take sarcasm literally or over-react.`,
+    flavourHint: '',
+  },
+  'hard-negotiation': {
+    label: 'Sert müzakere',
+    toneInstruction:
+      `High-stakes but civil negotiation: refund dispute, contract edge case, neighbour conflict, or salary band pushback. ` +
+      `NPC is firm and tests boundaries. Reward firm, specific language without insults; penalise emotional venting or empty threats.`,
+    difficultyNote: `Options differ by strategic phrasing and boundary-setting, not politeness clichés alone.`,
+    flavourHint: '',
+  },
 };
 
 export const getGoalContext = (goalId: string | undefined): GoalContext | null => {
@@ -184,7 +257,7 @@ export const pickPersonaVariation = (stageType: StageKey, turnSeed: number) => {
 };
 
 export const getCelebrationByLevel = (level: UserLevel) => {
-  if (level === 'advanced') return 'Doğal ve akıcıydı. Harika performans!';
+  if (level === 'advanced' || level === 'fluent') return 'Doğal ve akıcıydı. Harika performans!';
   if (level === 'intermediate') return 'Çok iyi gidiyorsun. Akışı tuttun!';
   return 'Harika başlangıç. Her tur daha iyi oluyorsun!';
 };

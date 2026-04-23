@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile, UserLevel } from '../types';
 import { colors } from '../theme/colors';
+import { defaultPracticeTarget, type PracticeTarget } from '../data/practiceGoals';
+import PracticeFocusGoalCard from '../components/PracticeFocusGoalCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -57,8 +59,18 @@ const GOALS: UserGoal[] = [
 ];
 
 // ─── Step config ───────────────────────────────────────────────────────────
-type Step = 'welcome' | 'native' | 'language' | 'level' | 'goal' | 'dailyGoal' | 'dream' | 'context' | 'emotion';
-const STEPS: Step[] = ['welcome', 'native', 'language', 'level', 'goal', 'dailyGoal', 'dream', 'context', 'emotion'];
+type Step =
+  | 'welcome'
+  | 'level'
+  | 'practiceFocus'
+  | 'native'
+  | 'language'
+  | 'goal'
+  | 'dailyGoal'
+  | 'dream'
+  | 'context'
+  | 'emotion';
+const STEPS: Step[] = ['welcome', 'level', 'native', 'practiceFocus', 'language', 'goal', 'dailyGoal', 'dream', 'context', 'emotion'];
 
 const ACCENT = colors.primaryAccent;
 
@@ -101,8 +113,16 @@ const THEMES: Record<Step, StepTheme> = {
     overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
     accent: ACCENT,
     label: 'Seviye',
-    headline: 'Şu anki seviyen\nnerede?',
-    sub: 'Ders zorluğunu ve ipuçlarını buna göre ayarlayalım.',
+    headline: 'Şu anki seviyen\nnerede? 🎯',
+    sub: 'Dersleri ve ipuçlarını seviyene göre kişiselleştirelim.',
+  },
+  practiceFocus: {
+    image: IMG_MEETING,
+    overlay: ['rgba(8,10,24,0.52)', 'rgba(8,10,24,0.82)', 'rgba(8,10,24,0.97)'],
+    accent: ACCENT,
+    label: 'Bugünün odağı',
+    headline: 'Pratikte önceliğin\nne?',
+    sub: 'Ayrı bir adım: hedefini seç; ardından öğreneceğin dili soracağız.',
   },
   goal: {
     image: IMG_SOCIAL,
@@ -155,6 +175,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [selectedNative, setSelectedNative] = useState<Language | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<UserLevel | null>(null);
+  const [practiceTarget, setPracticeTarget] = useState<PracticeTarget | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(20);
   const [dreamText, setDreamText] = useState('');
@@ -198,22 +219,37 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   const handleNativeSelect = (lang: Language) => {
     setSelectedNative(lang);
-    setTimeout(() => transition('language'), 260);
+  };
+
+  const handleNativeContinue = () => {
+    if (!selectedNative) {
+      Alert.alert('Ana dilini seç', 'Devam etmek için listeden bir dil seç.');
+      return;
+    }
+    transition('practiceFocus');
   };
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
-    setTimeout(() => transition('level'), 260);
+    setTimeout(() => transition('goal'), 80);
   };
 
   const handleLevelSelect = (lvl: UserLevel) => {
     setSelectedLevel(lvl);
-    setTimeout(() => transition('goal'), 260);
+    setTimeout(() => transition('native'), 80);
+  };
+
+  const handlePracticeFocusContinue = () => {
+    if (!practiceTarget) {
+      Alert.alert('Bir hedef seç', 'Listeden bugünün odağını seçerek devam edebilirsin.');
+      return;
+    }
+    transition('language');
   };
 
   const handleGoalSelect = (goal: UserGoal) => {
     setSelectedGoal(goal);
-    setTimeout(() => transition('dailyGoal'), 260);
+    setTimeout(() => transition('dailyGoal'), 80);
   };
 
   const handleDailyGoalPick = (mins: number) => {
@@ -233,11 +269,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   const handleEmotionContinue = async () => {
     if (!emotionText.trim()) { Alert.alert('Add the feeling', 'How do you want to feel?'); return; }
+    const pt = practiceTarget ?? defaultPracticeTarget();
     const profile: UserProfile = {
       language: selectedLanguage!,
       nativeLanguage: selectedNative!,
       goal: selectedGoal!,
-      goalDescription: dreamText,
+      goalDescription: pt.label,
       identity: {
         goal: dreamText.trim(),
         context: contextText.trim(),
@@ -259,7 +296,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
   });
 
   const TEXT_STEPS: Partial<Record<Step, { label: string; handler: () => void }>> = {
-    welcome: { label: 'Başla', handler: () => transition('native') },
+    welcome: { label: 'Başla', handler: () => transition('level') },
+    native: { label: 'Devam Et', handler: handleNativeContinue },
+    practiceFocus: { label: 'Devam Et', handler: handlePracticeFocusContinue },
     dream: { label: 'Devam Et', handler: handleDreamContinue },
     context: { label: 'Devam Et', handler: handleContextContinue },
     emotion: { label: "Roleo'ya Başla", handler: handleEmotionContinue },
@@ -307,23 +346,36 @@ export default function OnboardingScreen({ onComplete }: Props) {
             <Text style={styles.stepCounter}>{currentIdx + 1} / {STEPS.length}</Text>
           </View>
 
-          {/* ── Step label ── */}
-          <Text style={[styles.eyebrow, { color: theme.accent }]}>{theme.label}</Text>
-
-          {/* ── Headline ── */}
-          <Text style={styles.headline}>{theme.headline}</Text>
-
-          {/* ── Subtitle ── */}
-          <Text style={styles.subtitle}>{theme.sub}</Text>
+          {/* ── Step label / headline (Bugünün odağı kartında birleştirildi) ── */}
+          {step !== 'practiceFocus' ? (
+            <>
+              <Text style={[styles.eyebrow, { color: theme.accent }]}>{theme.label}</Text>
+              <Text style={styles.headline}>{theme.headline}</Text>
+              <Text style={styles.subtitle}>{theme.sub}</Text>
+            </>
+          ) : null}
 
           {/* ── Step content ── */}
           {step === 'welcome' ? <WelcomeVisual accent={theme.accent} /> : null}
+
+          {step === 'level' && (
+            <LevelStep selected={selectedLevel} onSelect={handleLevelSelect} accent={theme.accent} />
+          )}
 
           {step === 'native' && (
             <NativeStep
               selected={selectedNative}
               onSelect={handleNativeSelect}
               accent={theme.accent}
+            />
+          )}
+
+          {step === 'practiceFocus' && (
+            <PracticeFocusGoalCard
+              variant="onboarding"
+              selected={practiceTarget}
+              onSelect={setPracticeTarget}
+              title="Bugünün odağı"
             />
           )}
 
@@ -334,10 +386,6 @@ export default function OnboardingScreen({ onComplete }: Props) {
               onSelect={handleLanguageSelect}
               accent={theme.accent}
             />
-          )}
-
-          {step === 'level' && (
-            <LevelStep selected={selectedLevel} onSelect={handleLevelSelect} accent={theme.accent} />
           )}
 
           {step === 'goal' && (
@@ -390,9 +438,18 @@ export default function OnboardingScreen({ onComplete }: Props) {
       {footerCta && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.ctaBtn, { backgroundColor: theme.accent }]}
+            style={[
+              styles.ctaBtn,
+              { backgroundColor: theme.accent },
+              (step === 'native' && !selectedNative) || (step === 'practiceFocus' && !practiceTarget)
+                ? { opacity: 0.45 }
+                : null,
+            ]}
             onPress={footerCta.handler}
             activeOpacity={0.85}
+            disabled={
+              (step === 'native' && !selectedNative) || (step === 'practiceFocus' && !practiceTarget)
+            }
           >
             <Text style={styles.ctaText}>{footerCta.label}</Text>
           </TouchableOpacity>
@@ -426,10 +483,11 @@ function WelcomeVisual({ accent }: { accent: string }) {
   );
 }
 
-const LEVEL_OPTIONS: { id: UserLevel; title: string; sub: string }[] = [
-  { id: 'beginner', title: 'Başlangıç', sub: 'Temel kalıplar ve güvenli pratik' },
-  { id: 'intermediate', title: 'Orta', sub: 'Konuşuyorum, akıcılığı güçlendiriyorum' },
-  { id: 'advanced', title: 'İleri', sub: 'Akıcıyım, nüans ve hız istiyorum' },
+const LEVEL_OPTIONS: { id: UserLevel; emoji: string; title: string; sub: string }[] = [
+  { id: 'beginner', emoji: '🌱', title: 'Başlangıç', sub: 'Yeni başlıyorum; temel kalıplar ve güven' },
+  { id: 'intermediate', emoji: '🌿', title: 'Orta', sub: 'Temelleri biliyorum; akıcılığı güçlendiriyorum' },
+  { id: 'advanced', emoji: '🌍', title: 'İleri', sub: 'Konuşmaya rahatım; hız ve nüans istiyorum' },
+  { id: 'fluent', emoji: '🚀', title: 'Akıcı / Ustalık', sub: 'İnce ayar; native seviyeye yakın pratik' },
 ];
 
 function LevelStep({
@@ -452,7 +510,7 @@ function LevelStep({
             onPress={() => onSelect(opt.id)}
             activeOpacity={0.7}
           >
-            <Text style={subStyles.goalEmoji}>◆</Text>
+            <Text style={subStyles.goalEmoji}>{opt.emoji}</Text>
             <View style={subStyles.goalTextWrap}>
               <Text style={[subStyles.goalLabel, active && { color: accent }]}>{opt.title}</Text>
               <Text style={subStyles.goalDesc}>{opt.sub}</Text>

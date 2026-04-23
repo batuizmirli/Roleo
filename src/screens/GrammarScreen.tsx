@@ -78,7 +78,10 @@ Return ONLY valid JSON array:
         </TouchableOpacity>
         <Text style={styles.title}>📚 Gramer</Text>
       </View>
-      <Text style={styles.subtitle}>{scenarioTitle ? `"${scenarioTitle}" sahnesi · ` : ''}{profile?.language?.flag} {profile?.language?.name}</Text>
+      <Text style={styles.subtitle}>
+        {scenarioTitle ? `"${scenarioTitle}" sahnesi · ` : 'Kural + örnek mini dersler · '}
+        {profile?.language?.flag} {profile?.language?.name}
+      </Text>
 
       {loading && (
         <View style={styles.center}>

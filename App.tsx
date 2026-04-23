@@ -87,6 +87,8 @@ export default function App() {
   const [firstSessionScenario, setFirstSessionScenario] = useState<Scenario | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  /** Grammar ekranına `home` veya sahne sonucundan girildiğini ayırt etmek için. */
+  const grammarEntryRef = useRef<'home' | 'stage-result'>('stage-result');
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -139,6 +141,16 @@ export default function App() {
   };
 
   const goTo = (next: Screen) => animateScreenChange(next);
+
+  const openGrammarFromHome = () => {
+    grammarEntryRef.current = 'home';
+    goTo('grammar');
+  };
+
+  const openGrammarFromStageResult = () => {
+    grammarEntryRef.current = 'stage-result';
+    goTo('grammar');
+  };
 
   const startFirstSession = async () => {
     const profileRaw = await AsyncStorage.getItem('userProfile');
@@ -331,6 +343,7 @@ export default function App() {
           onOpenPronunciation={() => goTo('pronunciation')}
           onOpenFlashPick={() => goTo('flash-pick')}
           onOpenTrueOrFake={() => goTo('true-or-fake')}
+          onOpenGrammar={openGrammarFromHome}
           onOpenProgress={() => goTo('progress')}
           onOpenAccount={() => goTo('account')}
           onStartDailyMission={startDailyMission}
@@ -431,14 +444,23 @@ export default function App() {
             goTo(wasFirst ? 'first-session-next' : 'scenarios');
           }}
           onOpenVocab={() => goTo('vocab')}
-          onOpenGrammar={() => goTo('grammar')}
+          onOpenGrammar={openGrammarFromStageResult}
           onOpenQuiz={() => goTo('quiz')}
         />
       );
     }
 
     if (screen === 'vocab') return <VocabScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
-    if (screen === 'grammar') return <GrammarScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    if (screen === 'grammar') {
+      const fromHome = grammarEntryRef.current === 'home';
+      return (
+        <GrammarScreen
+          onBack={() => goTo(fromHome ? 'home' : 'stage-result')}
+          scenarioTitle={fromHome ? undefined : stageResult?.scenarioTitle}
+          stageType={fromHome ? undefined : stageResult?.stageType}
+        />
+      );
+    }
     if (screen === 'quiz') return <QuizScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'stories') return <QuotesScreen onBack={() => goTo('home')} />;
     if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo('home')} />;

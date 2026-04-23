@@ -41,7 +41,7 @@ export type Scenario = {
   backgroundImage?: string;
 };
 
-export type UserLevel = 'beginner' | 'intermediate' | 'advanced';
+export type UserLevel = 'beginner' | 'intermediate' | 'advanced' | 'fluent';
 
 export type Message = {
   id: string;

@@ -1,23 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import NotificationsSheet from '../components/NotificationsSheet';
 import { tryParseJson } from '../services/json';
-import { getLevelFromXp, getProgress, getWeeklyXp } from '../services/progress';
+import { getLevelFromXp, getProgress, getWeeklyXp, type DailyXpEntry } from '../services/progress';
 import { colors } from '../theme/colors';
+import WeeklyActivityChart from '../components/WeeklyActivityChart';
+import { ALL_PRACTICE_TARGETS, defaultPracticeTarget } from '../data/practiceGoals';
 
 const LESSON_IMAGES = {
   scenarios:
@@ -64,21 +56,6 @@ const PICKED_FOR_YOU: PickedCard[] = [
   },
 ];
 
-type PracticeTarget = {
-  id: string;
-  label: string;
-  hint: string;
-};
-
-const PRACTICE_TARGETS: PracticeTarget[] = [
-  { id: 'b2-speaking', label: 'B2 seviyesinde konuşmak', hint: 'Akıcı, net ve doğal ifade' },
-  { id: 'phrasal-verbs', label: 'Phrasal verbleri öğrenmek', hint: 'Günlük İngilizcede doğal kalıplar' },
-  { id: 'meeting-confidence', label: 'Toplantıda özgüvenli konuşmak', hint: 'İş iletişiminde netlik' },
-  { id: 'pronunciation', label: 'Telaffuzu düzeltmek', hint: 'Daha anlaşılır ve temiz ses' },
-  { id: 'small-talk', label: 'Small talk başlatabilmek', hint: 'Sosyal ortamlarda rahat giriş' },
-  { id: 'travel-survival', label: 'Seyahatte zorlanmamak', hint: 'Havalimanı, otel, restoran akışı' },
-];
-
 type RoutineTile = {
   id: string;
   label: string;
@@ -86,11 +63,9 @@ type RoutineTile = {
   fill: number;
   muted: boolean;
   onPress: () => void;
+  /** Kart içi kısa açıklama (ör. grammar konuları) */
+  caption?: string;
 };
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type Props = {
   onModeSelect: (mode: 'scenarios' | 'stories' | 'phrasebook') => void;
@@ -101,6 +76,7 @@ type Props = {
   onOpenPronunciation?: () => void;
   onOpenFlashPick?: () => void;
   onOpenTrueOrFake?: () => void;
+  onOpenGrammar?: () => void;
   onOpenProgress?: () => void;
   onOpenAccount?: () => void;
   onStartDailyMission?: () => void;
@@ -125,30 +101,27 @@ export default function HomeScreen({
   onOpenPronunciation,
   onOpenFlashPick,
   onOpenTrueOrFake,
+  onOpenGrammar,
   onOpenProgress,
   onOpenAccount,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [targetExpanded, setTargetExpanded] = useState(false);
   const [weeklyTotal, setWeeklyTotal] = useState(0);
-  const [selectedTarget, setSelectedTarget] = useState<string>(PRACTICE_TARGETS[0].label);
-  const [selectedTargetId, setSelectedTargetId] = useState<string>(PRACTICE_TARGETS[0].id);
-  const [targetUpdatedNotice, setTargetUpdatedNotice] = useState(false);
+  const [weeklyXpSeries, setWeeklyXpSeries] = useState<DailyXpEntry[]>([]);
+  const def = defaultPracticeTarget();
+  const [selectedTarget, setSelectedTarget] = useState<string>(def.label);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>(def.id);
   const [playedToday, setPlayedToday] = useState(false);
-  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadProfile();
-    return () => {
-      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-    };
   }, []);
 
   const xp = profile?.xp ?? 0;
   const level = getLevelFromXp(xp);
-  const matchedTarget = PRACTICE_TARGETS.find(t => t.label === selectedTarget) ?? PRACTICE_TARGETS[0];
+  const matchedTarget = ALL_PRACTICE_TARGETS.find(t => t.label === selectedTarget) ?? defaultPracticeTarget();
 
   const routineTiles: RoutineTile[] = [
     {
@@ -179,9 +152,10 @@ export default function HomeScreen({
       id: 'grammar',
       label: 'Grammar',
       icon: 'translate',
-      fill: weeklyTotal > 40 ? 0.4 : 0,
-      muted: weeklyTotal <= 40,
-      onPress: () => onOpenTrueOrFake?.(),
+      fill: Math.min(1, 0.58 + (weeklyTotal > 15 ? 0.22 : 0) + (xp > 40 ? 0.2 : 0)),
+      muted: false,
+      caption: 'Kural + örnek: zamanlar, edatlar, bağlaçlar',
+      onPress: () => onOpenGrammar?.(),
     },
   ];
 
@@ -196,38 +170,21 @@ export default function HomeScreen({
     }
 
     setProfile(parsed);
-    const savedLabel = parsed.goalDescription?.trim() || PRACTICE_TARGETS[0].label;
-    setSelectedTarget(savedLabel);
-    const matched = PRACTICE_TARGETS.find(t => t.label === savedLabel) ?? PRACTICE_TARGETS[0];
+    const savedLabel = parsed.goalDescription?.trim() || defaultPracticeTarget().label;
+    const matched = ALL_PRACTICE_TARGETS.find(t => t.label === savedLabel) ?? defaultPracticeTarget();
+    setSelectedTarget(matched.label);
     setSelectedTargetId(matched.id);
 
     const progress = await getProgress();
     const todayStr = new Date().toISOString().slice(0, 10);
     setPlayedToday(progress.lastPlayedDate === todayStr);
     const weekly = getWeeklyXp(progress.dailyXpLog ?? {});
+    setWeeklyXpSeries(weekly);
     setWeeklyTotal(weekly.reduce((s, d) => s + d.xp, 0));
   };
 
-  const handleTargetSelect = async (target: PracticeTarget) => {
-    if (!profile) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSelectedTarget(target.label);
-    setSelectedTargetId(target.id);
-    setTargetExpanded(false);
-    setTargetUpdatedNotice(true);
-    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-    noticeTimerRef.current = setTimeout(() => setTargetUpdatedNotice(false), 2200);
-    const updated: UserProfile = {
-      ...profile,
-      goalDescription: target.label,
-      identity: profile.identity ? { ...profile.identity, goal: target.label } : profile.identity,
-    };
-    setProfile(updated);
-    await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
-  };
-
-  const heroDescription = profile?.language?.name
-    ? `${profile.language.name} pratiğinde bugün: ${matchedTarget.hint}`
+  const focusHint = profile?.language?.name
+    ? `${profile.language.name} pratiği · ${matchedTarget.hint}`
     : matchedTarget.hint;
 
   const rhythmDoneCount = routineTiles.filter(t => t.fill >= 0.95).length;
@@ -275,49 +232,36 @@ export default function HomeScreen({
       >
         <View style={styles.hero}>
           <View style={styles.heroGlow} />
-          <MaterialIcons name="record-voice-over" size={112} color="rgba(255,255,255,0.38)" style={styles.heroDecoIcon} />
+          <MaterialIcons name="bar-chart" size={88} color="rgba(255,255,255,0.22)" style={styles.heroDecoIcon} />
           <View style={styles.heroContent}>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>GÜNLÜK HEDEF</Text>
+            <Text style={styles.heroHeadline}>Haftalık analiz</Text>
+            <Text style={styles.heroSubMeta}>Son 7 gün · toplam {weeklyTotal} XP</Text>
+
+            <View style={styles.chartPanel}>
+              <View style={styles.chartTitleRow}>
+                <Text style={styles.chartPanelTitle}>Öğrenme süresi özeti</Text>
+                <View style={styles.chartWeekPill}>
+                  <Text style={styles.chartWeekPillText}>Haftalık</Text>
+                </View>
+              </View>
+              <WeeklyActivityChart
+                series={weeklyXpSeries.length ? weeklyXpSeries : getWeeklyXp({})}
+                accent={terracotta}
+                barMuted="rgba(136, 76, 50, 0.35)"
+                barEmpty="rgba(136, 76, 50, 0.12)"
+              />
             </View>
-            <TouchableOpacity
-              activeOpacity={0.92}
-              onPress={() => {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                setTargetExpanded(e => !e);
-              }}
-            >
-              <Text style={styles.heroHeadline}>Bugünün odağı</Text>
-              <Text style={styles.heroGoalLine} numberOfLines={2}>
+
+            <View style={styles.focusBlock}>
+              <Text style={styles.focusLabel}>Bugünün odağı</Text>
+              <Text style={styles.focusTitle} numberOfLines={2}>
                 {selectedTarget}
               </Text>
-              <Text style={styles.heroBody} numberOfLines={3}>
-                {heroDescription}
+              <Text style={styles.focusHint} numberOfLines={2}>
+                {focusHint}
               </Text>
-            </TouchableOpacity>
-            {targetExpanded ? (
-              <View style={styles.targetList}>
-                {PRACTICE_TARGETS.map(t => {
-                  const active = selectedTarget === t.label;
-                  return (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={[styles.targetRow, active && styles.targetRowActive]}
-                      onPress={() => handleTargetSelect(t)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.targetRowTitle, active && styles.targetRowTitleActive]}>{t.label}</Text>
-                        <Text style={styles.targetRowHint}>{t.hint}</Text>
-                      </View>
-                      {active ? <MaterialIcons name="check-circle" size={20} color={white} /> : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : null}
-            {targetUpdatedNotice ? (
-              <Text style={styles.notice}>Hedef güncellendi — modlar buna göre ayarlandı.</Text>
-            ) : null}
+            </View>
+
             <TouchableOpacity
               style={styles.heroCta}
               activeOpacity={0.9}
@@ -344,7 +288,14 @@ export default function HomeScreen({
               <View style={[styles.rhythmIconCircle, tile.muted && styles.rhythmIconCircleMuted]}>
                 <MaterialIcons name={tile.icon} size={22} color={tile.muted ? '#85736C' : primary} />
               </View>
-              <Text style={styles.rhythmLabel}>{tile.label}</Text>
+              <View style={styles.rhythmTextBlock}>
+                <Text style={styles.rhythmLabel}>{tile.label}</Text>
+                {tile.caption ? (
+                  <Text style={styles.rhythmCaption} numberOfLines={2}>
+                    {tile.caption}
+                  </Text>
+                ) : null}
+              </View>
               <View style={styles.rhythmTrack}>
                 <View style={[styles.rhythmFill, { width: `${Math.round(tile.fill * 100)}%` }]} />
               </View>
@@ -482,67 +433,81 @@ const styles = StyleSheet.create({
     bottom: 4,
   },
   heroContent: { zIndex: 2 },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginBottom: 10,
-  },
-  heroBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: white,
-    letterSpacing: 0.8,
-  },
   heroHeadline: {
     fontSize: 26,
     lineHeight: 32,
     fontFamily: 'Poppins_600SemiBold',
     color: white,
-    marginBottom: 6,
-    maxWidth: 280,
+    marginBottom: 4,
+    maxWidth: 300,
   },
-  heroGoalLine: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontFamily: 'Poppins_600SemiBold',
-    color: 'rgba(255,255,255,0.95)',
-    marginBottom: 8,
-    maxWidth: 280,
+  heroSubMeta: {
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(255,255,255,0.82)',
+    marginBottom: 14,
   },
-  heroBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.88)',
-    maxWidth: 260,
+  chartPanel: {
+    backgroundColor: surface,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
-  targetList: {
-    marginBottom: 12,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  targetRow: {
+  chartTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  targetRowActive: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  targetRowTitle: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: 'rgba(255,255,255,0.92)' },
-  targetRowTitleActive: { color: white },
-  targetRowHint: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  notice: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 10,
+  chartPanelTitle: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: onSurface,
+    flex: 1,
+    paddingRight: 8,
+  },
+  chartWeekPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(176, 109, 80, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(176, 109, 80, 0.35)',
+  },
+  chartWeekPillText: {
+    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
+    color: terracotta,
+  },
+  focusBlock: {
+    marginBottom: 14,
+  },
+  focusLabel: {
+    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
+    color: 'rgba(255,255,255,0.72)',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  focusTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: 'Poppins_600SemiBold',
+    color: white,
+    marginBottom: 6,
+    maxWidth: 300,
+  },
+  focusHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'Poppins_400Regular',
+    color: 'rgba(255,255,255,0.88)',
+    maxWidth: 300,
   },
   heroCta: {
     alignSelf: 'flex-start',
@@ -608,11 +573,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rhythmIconCircleMuted: { backgroundColor: '#F0EDED' },
+  rhythmTextBlock: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginBottom: 8,
+    gap: 4,
+  },
   rhythmLabel: {
     fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
     color: onSurfaceVariant,
-    marginBottom: 8,
+  },
+  rhythmCaption: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#7A6E68',
+    textAlign: 'center',
+    paddingHorizontal: 2,
+    alignSelf: 'stretch',
   },
   rhythmTrack: {
     width: '100%',

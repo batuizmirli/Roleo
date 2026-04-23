@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
 import { colors } from '../theme/colors';
+import { ALL_PRACTICE_TARGETS, type PracticeTarget } from '../data/practiceGoals';
+import PracticeFocusGoalCard from '../components/PracticeFocusGoalCard';
 
 const NATIVE_LANGUAGES: Language[] = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
@@ -17,6 +19,8 @@ const NATIVE_LANGUAGES: Language[] = [
   { code: 'ru', name: 'Русский', flag: '🇷🇺' },
 ];
 
+type Phase = 'native' | 'focus';
+
 type Props = {
   onComplete: () => void;
   onReset: () => void;
@@ -25,6 +29,8 @@ type Props = {
 export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [selected, setSelected] = useState<Language | null>(null);
+  const [phase, setPhase] = useState<Phase>('native');
+  const [practiceTarget, setPracticeTarget] = useState<PracticeTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,17 +57,31 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
     load();
   }, [onReset]);
 
-  const handleContinue = async () => {
+  const goToFocusPhase = () => {
+    if (!selected || !profile) return;
+    const fromProfile = ALL_PRACTICE_TARGETS.find(t => t.label === profile.goalDescription?.trim()) ?? null;
+    setPracticeTarget(fromProfile);
+    setPhase('focus');
+  };
+
+  const saveAndFinish = async () => {
     if (!profile || !selected || saving) return;
+    if (!practiceTarget) {
+      Alert.alert('Bir hedef seç', 'Bugünün odağını listeden seçerek devam edebilirsin.');
+      return;
+    }
     setSaving(true);
-
-    const updated: UserProfile = {
-      ...profile,
-      nativeLanguage: selected,
-    };
-
-    await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
-    onComplete();
+    try {
+      const updated: UserProfile = {
+        ...profile,
+        nativeLanguage: selected,
+        goalDescription: practiceTarget.label,
+      };
+      await AsyncStorage.setItem('userProfile', JSON.stringify(updated));
+      onComplete();
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -74,39 +94,66 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerBlock}>
-          <Text style={styles.title}>Ana dilin hangisi?</Text>
-          <Text style={styles.subtitle}>Deneyimi sana göre kurmak için anadilini seç.</Text>
-        </View>
+      {phase === 'native' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.headerBlock}>
+            <Text style={styles.title}>Ana dilin hangisi?</Text>
+            <Text style={styles.subtitle}>Deneyimi sana göre kurmak için anadilini seç.</Text>
+          </View>
 
-        <View style={styles.grid}>
-          {NATIVE_LANGUAGES.map(lang => {
-            const active = selected?.code === lang.code;
-            return (
-              <TouchableOpacity
-                key={lang.code}
-                style={[styles.card, active && styles.cardActive]}
-                onPress={() => setSelected(lang)}
-                activeOpacity={0.88}
-              >
-                <View style={[styles.flagWrap, active && styles.flagWrapActive]}>
-                  <Text style={styles.flag}>{lang.flag}</Text>
-                </View>
-                <Text style={[styles.name, active ? styles.nameActive : styles.nameInactive]}>{lang.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          <View style={styles.grid}>
+            {NATIVE_LANGUAGES.map(lang => {
+              const active = selected?.code === lang.code;
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[styles.card, active && styles.cardActive]}
+                  onPress={() => setSelected(lang)}
+                  activeOpacity={0.88}
+                >
+                  <View style={[styles.flagWrap, active && styles.flagWrapActive]}>
+                    <Text style={styles.flag}>{lang.flag}</Text>
+                  </View>
+                  <Text style={[styles.name, active ? styles.nameActive : styles.nameInactive]}>{lang.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContentFocus} showsVerticalScrollIndicator={false}>
+          <PracticeFocusGoalCard
+            variant="startup"
+            title="Bugünün odağı"
+            selected={practiceTarget}
+            onSelect={setPracticeTarget}
+          />
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      )}
 
       <View style={styles.bottomAction}>
+        {phase === 'focus' ? (
+          <TouchableOpacity
+            style={[styles.secondaryBtn, saving && styles.buttonDisabled]}
+            onPress={() => setPhase('native')}
+            disabled={saving}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.secondaryBtnText}>Geri</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
-          style={[styles.button, (!selected || saving) && styles.buttonDisabled]}
-          onPress={handleContinue}
-          disabled={!selected || saving}
+          style={[
+            styles.button,
+            ((!selected && phase === 'native') || (!practiceTarget && phase === 'focus') || saving) && styles.buttonDisabled,
+          ]}
+          onPress={phase === 'native' ? goToFocusPhase : saveAndFinish}
+          disabled={
+            saving || (phase === 'native' && !selected) || (phase === 'focus' && !practiceTarget)
+          }
           activeOpacity={0.9}
         >
           <Text style={styles.buttonText}>{saving ? 'Kaydediliyor...' : 'Devam Et'}</Text>
@@ -125,6 +172,15 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 20,
     alignItems: 'center',
+  },
+  scrollContentFocus: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 120,
+    alignItems: 'stretch',
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
   },
   headerBlock: {
     width: '100%',
@@ -146,7 +202,7 @@ const styles = StyleSheet.create({
     color: '#53433E',
     textAlign: 'center',
     fontFamily: 'Poppins_500Medium',
-    maxWidth: 300,
+    maxWidth: 320,
   },
   grid: {
     width: '100%',
@@ -213,7 +269,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     paddingTop: 16,
-    backgroundColor: 'rgba(252, 249, 248, 0.93)',
+    backgroundColor: 'rgba(252, 249, 248, 0.97)',
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  secondaryBtn: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: 'rgba(136, 76, 50, 0.35)',
+    backgroundColor: '#FFFFFF',
+  },
+  secondaryBtnText: {
+    color: '#884C32',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
   },
   button: {
     backgroundColor: '#884C32',
@@ -222,9 +294,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#884C32',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.20,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 5,
+    flex: 1,
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: {
