@@ -39,19 +39,19 @@ const SLIDES: IntroSlide[] = [
   {
     id: 'welcome',
     heading: 'Hoş Geldin',
-    lead: 'Yeni Bir Dil, Yeni Bir Sen.',
-    description: 'Dünyayı kendi dillerinde keşfetmeye hazır mısın?',
+    lead: 'Gerçek konuşmaları önceden prova et.',
+    description: 'Practice real-life conversations before you have them.',
     features: [
       { icon: 'explore', title: 'Gerçek Bağlamlar', subtitle: 'Kitaplardan değil, hayattan öğrenin.' },
-      { icon: 'mic', title: 'Akıcı Konuşma', subtitle: 'Yapay zeka ile günlük pratikler yapın.' },
-      { icon: 'school', title: 'Akıllı İlerleme', subtitle: 'Size özel hazırlanan öğrenme yolu.' },
+      { icon: 'mic', title: 'Sahne Provası', subtitle: 'Kısa sahnelerde ne diyeceğini çalış.' },
+      { icon: 'school', title: 'Pratik İlerleme', subtitle: 'Her turdan sonra daha iyi cevap seç.' },
     ],
   },
   {
     id: 'speak',
     heading: 'Sahne Modu',
-    lead: 'Gerçek hayat konuşmaları.',
-    description: 'Kafeden iş toplantısına, seyahate kadar onlarca gerçek senaryo.',
+    lead: 'Bugünün sahnesine gir.',
+    description: 'Kısa hazırlık yap, baskı altında konuş, anında geri bildirim al.',
     features: [
       { icon: 'local-cafe', title: 'Farklı sosyal durumlar', subtitle: 'Kafe, iş, seyahat ve dahası' },
       { icon: 'psychology', title: 'Nüansları keşfet', subtitle: 'Doğal / orta / garip cevap farkını öğrenme' },
@@ -61,8 +61,8 @@ const SLIDES: IntroSlide[] = [
   {
     id: 'arcade',
     heading: 'Mini-Game Modları',
-    lead: 'Hızlı oyunlarla refleks kazan.',
-    description: 'Refleks ve dil hissini aynı anda güçlendiren kısa modlar.',
+    lead: 'Ana sahneye destek modlar.',
+    description: 'Refleksini ısıt, sonra gerçek diyalog sahnesine daha hazır gir.',
     features: [
       { icon: 'flash-on', title: 'Flash Pick', subtitle: 'Hız ve kelime eşleştirme' },
       { icon: 'quiz', title: 'True or Fake', subtitle: 'Doğru/yanlış sezgisi' },
@@ -72,8 +72,8 @@ const SLIDES: IntroSlide[] = [
   {
     id: 'value',
     heading: 'Sana Ne Katar?',
-    lead: 'Özgüvenli ve doğal konuş.',
-    description: 'Kısa sürede daha akıcı ve kalıcı bir dil hissi.',
+    lead: 'Söylemeden önce dene.',
+    description: "Gerçek hayatta söylemeden önce Roleo'da dene.",
     features: [
       { icon: 'verified', title: 'Hata farkındalığı', subtitle: 'Hataları yakalayıp doğru kalıplarla yer değiştirin.' },
       { icon: 'trending-up', title: 'Kalıcı ilerleme', subtitle: 'Düzenli pratikle dil bilgisi kas hafızasına dönüşür.' },

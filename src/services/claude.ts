@@ -1,6 +1,9 @@
 import { Message } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_KEY_STORAGE = 'roleoAnthropicApiKey';
+let runtimeApiKey: string | null = null;
 
 type SendMessageOptions = {
   maxTokens?: number;
@@ -12,7 +15,10 @@ export const sendMessage = async (
   systemPrompt: string,
   options?: SendMessageOptions
 ): Promise<string> => {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  const envKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  const storedKey = runtimeApiKey ?? await AsyncStorage.getItem(ANTHROPIC_KEY_STORAGE);
+  const apiKey = envKey || storedKey;
+  if (storedKey && !runtimeApiKey) runtimeApiKey = storedKey;
   if (!apiKey) {
     throw new Error('API yapılandırması eksik. EXPO_PUBLIC_ANTHROPIC_API_KEY tanımlanmalı.');
   }
@@ -44,4 +50,10 @@ export const sendMessage = async (
 
   const data = await response.json();
   return data.content[0].text;
+};
+
+export const saveAnthropicApiKey = async (key: string): Promise<void> => {
+  const cleaned = key.trim();
+  runtimeApiKey = cleaned;
+  await AsyncStorage.setItem(ANTHROPIC_KEY_STORAGE, cleaned);
 };

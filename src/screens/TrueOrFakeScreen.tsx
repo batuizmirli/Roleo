@@ -177,7 +177,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, onComplete }
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Gerçek mi, fake mi?</Text>
-          <Text style={styles.cardSub}>Cümleyi gör, 2 butondan seç, hızlı karar ver.</Text>
+          <Text style={styles.cardSub}>Bugünkü sahnede doğal kalmak için cümleyi gör, doğru tonu hızlı seç.</Text>
 
           <View style={styles.diffRow}>
             {(['easy', 'medium', 'hard'] as TrueFakeDifficulty[]).map(d => (

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StageResult, UserProfile } from '../types';
+import { LearningMemory, StageResult, UserProfile } from '../types';
 import { scenarios } from '../data/scenarios';
 import { tryParseJson } from './json';
 
@@ -10,6 +10,8 @@ export type ProgressState = {
   completedScenarioIds: string[];
   scenarioPlayCounts: Record<string, number>;
   dailyXpLog: Record<string, number>;
+  learningMemory?: LearningMemory;
+  completedResultIds?: string[];
 };
 
 export type UnlockState = {
@@ -22,6 +24,7 @@ export type StageCompletionSummary = {
   progress: ProgressState;
   unlockState: UnlockState;
   newlyUnlocked: string[];
+  appliedXp: number;
 };
 
 const PROGRESS_KEY = 'roleoProgress';
@@ -33,6 +36,129 @@ const defaultProgress: ProgressState = {
   completedScenarioIds: [],
   scenarioPlayCounts: {},
   dailyXpLog: {},
+  learningMemory: {
+    recentMistakeTypes: [],
+    repeatedWeaknesses: [],
+    savedPhrases: [],
+    categoryStats: {},
+    updatedAt: '',
+  },
+  completedResultIds: [],
+};
+
+const COMPLETED_RESULT_CAP = 30;
+
+const MEMORY_MISTAKE_CAP = 8;
+const MEMORY_WEAKNESS_CAP = 4;
+const MEMORY_PHRASE_CAP = 8;
+
+const appendUniqueCapped = (list: string[], value: string, cap: number) => {
+  const normalized = value.trim();
+  if (!normalized) return list;
+  if (list.includes(normalized)) return list;
+  return [...list, normalized].slice(-cap);
+};
+
+const appendCapped = (list: string[], value: string, cap: number) => {
+  const normalized = value.trim();
+  if (!normalized) return list;
+  return [...list, normalized].slice(-cap);
+};
+
+const buildNextRecommendedFocus = (weaknesses: string[]) => {
+  if (weaknesses.includes('short_replies')) {
+    return 'Son sahnelerde cevapların kısa kaldı. Bugün cevaba bir neden veya detay ekle.';
+  }
+  if (weaknesses.includes('direct_tone')) {
+    return 'Bazen fazla direkt kalıyorsun. Bugün daha yumuşak ve nazik geçişler kullan.';
+  }
+  if (weaknesses.includes('awkward_tone')) {
+    return 'Akışta garip kalan yanıtlar oldu. Bugün daha doğal ve temiz kalıplar seç.';
+  }
+  if (weaknesses.includes('time_pressure')) {
+    return 'Süre baskısı kararını etkiliyor. Bugün bir beat erken cevap vererek ritmi koru.';
+  }
+  if (weaknesses.includes('politeness')) {
+    return 'Nazik tonu güçlendirelim: bugün rica ve yumuşatma kalıpları ekleyerek cevapla.';
+  }
+  return 'Bugün bir tur daha temiz akış hedefle ve iyi cevap zincirini koru.';
+};
+
+const deriveLearningMemory = (result: StageResult, previous?: LearningMemory): LearningMemory => {
+  const prior: LearningMemory = previous ?? {
+    recentMistakeTypes: [],
+    repeatedWeaknesses: [],
+    savedPhrases: [],
+    categoryStats: {},
+    updatedAt: '',
+  };
+
+  const newMistakes = new Set<string>();
+  const nextCategoryStats = { ...(prior.categoryStats ?? {}) };
+  const stageKey = result.stageType ?? 'social';
+  const currentCategory = nextCategoryStats[stageKey] ?? { plays: 0, improvedRuns: 0 };
+  const didImprove =
+    (result.runCompare?.previous && result.runCompare.current.accuracy > result.runCompare.previous.accuracy)
+    || (result.runCompare?.current.comboMax ?? 0) > (result.runCompare?.previous?.comboMax ?? 0);
+  nextCategoryStats[stageKey] = {
+    plays: currentCategory.plays + 1,
+    improvedRuns: currentCategory.improvedRuns + (didImprove ? 1 : 0),
+  };
+
+  if ((result.awkwardTurns ?? 0) > 0) {
+    newMistakes.add('awkward_reply');
+    newMistakes.add('politeness');
+  }
+  if ((result.sceneAccuracy ?? 1) < 0.68) {
+    newMistakes.add('short_reply');
+    newMistakes.add('direct_tone');
+  }
+  if ((result.timedOutTurns ?? 0) > 0) {
+    newMistakes.add('time_pressure');
+  }
+  if ((result.goodTurns ?? 0) <= 1 && (result.userMessageCount ?? 0) >= 4) {
+    newMistakes.add('short_reply');
+  }
+
+  let repeatedWeaknesses = [...(prior.repeatedWeaknesses ?? [])];
+  let recentMistakeTypes = [...(prior.recentMistakeTypes ?? [])];
+  newMistakes.forEach(m => {
+    recentMistakeTypes = appendCapped(recentMistakeTypes, m, MEMORY_MISTAKE_CAP);
+    const hits = recentMistakeTypes.filter(v => v === m).length;
+    if (hits >= 2 && !repeatedWeaknesses.includes(m)) {
+      repeatedWeaknesses = appendUniqueCapped(repeatedWeaknesses, m, MEMORY_WEAKNESS_CAP);
+    }
+  });
+
+  const mappedWeaknesses = repeatedWeaknesses.map(w => {
+    if (w === 'short_reply') return 'short_replies';
+    if (w === 'direct_tone') return 'direct_tone';
+    if (w === 'awkward_reply') return 'awkward_tone';
+    if (w === 'time_pressure') return 'time_pressure';
+    if (w === 'politeness') return 'politeness';
+    return w;
+  });
+  const nextRecommendedFocus = buildNextRecommendedFocus(mappedWeaknesses);
+
+  let savedPhrases = [...(prior.savedPhrases ?? [])];
+  const candidatePhrases = [
+    result.learningSummary?.betterAlternative,
+    result.learningSummary?.bestReply,
+    result.nativePhraseHighlight,
+  ].filter((v): v is string => !!v && v.trim().length > 0);
+  for (const phrase of candidatePhrases) {
+    savedPhrases = appendUniqueCapped(savedPhrases, phrase, MEMORY_PHRASE_CAP);
+  }
+
+  return {
+    recentMistakeTypes,
+    repeatedWeaknesses: mappedWeaknesses,
+    savedPhrases,
+    lastSceneFocus: result.learningSummary?.nextFocus ?? result.naturalTip ?? undefined,
+    nextRecommendedFocus,
+    categoryStats: nextCategoryStats,
+    updatedAt: new Date().toISOString(),
+  };
 };
 
 const emptyCounts: UnlockState['stageCounts'] = {
@@ -101,12 +227,26 @@ export const getProgress = async (): Promise<ProgressState> => {
     lastPlayedDate,
     scenarioPlayCounts: parsed.scenarioPlayCounts ?? {},
     dailyXpLog: parsed.dailyXpLog ?? {},
+    learningMemory: parsed.learningMemory ?? defaultProgress.learningMemory,
+    completedResultIds: parsed.completedResultIds ?? [],
   };
 };
 
 export const completeStage = async (result: StageResult): Promise<StageCompletionSummary> => {
   const progress = await getProgress();
   const beforeUnlock = getUnlockState(progress);
+  const resultId = result.resultId?.trim();
+  const alreadyCompleted = !!(resultId && progress.completedResultIds?.includes(resultId));
+  if (alreadyCompleted) {
+    const unlock = getUnlockState(progress);
+    return {
+      progress,
+      unlockState: unlock,
+      newlyUnlocked: [],
+      appliedXp: 0,
+    };
+  }
+
   const toISODate = (d: Date) => d.toISOString().slice(0, 10);
   const todayStr = toISODate(new Date());
   const yesterdayStr = toISODate(new Date(Date.now() - 86400000));
@@ -128,6 +268,11 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
 
   if (!progress.scenarioPlayCounts) progress.scenarioPlayCounts = {};
   progress.scenarioPlayCounts[result.scenarioId] = (progress.scenarioPlayCounts[result.scenarioId] ?? 0) + 1;
+  progress.learningMemory = deriveLearningMemory(result, progress.learningMemory);
+  if (!progress.completedResultIds) progress.completedResultIds = [];
+  if (resultId) {
+    progress.completedResultIds = [...progress.completedResultIds, resultId].slice(-COMPLETED_RESULT_CAP);
+  }
 
   await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
@@ -152,6 +297,7 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
     progress,
     unlockState: afterUnlock,
     newlyUnlocked,
+    appliedXp: result.xpEarned,
   };
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StageResult, UserProfile } from '../types';
 import { getDailyLeaderboard, LeaderboardEntry } from '../services/leaderboard';
@@ -7,7 +7,8 @@ import { completeStage, getLevelFromXp } from '../services/progress';
 import { getCelebrationByLevel } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
 import { tryParseJson } from '../services/json';
-import { getMotivationHero, buildStageReplayCta, oneLineRunDelta } from '../services/runHook';
+import { getMotivationHero, buildStageReplayCta, oneLineRunDelta, resolvePlayerIdentity, PlayerIdentitySnapshot } from '../services/runHook';
+import { buildChallengeLink, buildResultEmotionalLine } from '../services/challengeShare';
 
 type Props = {
   result: StageResult;
@@ -34,8 +35,12 @@ export default function StageResultScreen({
   const [newlyUnlocked, setNewlyUnlocked] = useState<string[]>([]);
   const [leveledUp, setLeveledUp] = useState(false);
   const [identityGoal, setIdentityGoal] = useState<string | null>(null);
+  const [playerIdentity, setPlayerIdentity] = useState<PlayerIdentitySnapshot | null>(null);
+  const [displayName, setDisplayName] = useState('Player');
+  const [sharing, setSharing] = useState(false);
   const [leaderboard, setLeaderboard] = useState<(LeaderboardEntry & { rank: number })[]>([]);
   const [showDetails, setShowDetails] = useState(false);
+  const [memoryFocus, setMemoryFocus] = useState<string | null>(null);
   const heroY = useRef(new Animated.Value(24)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const xpPop = useRef(new Animated.Value(0.85)).current;
@@ -65,7 +70,7 @@ export default function StageResultScreen({
       firstSessionMode,
     });
     completeStage(result).then(summary => {
-      const prevXp = summary.progress.xp - result.xpEarned;
+      const prevXp = summary.progress.xp - summary.appliedXp;
       const prevLevel = getLevelFromXp(prevXp < 0 ? 0 : prevXp);
       const newLevel = getLevelFromXp(summary.progress.xp);
       setLeveledUp(newLevel > prevLevel);
@@ -73,32 +78,147 @@ export default function StageResultScreen({
       setTotalXp(summary.progress.xp);
       setNextGoal(summary.unlockState.nextGoal);
       setNewlyUnlocked(summary.newlyUnlocked);
+      setMemoryFocus(summary.progress.learningMemory?.nextRecommendedFocus ?? null);
     });
     AsyncStorage.getItem('userProfile').then(raw => {
       const profile = raw ? tryParseJson<UserProfile>(raw) : null;
       const goal = profile?.identity?.goal ?? profile?.goalDescription ?? null;
       setIdentityGoal(goal);
+      setDisplayName(profile?.displayName?.trim() || 'Player');
     });
     getDailyLeaderboard().then(setLeaderboard);
+    resolvePlayerIdentity(result).then(setPlayerIdentity).catch(() => setPlayerIdentity(null));
   }, [result, firstSessionMode]);
 
   const level = getLevelFromXp(totalXp);
   const motivation = getMotivationHero(result);
   const replayCta = buildStageReplayCta(result);
   const deltaLine = oneLineRunDelta(result);
+  const challengeTaunts = ['Can you beat me?', 'Try this without getting awkward.', 'Your turn. Beat this run.'];
+  const chosenTaunt = challengeTaunts[(result.comboMax ?? 0) % challengeTaunts.length];
+  const identityLabel = `${playerIdentity?.label ?? 'Flow Keeper'} 🔥`;
+  const emotionalLine = buildResultEmotionalLine(result);
+  const keyStat = result.comboMax != null
+    ? `Combo ${result.comboMax} · ${Math.round((result.sceneAccuracy ?? 0) * 100)}% accuracy`
+    : `${Math.round((result.sceneAccuracy ?? 0) * 100)}% accuracy`;
+  const bestReplyLine =
+    result.learningSummary?.bestReply
+    ?? result.turnReviews?.find(t => t.quality === 'good')?.selectedText
+    ?? result.nativePhraseHighlight
+    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'You kept your replies clear and natural.' : 'You found a few stable moments in the scene.');
+  const awkwardTurn = result.turnReviews?.find(t => t.quality === 'awkward');
+  const awkwardMomentLine =
+    result.learningSummary?.awkwardMoment
+    ?? awkwardTurn?.selectedText
+    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} awkward turn(s) weakened your flow.` : 'No major awkward turn, but there is room to sound smoother.');
+  const betterAlternativeLine =
+    result.learningSummary?.betterAlternative
+    ?? (awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText ? awkwardTurn.goodOption : undefined)
+    ?? 'Use a softer and clearer phrasing on pressured turns.';
+  const nextFocusLine =
+    memoryFocus
+    ?? result.learningSummary?.nextFocus
+    ?? ((result.timedOutTurns ?? 0) > 0
+      ? `Answer one beat earlier; the clock hit you ${result.timedOutTurns} turn(s).`
+      : (result.naturalTip
+        ?? ((result.flowPath ?? 'smooth') === 'friction'
+          ? 'Protect flow for 2 more turns before taking risks.'
+          : 'Push one extra clean turn while protecting your combo.')));
+
+  const shareTarget = {
+    id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    scenarioId: result.scenarioId,
+    challengerName: displayName,
+    challengerTitle: playerIdentity?.label ?? 'Flow Keeper',
+    challengerCombo: result.comboMax ?? 0,
+    challengerAccuracy: result.sceneAccuracy ?? 0,
+    challengerFlow: result.flowPath,
+    challengerAwkward: result.awkwardTurns,
+    taunt: chosenTaunt,
+  } as const;
+  const challengeUrl = buildChallengeLink(shareTarget);
+
+  const shareCardText = [
+    '┌────────────────────────────┐',
+    `│ ${identityLabel.padEnd(26, ' ')}│`,
+    `│ ${keyStat.padEnd(26, ' ')}│`,
+    `│ ${emotionalLine.padEnd(26, ' ')}│`,
+    '└────────────────────────────┘',
+  ].join('\n');
+
+  const onShareRun = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await Share.share({
+        message: `${shareCardText}\n\n${chosenTaunt}\n${challengeUrl}`,
+      });
+      await trackEvent('friend_challenge_shared', { scenarioId: result.scenarioId, taunt: chosenTaunt });
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
       <Animated.View style={{ opacity: heroOpacity, transform: [{ translateY: heroY }], alignItems: 'center', width: '100%' }}>
         <View style={styles.motivationBlock}>
+          {!!playerIdentity && (
+            <View style={styles.identityTitleChip}>
+              <Text style={styles.identityTitleChipText}>{playerIdentity.label}</Text>
+            </View>
+          )}
+          {!!playerIdentity && <Text style={styles.identityDescriptor}>{playerIdentity.descriptor}</Text>}
           <Text style={styles.motivationTitle}>{motivation.title}</Text>
           <Text style={styles.motivationSubtitle}>{motivation.subtitle}</Text>
+          <Text style={styles.progressMeaning}>Progress = daha temiz akış + daha yüksek combo + daha çok XP.</Text>
           {!!deltaLine && <Text style={styles.deltaLine}>{deltaLine}</Text>}
+          {!!playerIdentity && <Text style={styles.identityEgoLine}>{playerIdentity.egoLine}</Text>}
+          {!!playerIdentity && <Text style={styles.identityEvolutionLine}>{playerIdentity.evolutionLine}</Text>}
+        </View>
+        <View style={styles.educationCard}>
+          <Text style={styles.educationTitle}>Coach Summary</Text>
+          <View style={styles.educationRow}>
+            <Text style={styles.educationLabel}>Best reply</Text>
+            <Text style={styles.educationValue}>{bestReplyLine}</Text>
+          </View>
+          <View style={styles.educationRow}>
+            <Text style={styles.educationLabel}>Awkward moment</Text>
+            <Text style={styles.educationValue}>{awkwardMomentLine}</Text>
+          </View>
+          <View style={styles.educationRow}>
+            <Text style={styles.educationLabel}>Try saying this instead</Text>
+            <Text style={styles.educationValue}>{betterAlternativeLine}</Text>
+          </View>
+          <View style={styles.educationRowLast}>
+            <Text style={styles.educationLabel}>Next time, focus on...</Text>
+            <Text style={styles.educationValue}>{nextFocusLine}</Text>
+          </View>
         </View>
 
         <TouchableOpacity style={styles.replayHeroBtn} onPress={onGoScenarios} activeOpacity={0.9}>
-          <Text style={styles.replayHeroBtnText}>{firstSessionMode ? 'Devam Et' : replayCta}</Text>
+          <Text style={styles.replayHeroBtnText}>{firstSessionMode ? 'Devam et ve duzelt' : `Ayni sahneyi duzelt · ${replayCta}`}</Text>
         </TouchableOpacity>
+        {!firstSessionMode && (
+          <TouchableOpacity style={styles.shareHeroBtn} onPress={onShareRun} activeOpacity={0.9}>
+            <Text style={styles.shareHeroBtnText}>{sharing ? 'Preparing share...' : 'Share your run'}</Text>
+          </TouchableOpacity>
+        )}
+        {!firstSessionMode && (
+          <View style={styles.shareCardPreview}>
+            <Text style={styles.shareCardIdentity}>{identityLabel}</Text>
+            <Text style={styles.shareCardStat}>{keyStat}</Text>
+            <Text style={styles.shareCardEmotion}>{emotionalLine}</Text>
+            <Text style={styles.shareCardChallenge}>{chosenTaunt}</Text>
+          </View>
+        )}
+        {!!result.challengeTarget && !!result.challengeOutcome && (
+          <View style={[styles.challengeResultCard, result.challengeOutcome.won ? styles.challengeWon : styles.challengeLost]}>
+            <Text style={styles.challengeResultTitle}>{result.challengeOutcome.summary}</Text>
+            <Text style={styles.challengeResultLine}>{result.challengeOutcome.diffLine}</Text>
+            <Text style={styles.challengeResultReplay}>{result.challengeOutcome.replayLine}</Text>
+          </View>
+        )}
 
         {!firstSessionMode && (
           <TouchableOpacity style={styles.secondaryBtnTight} onPress={onBackHome}>
@@ -239,6 +359,29 @@ const styles = StyleSheet.create({
     borderColor: '#1E293B',
     marginBottom: 16,
   },
+  identityTitleChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1E293B',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 10,
+  },
+  identityTitleChipText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 0.8,
+  },
+  identityDescriptor: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
   motivationTitle: {
     fontSize: 24,
     fontWeight: '900',
@@ -253,11 +396,70 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     lineHeight: 23,
   },
+  progressMeaning: {
+    marginTop: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    lineHeight: 18,
+  },
   deltaLine: {
     marginTop: 14,
     fontSize: 13,
     fontWeight: '800',
     color: '#FBBF24',
+    lineHeight: 19,
+  },
+  identityEgoLine: {
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FBBF24',
+    lineHeight: 19,
+  },
+  identityEvolutionLine: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    lineHeight: 18,
+  },
+  educationCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  educationTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 10,
+    letterSpacing: 0.3,
+  },
+  educationRow: {
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F7',
+  },
+  educationRowLast: {
+    paddingBottom: 0,
+    marginBottom: 0,
+  },
+  educationLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  educationValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
     lineHeight: 19,
   },
   replayHeroBtn: {
@@ -275,11 +477,53 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   replayHeroBtnText: { color: '#0F172A', fontSize: 16, fontWeight: '900', textAlign: 'center', lineHeight: 22 },
+  shareHeroBtn: {
+    width: '100%',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  shareHeroBtnText: { color: '#334155', fontSize: 14, fontWeight: '800' },
+  shareCardPreview: {
+    width: '100%',
+    backgroundColor: '#111827',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1F2937',
+    padding: 14,
+    gap: 4,
+    marginBottom: 10,
+  },
+  shareCardIdentity: { color: '#38BDF8', fontSize: 14, fontWeight: '900' },
+  shareCardStat: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
+  shareCardEmotion: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', lineHeight: 20 },
+  shareCardChallenge: { color: '#FBBF24', fontSize: 13, fontWeight: '900', marginTop: 6 },
   secondaryBtnTight: { marginTop: 4, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: '100%' },
   detailsToggle: { marginTop: 14, marginBottom: 8, paddingVertical: 8, alignItems: 'center' },
   detailsToggleText: { fontSize: 13, fontWeight: '800', color: '#475569', textDecorationLine: 'underline' },
   detailsSceneLabel: { fontSize: 12, fontWeight: '800', color: '#64748B', marginBottom: 10 },
   scoreCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E8EDF2', marginBottom: 12 },
+  challengeResultCard: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  challengeWon: {
+    backgroundColor: '#052E1D',
+    borderColor: '#065F46',
+  },
+  challengeLost: {
+    backgroundColor: '#3F1D1D',
+    borderColor: '#7F1D1D',
+  },
+  challengeResultTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900', marginBottom: 6 },
+  challengeResultLine: { color: '#E2E8F0', fontSize: 13, fontWeight: '700', lineHeight: 20 },
+  challengeResultReplay: { color: '#FBBF24', fontSize: 13, fontWeight: '900', marginTop: 8 },
   scoreLabel: { color: '#1B9C5A', fontSize: 24, fontWeight: '900', marginBottom: 10 },
   levelRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 },
   levelBadge: { backgroundColor: '#E8EDF2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },

@@ -8,6 +8,88 @@ import { parseModelJson, tryParseJson } from '../services/json';
 type GrammarLesson = { title: string; rule: string; examples: { sentence: string; translation: string; }[]; tip: string; };
 type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; };
 
+const buildOfflineLessons = (langName: string): GrammarLesson[] => {
+  const isSpanish = /spanish|ispanyol/i.test(langName);
+  if (isSpanish) {
+    return [
+      {
+        title: 'Nazik İstek: Quiero vs Quisiera',
+        rule: '"Quiero" anlaşılır ama direkt gelir. "Quisiera" daha nazik ve sosyal olarak daha doğal.',
+        examples: [
+          { sentence: 'Quisiera un café, por favor.', translation: 'Bir kahve rica ederim, lütfen.' },
+          { sentence: 'Quiero un café.', translation: 'Bir kahve istiyorum.' },
+        ],
+        tip: 'Yeni biriyle konuşurken bir adım daha nazik tonda başla.',
+      },
+      {
+        title: 'Soru Kalıbı: ¿Dónde está...?',
+        rule: 'Yol/yön sorarken en pratik kalıp "¿Dónde está...?" ile başlar.',
+        examples: [
+          { sentence: '¿Dónde está la estación?', translation: 'İstasyon nerede?' },
+          { sentence: '¿Dónde está el baño?', translation: 'Tuvalet nerede?' },
+        ],
+        tip: 'Kalıbı ezberle, sadece son kelimeyi değiştirerek onlarca soru kurarsın.',
+      },
+      {
+        title: 'Basit Geçmişte Zaman İşaretleri',
+        rule: 'Dün/az önce gibi işaretler geçmiş zamanı daha anlaşılır yapar.',
+        examples: [
+          { sentence: 'Ayer hablé con mi jefe.', translation: 'Dün patronumla konuştum.' },
+          { sentence: 'Hace un minuto terminé.', translation: 'Az önce bitirdim.' },
+        ],
+        tip: 'Konuşurken önce zamanı söylemek akışı güçlendirir.',
+      },
+      {
+        title: 'Bağlaçlarla Akışı Uzat',
+        rule: '"pero", "porque", "entonces" gibi bağlaçlar cümleyi doğal hale getirir.',
+        examples: [
+          { sentence: 'Quiero ir, pero estoy cansado.', translation: 'Gitmek istiyorum ama yorgunum.' },
+          { sentence: 'No fui porque estaba enfermo.', translation: 'Gitmedim çünkü hastaydım.' },
+        ],
+        tip: 'Tek cümlelik cevap yerine bağlaçla ikinci parça ekle.',
+      },
+    ];
+  }
+  return [
+    {
+      title: 'Polite Requests',
+      rule: 'A polite request sounds more natural than a direct command.',
+      examples: [
+        { sentence: 'Could I get a coffee, please?', translation: 'Bir kahve alabilir miyim, lütfen?' },
+        { sentence: 'I want a coffee.', translation: 'Bir kahve istiyorum.' },
+      ],
+      tip: 'In first contact, default to polite forms.',
+    },
+    {
+      title: 'Useful Question Frame',
+      rule: 'Use one stable frame and swap one keyword.',
+      examples: [
+        { sentence: 'Where is the station?', translation: 'İstasyon nerede?' },
+        { sentence: 'Where is the gate?', translation: 'Kapı nerede?' },
+      ],
+      tip: 'Fixed frames reduce hesitation under pressure.',
+    },
+    {
+      title: 'Time Anchors',
+      rule: 'Add time words to make tense clear quickly.',
+      examples: [
+        { sentence: 'Yesterday I called my manager.', translation: 'Dün yöneticimi aradım.' },
+        { sentence: 'A minute ago I finished.', translation: 'Az önce bitirdim.' },
+      ],
+      tip: 'Say time first when nervous.',
+    },
+    {
+      title: 'Connect Ideas Naturally',
+      rule: 'Use connectors like but/because/so to sound fluent.',
+      examples: [
+        { sentence: 'I want to go, but I am tired.', translation: 'Gitmek istiyorum ama yorgunum.' },
+        { sentence: 'I stayed home because it was late.', translation: 'Geç olduğu için evde kaldım.' },
+      ],
+      tip: 'Add one connector to every short answer.',
+    },
+  ];
+};
+
 export default function GrammarScreen({ onBack, scenarioTitle, stageType }: Props) {
   const [lessons, setLessons] = useState<GrammarLesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +146,13 @@ Return ONLY valid JSON array:
         setError('Dersler eksik/bozuk geldi. Tekrar dene.');
       }
     } catch (e: any) {
-      setError(`Hata: ${e.message ?? 'Bilinmeyen hata'}`);
+      const msg = String(e?.message ?? 'Bilinmeyen hata');
+      if (msg.includes('EXPO_PUBLIC_ANTHROPIC_API_KEY')) {
+        setLessons(buildOfflineLessons(profile?.language?.name ?? 'Spanish'));
+        setError('');
+      } else {
+        setError(`Hata: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }

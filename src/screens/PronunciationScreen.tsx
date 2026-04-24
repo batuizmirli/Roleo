@@ -151,7 +151,7 @@ export default function PronunciationScreen({ onBack }: Props) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text style={styles.title}>Pronunciation</Text>
-          <Text style={styles.subtitle}>{profile?.language.flag} {profile?.language.name} • dinle ve tekrar et</Text>
+          <Text style={styles.subtitle}>{profile?.language.flag} {profile?.language.name} • bugünkü sahne öncesi dinle ve tekrar et</Text>
         </View>
 
         <View style={styles.tabRow}>

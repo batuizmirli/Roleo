@@ -229,7 +229,7 @@ export default function FlashPickScreen({ onBack, runMode = false, onComplete }:
 
         <View style={styles.setupCard}>
           <Text style={styles.setupTitle}>Hızlı seçim moduna hoş geldin</Text>
-          <Text style={styles.setupSub}>Kelimeyi gör ve doğru görseli süre dolmadan seç.</Text>
+          <Text style={styles.setupSub}>Bugünkü sahnede takılmamak için kelimeyi gör, doğru görseli süre dolmadan seç.</Text>
 
           <View style={styles.diffRow}>
             {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (

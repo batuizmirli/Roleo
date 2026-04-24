@@ -166,3 +166,128 @@ export const oneLineRunDelta = (result: StageResult): string | null => {
   if (prev.failed && !cur.failed) return `You finished after a rough last run — that matters.`;
   return null;
 };
+
+export type PlayerIdentityState = {
+  runs: number;
+  lastLabel: string;
+  stableStreak: number;
+  movingScore: number;
+};
+
+export type PlayerIdentitySnapshot = {
+  label: string;
+  descriptor: string;
+  egoLine: string;
+  evolutionLine: string;
+};
+
+const PLAYER_IDENTITY_KEY = 'roleoPlayerIdentityState';
+
+const getPlayerIdentityState = async (): Promise<PlayerIdentityState | null> => {
+  const raw = await AsyncStorage.getItem(PLAYER_IDENTITY_KEY);
+  const parsed = raw ? tryParseJson<PlayerIdentityState>(raw) : null;
+  if (!parsed) return null;
+  if (typeof parsed.runs !== 'number' || typeof parsed.movingScore !== 'number') return null;
+  if (typeof parsed.lastLabel !== 'string' || typeof parsed.stableStreak !== 'number') return null;
+  return parsed;
+};
+
+const savePlayerIdentityState = async (state: PlayerIdentityState): Promise<void> => {
+  await AsyncStorage.setItem(PLAYER_IDENTITY_KEY, JSON.stringify(state));
+};
+
+const performanceScore = (result: StageResult): number => {
+  const acc = result.sceneAccuracy ?? 0;
+  const combo = result.comboMax ?? 0;
+  const awkward = result.awkwardTurns ?? 0;
+  const timeout = result.timedOutTurns ?? 0;
+  const rescue = result.runCompare?.previous?.failed && !result.runCompare?.current?.failed ? 0.08 : 0;
+  return acc * 0.6 + Math.min(combo, 6) * 0.06 - awkward * 0.05 - timeout * 0.06 + rescue;
+};
+
+const deriveIdentityLabel = (result: StageResult): { label: string; descriptor: string; egoLine: string } => {
+  const acc = result.sceneAccuracy ?? 0;
+  const combo = result.comboMax ?? 0;
+  const awkward = result.awkwardTurns ?? 0;
+  const timeout = result.timedOutTurns ?? 0;
+  const recovered = !!(result.runCompare?.previous?.failed && !result.runCompare?.current?.failed);
+
+  if (combo >= 4 && acc >= 0.78 && awkward <= 1) {
+    return {
+      label: 'Smooth Speaker',
+      descriptor: 'You keep conversations clean under pressure.',
+      egoLine: 'Protect this title next run: stay sharp and uninterrupted.',
+    };
+  }
+  if (timeout <= 0 && combo >= 2 && acc >= 0.62) {
+    return {
+      label: 'Flow Keeper',
+      descriptor: 'You hold rhythm and keep momentum alive.',
+      egoLine: 'Guard your flow streak before it cools down.',
+    };
+  }
+  if (timeout === 0 && result.userMessageCount <= 4 && acc >= 0.52) {
+    return {
+      label: 'Fast Thinker',
+      descriptor: 'You decide quickly without freezing.',
+      egoLine: 'Own the pace again while your instincts are hot.',
+    };
+  }
+  if (recovered) {
+    return {
+      label: 'Awkward Survivor',
+      descriptor: 'You recover after messy turns and still finish.',
+      egoLine: 'Turn survival into domination on the very next run.',
+    };
+  }
+  if (awkward >= 3) {
+    return {
+      label: 'Risk Taker',
+      descriptor: 'You push bold answers and learn in real time.',
+      egoLine: 'Keep the courage, trim the rough edges next run.',
+    };
+  }
+  return {
+    label: 'Steady Climber',
+    descriptor: 'You are building range run by run.',
+    egoLine: 'Climb again now before this momentum fades.',
+  };
+};
+
+export const resolvePlayerIdentity = async (result: StageResult): Promise<PlayerIdentitySnapshot> => {
+  const base = deriveIdentityLabel(result);
+  const prev = await getPlayerIdentityState();
+  const score = performanceScore(result);
+  const movingScore = prev ? prev.movingScore * 0.72 + score * 0.28 : score;
+  const stableStreak = prev ? (prev.lastLabel === base.label ? prev.stableStreak + 1 : 1) : 1;
+  const runs = (prev?.runs ?? 0) + 1;
+
+  let evolutionLine = 'Identity starts now — lock this in on the next run.';
+  if (prev) {
+    if (prev.lastLabel === base.label && stableStreak >= 3) {
+      evolutionLine = `You are cementing ${base.label}. ${stableStreak} runs in a row.`;
+    } else if (movingScore > prev.movingScore + 0.025) {
+      evolutionLine = "You're becoming more consistent — it shows in your rhythm.";
+    } else if (movingScore + 0.03 < prev.movingScore) {
+      evolutionLine = `This run dipped — win back your ${prev.lastLabel} energy right away.`;
+    } else if (prev.lastLabel !== base.label) {
+      evolutionLine = `New title unlocked: ${base.label}. Keep it for a few runs to own it.`;
+    } else {
+      evolutionLine = `You are holding ${base.label}. One cleaner run makes it unquestioned.`;
+    }
+  }
+
+  await savePlayerIdentityState({
+    runs,
+    lastLabel: base.label,
+    stableStreak,
+    movingScore,
+  });
+
+  return {
+    label: base.label,
+    descriptor: base.descriptor,
+    egoLine: base.egoLine,
+    evolutionLine,
+  };
+};

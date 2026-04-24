@@ -1,5 +1,22 @@
 import { Scenario, UserIdentity } from '../types';
 
+export type ScenePrepPlan = {
+  reasonLine: string;
+  vocabWarmup: {
+    title: string;
+    words: string[];
+  };
+  phraseCheck: {
+    title: string;
+    natural: string;
+    awkward: string;
+  };
+  speakingWarmup: {
+    title: string;
+    line: string;
+  };
+};
+
 export const scenarios: Scenario[] = [
   // SPANISH
   {
@@ -1224,9 +1241,33 @@ export const scenarios: Scenario[] = [
   },
 ];
 
+const FALLBACK_SCENARIO: Scenario = {
+  id: 'fallback-scene',
+  title: 'Quick Daily Scene',
+  location: 'Everyday Conversation',
+  emoji: '💬',
+  difficulty: 'beginner',
+  language: 'en',
+  stageType: 'social',
+  modeType: 'normal',
+  estimatedMinutes: 3,
+  mission: 'Kısa bir gerçek hayat diyaloğunu tamamla',
+  xpReward: 18,
+  systemPrompt:
+    'You are a friendly conversation partner in a simple daily-life chat. Keep language clear and short, and encourage practical replies.',
+  openingMessage: 'Hi! Let\'s rehearse a quick real-life conversation. Ready?',
+  vocabHints: [
+    { word: 'Hello', meaning: 'Merhaba' },
+    { word: 'Please', meaning: 'Lütfen' },
+    { word: 'Thanks', meaning: 'Teşekkürler' },
+  ],
+};
+
 export const getDailyScenarios = (language: string): Scenario[] => {
   const filtered = scenarios.filter(s => s.language === language);
-  return filtered.length > 0 ? filtered : scenarios.filter(s => s.language === 'es');
+  const fallback = scenarios.filter(s => s.language === 'es');
+  const selected = filtered.length > 0 ? filtered : fallback;
+  return selected.length > 0 ? selected : [FALLBACK_SCENARIO];
 };
 
 export const getFirstSessionScenario = (language: string): Scenario => {
@@ -1236,8 +1277,7 @@ export const getFirstSessionScenario = (language: string): Scenario => {
 
   const fallbackCafe = scenarios.find(s => s.language === 'es' && s.stageType === 'cafe' && s.difficulty === 'beginner');
   if (fallbackCafe) return fallbackCafe;
-
-  return scenarios[0];
+  return scenarios[0] ?? FALLBACK_SCENARIO;
 };
 
 export const getTodaysMissionScenario = (
@@ -1257,6 +1297,9 @@ export const getTodaysMissionScenario = (
   // Tamamlanmamış senaryolardan önce seç, hepsi bittiyse sıfırla
   const uncompleted = base.filter(s => !completedScenarioIds.includes(s.id));
   const searchIn = uncompleted.length > 0 ? uncompleted : base;
+  if (searchIn.length === 0) {
+    return getFirstSessionScenario(language);
+  }
 
   // Bugünün tarihini seed olarak kullan — aynı gün içinde sabit ama her gün farklı
   const today = new Date().toISOString().slice(0, 10); // "2026-04-20"
@@ -1269,7 +1312,7 @@ export const getTodaysMissionScenario = (
   }
 
   // Preferred yoksa tüm havuzdan döngüsel seç
-  return searchIn[dateSeed % searchIn.length];
+  return searchIn[dateSeed % searchIn.length] ?? getFirstSessionScenario(language);
 };
 
 const BUSINESS_KW = ['iş', 'toplantı', 'şirket', 'ofis', 'kariyer', 'work', 'office', 'business', 'meeting', 'job', 'career', 'proje', 'startup'];
@@ -1279,9 +1322,10 @@ const SOCIAL_KW = ['arkadaş', 'tanış', 'sosyal', 'parti', 'konser', 'eğlen',
 export const getPersonalizedScenario = (language: string, identity?: UserIdentity | null): Scenario => {
   const byLang = scenarios.filter(s => s.language === language);
   const pool = byLang.length > 0 ? byLang : scenarios.filter(s => s.language === 'es');
+  const safePool = pool.length > 0 ? pool : [FALLBACK_SCENARIO];
 
   if (!identity?.goal && !identity?.context) {
-    return pool.find(s => s.stageType === 'cafe' && s.difficulty === 'beginner') ?? pool[0];
+    return safePool.find(s => s.stageType === 'cafe' && s.difficulty === 'beginner') ?? safePool[0];
   }
 
   const text = `${identity?.goal ?? ''} ${identity?.context ?? ''}`.toLowerCase();
@@ -1292,10 +1336,10 @@ export const getPersonalizedScenario = (language: string, identity?: UserIdentit
   else if (SOCIAL_KW.some(k => text.includes(k))) preferredStage = 'social';
 
   return (
-    pool.find(s => s.stageType === preferredStage && s.difficulty === 'beginner') ??
-    pool.find(s => s.stageType === preferredStage) ??
-    pool.find(s => s.stageType === 'cafe' && s.difficulty === 'beginner') ??
-    pool[0]
+    safePool.find(s => s.stageType === preferredStage && s.difficulty === 'beginner') ??
+    safePool.find(s => s.stageType === preferredStage) ??
+    safePool.find(s => s.stageType === 'cafe' && s.difficulty === 'beginner') ??
+    safePool[0]
   );
 };
 
@@ -1329,3 +1373,97 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'it', name: 'İtalyanca', flag: '🇮🇹' },
   { code: 'en', name: 'İngilizce', flag: '🇬🇧' },
 ];
+
+const prepFallbackByStage: Record<NonNullable<Scenario['stageType']>, Omit<ScenePrepPlan, 'reasonLine'>> = {
+  cafe: {
+    vocabWarmup: { title: 'Sipariş kelimeleri', words: ['please', 'menu', 'coffee', 'bill', 'table'] },
+    phraseCheck: {
+      title: 'Nazik sipariş tonu',
+      natural: 'Could I get a coffee, please?',
+      awkward: 'Give me coffee now.',
+    },
+    speakingWarmup: {
+      title: 'Kısa giriş cümlesi',
+      line: "Hi, I'd like to order a coffee, please.",
+    },
+  },
+  travel: {
+    vocabWarmup: { title: 'Yolculuk kelimeleri', words: ['station', 'ticket', 'gate', 'platform', 'transfer'] },
+    phraseCheck: {
+      title: 'Yol sorma tonu',
+      natural: 'Excuse me, which line goes downtown?',
+      awkward: 'You tell station now?',
+    },
+    speakingWarmup: {
+      title: 'Yön sorma cümlesi',
+      line: 'Excuse me, how can I get to this station?',
+    },
+  },
+  business: {
+    vocabWarmup: { title: 'Toplantı kelimeleri', words: ['experience', 'role', 'challenge', 'available', 'strengths'] },
+    phraseCheck: {
+      title: 'Profesyonel ifade',
+      natural: "I'm excited about this role and the impact I can make.",
+      awkward: 'I want this job because money.',
+    },
+    speakingWarmup: {
+      title: 'Mülakat ısınması',
+      line: "I'm excited about this role and ready to contribute.",
+    },
+  },
+  social: {
+    vocabWarmup: { title: 'Sohbet kelimeleri', words: ['weekend', 'hobby', 'music', 'plans', 'nice to meet'] },
+    phraseCheck: {
+      title: 'Doğal small-talk',
+      natural: 'Nice to meet you, what do you do for fun?',
+      awkward: 'Tell me personal things now.',
+    },
+    speakingWarmup: {
+      title: 'Tanışma cümlesi',
+      line: 'Hey, nice to meet you. How is your day going?',
+    },
+  },
+  story: {
+    vocabWarmup: { title: 'Anlatım kelimeleri', words: ['first', 'then', 'because', 'after', 'finally'] },
+    phraseCheck: {
+      title: 'Akıcı hikaye tonu',
+      natural: 'First we met, then we talked for hours.',
+      awkward: 'We meet. Talk. End.',
+    },
+    speakingWarmup: {
+      title: 'Hikaye başlangıcı',
+      line: 'First, let me tell you what happened yesterday.',
+    },
+  },
+  survival: {
+    vocabWarmup: { title: 'Acil durum kelimeleri', words: ['help', 'urgent', 'problem', 'need', 'where'] },
+    phraseCheck: {
+      title: 'Net yardım isteme',
+      natural: 'I need help, could you guide me please?',
+      awkward: 'Problem. You fix.',
+    },
+    speakingWarmup: {
+      title: 'Kritik cümle',
+      line: 'I need help with this situation, please.',
+    },
+  },
+};
+
+export const buildScenePrepPlan = (scenario: Scenario): ScenePrepPlan => {
+  const stage = scenario.stageType ?? 'social';
+  const base = prepFallbackByStage[stage];
+  const words = (scenario.vocabHints ?? [])
+    .map(v => v.word)
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return {
+    reasonLine: `"${scenario.title}" sahnesinde daha doğal görünmek için bu kısa prep'i yap.`,
+    vocabWarmup: {
+      title: base.vocabWarmup.title,
+      words: words.length > 0 ? words : base.vocabWarmup.words,
+    },
+    phraseCheck: base.phraseCheck,
+    speakingWarmup: base.speakingWarmup,
+  };
+};

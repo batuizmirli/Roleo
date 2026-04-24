@@ -90,8 +90,8 @@ const THEMES: Record<Step, StepTheme> = {
     overlay: ['rgba(20,18,16,0.45)', 'rgba(20,18,16,0.72)', 'rgba(20,18,16,0.92)'],
     accent: ACCENT,
     label: 'Roleo',
-    headline: 'Konuşarak\nöğren.',
-    sub: 'Kısa sahneler, anlık geri bildirim ve mini oyunlarla dili gerçek hayatta kullan.',
+    headline: 'Gerçek konuşmayı\nönce burada dene.',
+    sub: 'Her gün bir gerçek hayat sahnesi: kısa hazırlık, oyun gibi prova, net geri bildirim.',
   },
   native: {
     image: IMG_CROWD,
@@ -107,7 +107,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Hedef dil',
     headline: 'Hangi dili\nkonuşmak istiyorsun?',
-    sub: 'Her sahne bu dilde gerçek diyaloglara göre hazırlanır.',
+    sub: 'Bugünün sahnesini bu dilde oynayacaksın.',
   },
   level: {
     image: IMG_SOCIAL,
@@ -131,7 +131,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Motivasyon',
     headline: 'Neden\nöğreniyorsun?',
-    sub: 'Hedefine uygun sahneler önereceğiz.',
+    sub: 'Hedefin, bugünün sahnesini nasıl seçeceğimizi belirler.',
   },
   dailyGoal: {
     image: IMG_CAFE,
@@ -139,7 +139,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Günlük hedef',
     headline: 'Günlük\nkaç dakika?',
-    sub: 'Tutarlı küçük oturumlar daha kalıcı ilerleme sağlar.',
+    sub: 'Her gün kısa prova, gerçek anlarda ne söyleyeceğini netleştirir.',
   },
   dream: {
     image: IMG_CAFE,
@@ -147,7 +147,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Hayalin',
     headline: 'Hayalindeki\nan.',
-    sub: 'Tam olarak hangi anda akıcı hissetmek istiyorsun?',
+    sub: 'Hangi gerçek konuşma anına hazırlanmak istiyorsun?',
   },
   context: {
     image: IMG_CAFE,
@@ -168,15 +168,24 @@ const THEMES: Record<Step, StepTheme> = {
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────
-type Props = { onComplete: () => void };
+type Props = {
+  onComplete: () => void;
+  onTryQuickScene?: () => void;
+  startAfterPreview?: boolean;
+};
 
 // ─── Component ─────────────────────────────────────────────────────────────
-export default function OnboardingScreen({ onComplete }: Props) {
-  const [step, setStep] = useState<Step>('welcome');
-  const [selectedNative, setSelectedNative] = useState<Language | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<UserLevel | null>(null);
-  const [practiceTarget, setPracticeTarget] = useState<PracticeTarget | null>(null);
+export default function OnboardingScreen({ onComplete, onTryQuickScene, startAfterPreview = false }: Props) {
+  const steps = startAfterPreview
+    ? (['goal', 'dailyGoal', 'dream', 'context', 'emotion'] as Step[])
+    : STEPS;
+  const defaultNative = NATIVE_LANGUAGES.find(l => l.code === 'tr') ?? NATIVE_LANGUAGES[0];
+  const defaultLearningLang = LEARNING_LANGUAGES.find(l => l.code === 'en') ?? LEARNING_LANGUAGES[0];
+  const [step, setStep] = useState<Step>(startAfterPreview ? 'goal' : 'welcome');
+  const [selectedNative, setSelectedNative] = useState<Language | null>(startAfterPreview ? defaultNative : null);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(startAfterPreview ? defaultLearningLang : null);
+  const [selectedLevel, setSelectedLevel] = useState<UserLevel | null>(startAfterPreview ? 'beginner' : null);
+  const [practiceTarget, setPracticeTarget] = useState<PracticeTarget | null>(startAfterPreview ? defaultPracticeTarget() : null);
   const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(20);
   const [dreamText, setDreamText] = useState('');
@@ -187,17 +196,17 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const slideAnim  = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const currentIdx = STEPS.indexOf(step);
+  const currentIdx = steps.indexOf(step);
   const theme = THEMES[step];
 
   // animate progress bar
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: (currentIdx + 1) / STEPS.length,
+      toValue: (currentIdx + 1) / steps.length,
       duration: 400,
       useNativeDriver: false,
     }).start();
-  }, [step]);
+  }, [step, currentIdx, steps.length]);
 
   const transition = (nextStep: Step) => {
     Animated.parallel([
@@ -214,7 +223,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   };
 
   const handleBack = () => {
-    const prev = STEPS[currentIdx - 1];
+    const prev = steps[currentIdx - 1];
     if (prev) transition(prev);
   };
 
@@ -354,7 +363,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <View style={{ width: 32 }} />
             )}
             <Text style={[styles.logoText, { color: theme.accent }]}>Roleo</Text>
-            <Text style={styles.stepCounter}>{currentIdx + 1} / {STEPS.length}</Text>
+            <Text style={styles.stepCounter}>{currentIdx + 1} / {steps.length}</Text>
           </View>
 
           {/* ── Step label / headline (Bugünün odağı kartında birleştirildi) ── */}
@@ -368,6 +377,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
           {/* ── Step content ── */}
           {step === 'welcome' ? <WelcomeVisual accent={theme.accent} /> : null}
+          {step === 'welcome' && !!onTryQuickScene && (
+            <TouchableOpacity style={styles.quickTryBtn} onPress={onTryQuickScene} activeOpacity={0.86}>
+              <Text style={styles.quickTryTitle}>Hızlı sahne dene (60 sn)</Text>
+              <Text style={styles.quickTrySub}>Roleo'yu hemen hisset, sonra profilini tamamla.</Text>
+            </TouchableOpacity>
+          )}
 
           {step === 'level' && (
             <LevelStep selected={selectedLevel} onSelect={handleLevelSelect} accent={theme.accent} />
@@ -777,6 +792,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.2,
     fontFamily: 'Poppins_600SemiBold',
+  },
+  quickTryBtn: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  quickTryTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+    marginBottom: 4,
+  },
+  quickTrySub: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: 'Poppins_500Medium',
   },
 });
 

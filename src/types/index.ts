@@ -95,7 +95,57 @@ export type RunComparePayload = {
   current: SceneRunSnapshot;
 };
 
+export type FriendChallengeTarget = {
+  id: string;
+  scenarioId: string;
+  challengerName: string;
+  challengerTitle: string;
+  challengerCombo: number;
+  challengerAccuracy: number;
+  challengerFlow?: SceneFlowPath;
+  challengerAwkward?: number;
+  taunt: string;
+};
+
+export type FriendChallengeOutcome = {
+  won: boolean;
+  summary: string;
+  diffLine: string;
+  replayLine: string;
+};
+
+export type StageTurnReview = {
+  npcMessage: string;
+  selectedText: string;
+  quality: 'good' | 'ok' | 'awkward';
+  goodOption?: string;
+  npcReaction?: string;
+};
+
+export type StageLearningSummary = {
+  bestReply?: string;
+  awkwardMoment?: string;
+  betterAlternative?: string;
+  nextFocus?: string;
+};
+
+export type LearningMemoryCategoryStat = {
+  plays: number;
+  improvedRuns: number;
+};
+
+export type LearningMemory = {
+  recentMistakeTypes: string[];
+  repeatedWeaknesses: string[];
+  savedPhrases: string[];
+  lastSceneFocus?: string;
+  nextRecommendedFocus?: string;
+  categoryStats: Record<string, LearningMemoryCategoryStat>;
+  updatedAt: string;
+};
+
 export type StageResult = {
+  resultId?: string;
   scenarioId: string;
   scenarioTitle: string;
   stageType: NonNullable<Scenario['stageType']>;
@@ -116,6 +166,10 @@ export type StageResult = {
   goodTurns?: number;
   /** Önceki koşu vs bu koşu — “one more run” metni için */
   runCompare?: RunComparePayload;
+  turnReviews?: StageTurnReview[];
+  learningSummary?: StageLearningSummary;
+  challengeTarget?: FriendChallengeTarget;
+  challengeOutcome?: FriendChallengeOutcome;
 };
 
 export type ModuleResult = {

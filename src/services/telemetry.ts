@@ -22,7 +22,9 @@ export type TelemetryEventName =
   | 'first_session_next_stage_clicked'
   | 'first_session_next_mission_clicked'
   | 'scene_failed'
-  | 'scene_answer_timeout';
+  | 'scene_answer_timeout'
+  | 'friend_challenge_opened'
+  | 'friend_challenge_shared';
 
 export type EventPayload = Record<string, string | number | boolean | null | undefined>;
 

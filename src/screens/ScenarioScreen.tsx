@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Scenario, StageResult, UserLevel, UserProfile, ModuleResult, SceneFlowPath,
-  SceneRunSnapshot, ReplayHookKind,
+  SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview,
 } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
@@ -78,7 +78,7 @@ const PERSONALITY_COLOR: Record<NpcPersonality, string> = {
 };
 
 const qColor = (q: OptionQuality) =>
-  q === 'good' ? '#3DD68C' : q === 'ok' ? '#F5B800' : '#1B9C5A';
+  q === 'good' ? '#3DD68C' : q === 'ok' ? '#F5B800' : '#A66A4C';
 const qLabel = (q: OptionQuality) =>
   q === 'good' ? '✨ Çok doğal' : q === 'ok' ? '👍 Anlaşıldı' : '😅 Biraz garip';
 
@@ -172,6 +172,7 @@ type Props = {
   goalId?: string;
   /** Completed count for this scenario — harder / less hand-holding on replay */
   playCount?: number;
+  challengeTarget?: FriendChallengeTarget | null;
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -179,6 +180,7 @@ type Props = {
 export default function ScenarioScreen({
   scenario, onBack, onStageComplete, onRunComplete, firstSessionMode = false, prepBonus = 0, easyStart = false, goalId,
   playCount = 0,
+  challengeTarget = null,
 }: Props) {
   const stageKey = scenario.stageType ?? 'social';
   const persona = getPersonaByStage(stageKey);
@@ -244,6 +246,7 @@ export default function ScenarioScreen({
   const doneHeroScale = useRef(new Animated.Value(1)).current;
   const flowPulse = useRef(new Animated.Value(1)).current;
   const rewardOpacity = useRef(new Animated.Value(0)).current;
+  const timerProgress = useRef(new Animated.Value(1)).current;
   const timerShakeLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const timerGlowLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -375,6 +378,7 @@ export default function ScenarioScreen({
       answerTimerRef.current = null;
     }
     setAnswerTimeLeft(null);
+    timerProgress.setValue(1);
   };
 
   const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -569,7 +573,7 @@ ${branchNote}${replayNote}
 NPC opening line: "${openingMsg}"
 
 Generate 3 response options (in ${langName}) — same intent, 3 different social registers:
-"good" = polite and fluent, "ok" = minimal but understood, "awkward" = wrong grammar or socially odd.
+"good" = polite and natural, "ok" = minimal but understood, "awkward" = wrong grammar or socially odd.
 NPC personality affects how reactions differ between qualities.
 Shuffle options randomly. 1 sentence max each.${difficultyHint}
 
@@ -849,6 +853,31 @@ Return ONLY valid JSON:
     const hadAwk = turnHistory.some(t => t.quality === 'awkward');
     const almostPerfect = accuracy < 1 && accuracy >= 0.55 && hadAwk;
     const awkwardTurns = turnHistory.filter(t => t.quality === 'awkward').length;
+    const turnReviews: StageTurnReview[] = turnHistory.map(t => ({
+      npcMessage: t.npcMessage,
+      selectedText: t.selectedText,
+      quality: t.quality,
+      goodOption: t.goodOption,
+      npcReaction: t.npcReaction,
+    }));
+    const bestTurn = turnHistory.find(t => t.quality === 'good') ?? null;
+    const awkwardTurn = turnHistory.find(t => t.quality === 'awkward') ?? null;
+    const nextFocusLine =
+      timedOutTurnsRef.current > 0
+        ? `Clock pressure hit ${timedOutTurnsRef.current} turn${timedOutTurnsRef.current > 1 ? 's' : ''}; answer one beat earlier.`
+        : awkwardTurns > 0
+          ? `You had ${awkwardTurns} awkward turn${awkwardTurns > 1 ? 's' : ''}; keep cleaner social tone.`
+          : flowPath === 'friction'
+            ? 'Keep the flow steady for 2 more turns before taking risks.'
+            : `Protect your combo (${comboPeakRef.current}) and push one turn further next run.`;
+    const learningSummary: StageLearningSummary = {
+      bestReply: bestTurn?.selectedText ?? (nativePhraseHighlight || undefined),
+      awkwardMoment: awkwardTurn?.selectedText ?? (awkwardTurns > 0 ? `${awkwardTurns} awkward turn(s) in this run.` : undefined),
+      betterAlternative: awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText
+        ? awkwardTurn.goodOption
+        : undefined,
+      nextFocus: nextFocusLine,
+    };
     const currentSnap: SceneRunSnapshot = {
       ts: new Date().toISOString(),
       comboMax: comboPeakRef.current,
@@ -889,6 +918,8 @@ Return ONLY valid JSON:
       awkwardTurns,
       goodTurns: goodCount,
       runCompare: { previous: prevSnap, current: currentSnap },
+      turnReviews,
+      learningSummary,
     });
   };
 
@@ -902,6 +933,14 @@ Return ONLY valid JSON:
     const total = answerSecondsFor(personality, !!firstSessionMode);
     setAnswerTimeTotal(total);
     setAnswerTimeLeft(total);
+    timerProgress.setValue(1);
+    const barAnim = Animated.timing(timerProgress, {
+      toValue: 0,
+      duration: total * 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    });
+    barAnim.start();
     let left = total;
 
     answerTimerRef.current = setInterval(() => {
@@ -926,12 +965,13 @@ Return ONLY valid JSON:
     }, 1000);
 
     return () => {
+      barAnim.stop();
       if (answerTimerRef.current) {
         clearInterval(answerTimerRef.current);
         answerTimerRef.current = null;
       }
     };
-  }, [phase, options, optionsLoading, selectedIdx, personality, firstSessionMode, scenario.id]);
+  }, [phase, options, optionsLoading, selectedIdx, personality, firstSessionMode, scenario.id, timerProgress]);
 
   useEffect(() => {
     if (!rewardText) return undefined;
@@ -1104,8 +1144,8 @@ Return ONLY valid JSON:
           <Text style={styles.bigEmoji}>🎮</Text>
           <Text style={styles.bigTitle}>Yarım kalan sahne</Text>
           <Text style={styles.bigMeta}>{timeLabel} · {savedState.turnHistory.length} tur</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => startGame(savedState.turnHistory, savedState.currentNpcMessage, savedState.npcMood)}>
-            <Text style={styles.primaryBtnText}>Kaldığım yerden devam et →</Text>
+          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame(savedState.turnHistory, savedState.currentNpcMessage, savedState.npcMood)}>
+            <Text style={styles.preStartBtnText}>Kaldığım yerden devam et →</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ghostBtn} onPress={async () => { await AsyncStorage.removeItem(CONV_KEY(scenario.id)); startGame(); }}>
             <Text style={styles.ghostBtnText}>Baştan başla</Text>
@@ -1122,22 +1162,32 @@ Return ONLY valid JSON:
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.introScroll}>
           <Text style={styles.introBadge}>SAHNE</Text>
-          <Text style={styles.introTitle}>{scenario.location} sahnesine giriyorsun.</Text>
+          <Text style={styles.introTitle}>{scenario.location} sahnesini şimdi prova ediyorsun.</Text>
           <Text style={styles.introSub}>{persona.name} sana yaklaşır:</Text>
           <View style={styles.quoteBox}>
             <Text style={styles.quoteText}>"{scenario.openingMessage.split('\n')[0]}"</Text>
           </View>
-          <Text style={styles.missionText}>🎯 {scenario.mission ?? 'Konuşmayı tamamla'}</Text>
+          <Text style={styles.missionText}>🎯 Bu sahnede hedefin: {scenario.mission ?? 'Konuşmayı tamamla'}</Text>
+          {!!challengeTarget && (
+            <View style={styles.challengeIntroCard}>
+              <Text style={styles.challengeIntroLabel}>FRIEND CHALLENGE</Text>
+              <Text style={styles.challengeIntroTitle}>Beat {challengeTarget.challengerName}'s run</Text>
+              <Text style={styles.challengeIntroSub}>
+                {challengeTarget.challengerTitle} · combo {challengeTarget.challengerCombo} · %{Math.round(challengeTarget.challengerAccuracy * 100)}
+              </Text>
+              <Text style={styles.challengeIntroTaunt}>{challengeTarget.taunt}</Text>
+            </View>
+          )}
           <View style={styles.howItWorksBox}>
-            <Text style={styles.howTitle}>NASIL OYNANIR</Text>
+            <Text style={styles.howTitle}>ANA LOOP</Text>
             <Text style={styles.howItem}>1. NPC sana bir şey söyler</Text>
             <Text style={styles.howItem}>2. 3 yanıt seç — aynı fikir, farklı ton</Text>
             <Text style={styles.howItem}>3. NPC tepkisini hemen görürsün</Text>
-            <Text style={styles.howItem}>4. Üst üste garip cevaplar → NPC toleransına göre sahne biter ❌</Text>
-            <Text style={styles.howItem}>5. Her turda süre var — çok yavaşsan zayıf cevap sayılır ⏱</Text>
+            <Text style={styles.howItem}>4. Üst üste garip cevaplar → sahneyi kaybedersin ❌</Text>
+            <Text style={styles.howItem}>5. Sonunda geri bildirim alır, aynı sahneyi tekrar oynarsın 🔁</Text>
           </View>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => startGame()}>
-            <Text style={styles.primaryBtnText}>Sahneye Gir →</Text>
+          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
+            <Text style={styles.preStartBtnText}>Sahneye Gir →</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1160,8 +1210,8 @@ Return ONLY valid JSON:
               </View>
             ))}
           </View>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => startGame()}>
-            <Text style={styles.primaryBtnText}>Sahneye Gir →</Text>
+          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
+            <Text style={styles.preStartBtnText}>Sahneye Gir →</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1536,11 +1586,14 @@ Return ONLY valid JSON:
                 </Text>
               </View>
               <View style={styles.timerTrack}>
-                <View
+                <Animated.View
                   style={[
                     styles.timerFill,
                     {
-                      width: `${Math.max(0, Math.min(1, answerTimeLeft / answerTimeTotal)) * 100}%`,
+                      width: timerProgress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
                       backgroundColor: timerColor,
                     },
                   ]}
@@ -1780,21 +1833,48 @@ const styles = StyleSheet.create({
   earlyExitText: { color: '#9AABB8', fontSize: 14, fontWeight: '700' },
 
   introScroll: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 48, gap: 14 },
-  introBadge: { color: '#1B9C5A', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  introBadge: { color: '#8B5E45', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   introTitle: { color: '#1A2B3C', fontSize: 26, fontWeight: '900', lineHeight: 34 },
   introSub: { color: '#9AABB8', fontSize: 14 },
-  quoteBox: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#E8EDF2' },
+  quoteBox: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#E2D7CF' },
   quoteText: { color: '#1A2B3C', fontSize: 17, fontWeight: '700', lineHeight: 26 },
-  missionText: { color: '#3DD68C', fontSize: 13, lineHeight: 20 },
-  howItWorksBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, gap: 6, borderWidth: 1, borderColor: '#E8EDF2' },
-  howTitle: { color: '#A78BFA', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  missionText: { color: '#8B5E45', fontSize: 13, lineHeight: 20 },
+  howItWorksBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, gap: 6, borderWidth: 1, borderColor: '#E2D7CF' },
+  howTitle: { color: '#8B5E45', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
   howItem: { color: '#6B7B8D', fontSize: 13, lineHeight: 22 },
   vocabTitle: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  vocabSubtitle: { fontSize: 14, color: '#9AABB8' },
+  vocabSubtitle: { fontSize: 14, color: '#6B7B8D' },
   vocabGrid: { gap: 8 },
-  vocabCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E8EDF2' },
+  vocabCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E2D7CF' },
   vocabWord: { fontSize: 15, fontWeight: '700', color: '#1A2B3C' },
-  vocabMeaning: { fontSize: 13, color: '#1B9C5A', fontWeight: '600' },
+  vocabMeaning: { fontSize: 13, color: '#8B5E45', fontWeight: '600' },
+  preStartBtn: {
+    backgroundColor: '#A66A4C',
+    borderRadius: 16,
+    paddingVertical: 17,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#A66A4C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  preStartBtnText: { color: '#FFFDF8', fontSize: 16, fontWeight: '800' },
+  challengeIntroCard: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    gap: 4,
+  },
+  challengeIntroLabel: { color: '#38BDF8', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  challengeIntroTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900' },
+  challengeIntroSub: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  challengeIntroTaunt: { color: '#FBBF24', fontSize: 12, fontWeight: '800', marginTop: 4 },
 
   // Lost
   failReactionBox: { width: '100%', backgroundColor: '#FEECEC', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#F7CACA' },
@@ -1823,16 +1903,16 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     maxWidth: '88%',
-    backgroundColor: '#1B9C5A',
-    borderWidth: 0,
-    borderColor: '#178A4F',
+    backgroundColor: '#A66A4C',
+    borderWidth: 1,
+    borderColor: '#8B5E45',
     borderRadius: 14,
     borderTopRightRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   bubbleName: { fontSize: 10, fontWeight: '900', color: '#1B9C5A', marginBottom: 3, letterSpacing: 0.6 },
-  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#178A4F', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
+  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#F4ECE5', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
   npcBubbleText: { fontSize: 14, color: '#1A2B3C', lineHeight: 20 },
   userBubbleText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center' },

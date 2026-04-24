@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as ExpoLinking from 'expo-linking';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -10,11 +11,15 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Scenario, StageResult } from './src/types';
+import { FriendChallengeTarget, Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import RoleoIntroScreen from './src/screens/RoleoIntroScreen';
 import StartupLanguageScreen from './src/screens/StartupLanguageScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import LearnHubScreen from './src/screens/LearnHubScreen';
+import PracticeHubScreen from './src/screens/PracticeHubScreen';
+import ProfileHubScreen from './src/screens/ProfileHubScreen';
+import BottomTabBar, { type MainTabId } from './src/components/BottomTabBar';
 import ScenariosScreen from './src/screens/ScenariosScreen';
 import ScenarioScreen from './src/screens/ScenarioScreen';
 import VocabScreen from './src/screens/VocabScreen';
@@ -35,17 +40,21 @@ import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
 import RunResultScreen from './src/screens/RunResultScreen';
 import ScenarioPrepModal from './src/components/ScenarioPrepModal';
 import { ModuleResult, UserProfile } from './src/types';
-import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario } from './src/data/scenarios';
+import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario, scenarios } from './src/data/scenarios';
 import { getProgress } from './src/services/progress';
 import { getDailyRunSnapshot, saveDailyRunSnapshot, type DailyRunSnapshot } from './src/services/runHook';
 import { trackEvent } from './src/services/telemetry';
 import type { SceneFlowPath } from './src/types';
+import { computeChallengeOutcome, parseChallengeLink } from './src/services/challengeShare';
 
 type Screen =
   | 'intro'
   | 'onboarding'
   | 'startup-language'
   | 'home'
+  | 'learn-hub'
+  | 'practice-hub'
+  | 'profile-hub'
   | 'scenarios'
   | 'scenario'
   | 'vocab'
@@ -82,7 +91,8 @@ export default function App() {
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [stageResult, setStageResult] = useState<StageResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [runType, setRunType] = useState<'normal' | 'first' | 'daily-mission'>('normal');
+  const [runType, setRunType] = useState<'normal' | 'first' | 'daily-mission' | 'onboarding-preview'>('normal');
+  const [onboardingAfterPreview, setOnboardingAfterPreview] = useState(false);
   const [showPrepModal, setShowPrepModal] = useState(false);
   const [prepBonus, setPrepBonus] = useState(0);
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
@@ -95,10 +105,17 @@ export default function App() {
     sceneAccuracy: number;
     sceneFlow?: SceneFlowPath;
   } | null>(null);
+  const [activeChallenge, setActiveChallenge] = useState<FriendChallengeTarget | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  /** Grammar ekranına `home` veya sahne sonucundan girildiğini ayırt etmek için. */
-  const grammarEntryRef = useRef<'home' | 'stage-result'>('stage-result');
+  /** Grammar ekranına hangi ekrandan girildiğini ayırt etmek için. */
+  const grammarEntryRef = useRef<'home' | 'learn-hub' | 'practice-hub' | 'profile-hub' | 'stage-result'>('stage-result');
+  /** Mini oyun / araç ekranlarından geri dönüş hedefi (mevcut ekran anlık kopyası). */
+  const toolReturnScreenRef = useRef<Screen>('home');
+  const scenariosReturnRef = useRef<Screen>('practice-hub');
+  const progressReturnRef = useRef<Screen>('profile-hub');
+  const dailyMissionReturnRef = useRef<'home' | 'practice-hub'>('home');
+  const dailyRunExitRef = useRef<'practice-hub'>('practice-hub');
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -132,6 +149,34 @@ export default function App() {
     bootstrap();
   }, []);
 
+  useEffect(() => {
+    const openFromUrl = async (url: string) => {
+      const challenge = parseChallengeLink(url);
+      if (!challenge) return;
+      const scenario = scenarios.find(s => s.id === challenge.scenarioId);
+      if (!scenario) return;
+
+      const progress = await getProgress();
+      setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
+      setSelectedScenario(scenario);
+      setRunType('normal');
+      setActiveChallenge(challenge);
+      goTo('scenario');
+      void trackEvent('friend_challenge_opened', {
+        scenarioId: challenge.scenarioId,
+        challenger: challenge.challengerName,
+      });
+    };
+
+    ExpoLinking.getInitialURL().then(url => {
+      if (url) void openFromUrl(url);
+    });
+    const sub = ExpoLinking.addEventListener('url', ({ url }) => {
+      void openFromUrl(url);
+    });
+    return () => sub.remove();
+  }, []);
+
   const animateScreenChange = (next: Screen) => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 130, useNativeDriver: true }),
@@ -152,8 +197,13 @@ export default function App() {
 
   const goTo = (next: Screen) => animateScreenChange(next);
 
-  const openGrammarFromHome = () => {
-    grammarEntryRef.current = 'home';
+  const openToolScreen = (tool: Screen) => {
+    toolReturnScreenRef.current = screen;
+    goTo(tool);
+  };
+
+  const openGrammarFrom = (origin: 'home' | 'learn-hub' | 'practice-hub' | 'profile-hub') => {
+    grammarEntryRef.current = origin;
     goTo('grammar');
   };
 
@@ -179,7 +229,8 @@ export default function App() {
     goTo('scenario');
   };
 
-  const startDailyMission = async () => {
+  const startDailyMission = async (returnTo: 'home' | 'practice-hub' = 'home') => {
+    dailyMissionReturnRef.current = returnTo;
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
     const languageCode = profile?.language?.code ?? 'es';
@@ -199,12 +250,13 @@ export default function App() {
   };
 
   const startDailyRun = async (goalId?: string) => {
+    dailyRunExitRef.current = 'practice-hub';
     setRunResults([]);
     setDailyRunBoard(null);
     setRunScenario(null);
     setRunGoalId(goalId);
     setRunState('flash');
-    await trackEvent('run_started', { source: 'home', goalId: goalId ?? 'none' });
+    await trackEvent('run_started', { source: 'practice-hub', goalId: goalId ?? 'none' });
   };
 
   const handleFlashComplete = async (result: ModuleResult) => {
@@ -298,7 +350,7 @@ export default function App() {
         <RunResultScreen
           results={runResults}
           dailyRunBoard={dailyRunBoard}
-          onExit={() => { resetRun(); goTo('home'); }}
+          onExit={() => { resetRun(); goTo(dailyRunExitRef.current); }}
         />
       );
     }
@@ -336,8 +388,22 @@ export default function App() {
     if (screen === 'onboarding') {
       return (
         <OnboardingScreen
+          startAfterPreview={onboardingAfterPreview}
+          onTryQuickScene={async () => {
+            const previewScenario = getFirstSessionScenario('en');
+            setSelectedScenario(previewScenario);
+            setCurrentPlayCount(0);
+            setRunType('onboarding-preview');
+            setOnboardingAfterPreview(true);
+            await trackEvent('stage_started', {
+              scenarioId: previewScenario.id,
+              stageType: previewScenario.stageType ?? 'cafe',
+              runType: 'onboarding-preview',
+            });
+            goTo('scenario');
+          }}
           onComplete={async () => {
-            await AsyncStorage.setItem('firstSessionState', 'pending');
+            await AsyncStorage.setItem('firstSessionState', onboardingAfterPreview ? 'done' : 'pending');
             const p = await AsyncStorage.getItem('userProfile');
             const prof = p ? JSON.parse(p) : null;
             await trackEvent('onboarding_completed', {
@@ -347,10 +413,16 @@ export default function App() {
               identityGoal: prof?.identity?.goal,
               identityEmotion: prof?.identity?.emotion,
             });
-            const scenario = getPersonalizedScenario(prof?.language?.code ?? 'es', prof?.identity);
-            setFirstSessionScenario(scenario);
-            setRunType('first');
-            goTo('first-session-ready');
+            if (onboardingAfterPreview) {
+              setOnboardingAfterPreview(false);
+              setRunType('normal');
+              goTo('startup-language');
+            } else {
+              const scenario = getPersonalizedScenario(prof?.language?.code ?? 'es', prof?.identity);
+              setFirstSessionScenario(scenario);
+              setRunType('first');
+              goTo('first-session-ready');
+            }
           }}
         />
       );
@@ -370,53 +442,112 @@ export default function App() {
     }
 
     if (screen === 'first-session-next') {
-      return <FirstSessionNextScreen onContinueStage={() => goTo('scenarios')} onStartMission={startDailyMission} />;
+      return (
+        <FirstSessionNextScreen
+          onContinueStage={() => {
+            scenariosReturnRef.current = 'practice-hub';
+            goTo('scenarios');
+          }}
+          onStartMission={() => startDailyMission('practice-hub')}
+        />
+      );
     }
 
-    if (screen === 'home') {
+    const mainTabScreens: Screen[] = ['home', 'learn-hub', 'practice-hub', 'profile-hub'];
+    if (mainTabScreens.includes(screen)) {
+      const activeTab: MainTabId =
+        screen === 'home' ? 'discover' : screen === 'learn-hub' ? 'learn' : screen === 'practice-hub' ? 'practice' : 'profile';
+      const selectMainTab = (tab: MainTabId) => {
+        if (tab === 'discover') goTo('home');
+        else if (tab === 'learn') goTo('learn-hub');
+        else if (tab === 'practice') goTo('practice-hub');
+        else goTo('profile-hub');
+      };
       return (
-        <HomeScreen
-          onModeSelect={handleModeSelect}
-          onStartDailyRun={gid => startDailyRun(gid)}
-          onRevisitIntro={() => goTo('intro')}
-          onDebug={() => goTo('debug')}
-          onOpenInstantLearn={() => goTo('instant-learn')}
-          onOpenPronunciation={() => goTo('pronunciation')}
-          onOpenFlashPick={() => goTo('flash-pick')}
-          onOpenTrueOrFake={() => goTo('true-or-fake')}
-          onOpenGrammar={openGrammarFromHome}
-          onOpenProgress={() => goTo('progress')}
-          onOpenAccount={() => goTo('account')}
-          onStartDailyMission={startDailyMission}
-        />
+        <View style={{ flex: 1 }}>
+          {screen === 'home' && (
+            <HomeScreen
+              onDebug={() => goTo('debug')}
+              onOpenAccount={() => goTo('account')}
+              onStartDailyMission={() => startDailyMission('home')}
+              onOpenProgress={() => {
+                progressReturnRef.current = 'home';
+                goTo('progress');
+              }}
+            />
+          )}
+          {screen === 'learn-hub' && (
+            <LearnHubScreen
+              onOpenFlashPick={() => openToolScreen('flash-pick')}
+              onOpenPronunciation={() => openToolScreen('pronunciation')}
+              onOpenInstantLearn={() => openToolScreen('instant-learn')}
+              onOpenGrammar={() => openGrammarFrom('learn-hub')}
+              onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
+              onOpenPhrasebook={() => openToolScreen('phrasebook')}
+              onOpenStories={() => openToolScreen('stories')}
+            />
+          )}
+          {screen === 'practice-hub' && (
+            <PracticeHubScreen
+              onOpenScenarios={() => {
+                scenariosReturnRef.current = 'practice-hub';
+                goTo('scenarios');
+              }}
+              onStartDailyMission={() => startDailyMission('practice-hub')}
+              onStartDailyRun={gid => startDailyRun(gid)}
+              onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
+              onOpenInstantLearn={() => openToolScreen('instant-learn')}
+              onContinueScenarios={() => {
+                scenariosReturnRef.current = 'practice-hub';
+                handleModeSelect('scenarios');
+              }}
+            />
+          )}
+          {screen === 'profile-hub' && (
+            <ProfileHubScreen
+              onOpenAccount={() => goTo('account')}
+              onOpenProgress={() => {
+                progressReturnRef.current = 'profile-hub';
+                goTo('progress');
+              }}
+            />
+          )}
+          <BottomTabBar active={activeTab} onSelect={selectMainTab} />
+        </View>
       );
     }
 
     if (screen === 'account') {
       return (
         <AccountScreen
-          onBack={() => goTo('home')}
-          onOpenScenarios={() => goTo('scenarios')}
-          onOpenProgress={() => goTo('progress')}
+          onBack={() => goTo('profile-hub')}
+          onOpenScenarios={() => {
+            scenariosReturnRef.current = 'account';
+            goTo('scenarios');
+          }}
+          onOpenProgress={() => {
+            progressReturnRef.current = 'account';
+            goTo('progress');
+          }}
           onRevisitIntro={() => goTo('intro')}
         />
       );
     }
 
     if (screen === 'instant-learn') {
-      return <InstantLearnScreen onBack={() => goTo('home')} />;
+      return <InstantLearnScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'pronunciation') {
-      return <PronunciationScreen onBack={() => goTo('home')} />;
+      return <PronunciationScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'flash-pick') {
-      return <FlashPickScreen onBack={() => goTo('home')} />;
+      return <FlashPickScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'true-or-fake') {
-      return <TrueOrFakeScreen onBack={() => goTo('home')} />;
+      return <TrueOrFakeScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'scenarios') {
@@ -428,13 +559,13 @@ export default function App() {
             setCurrentProfile(profile);
             setSelectedScenario(s);
             setRunType('normal');
+            setActiveChallenge(null);
             setPrepBonus(0);
-            const progressRaw = await AsyncStorage.getItem('userProgress');
-            const progress = progressRaw ? JSON.parse(progressRaw) : null;
+            const progress = await getProgress();
             setCurrentPlayCount(progress?.scenarioPlayCounts?.[s.id] ?? 0);
             setShowPrepModal(true);
           }}
-          onBack={() => goTo('home')}
+          onBack={() => goTo(scenariosReturnRef.current)}
         />
       );
     }
@@ -444,21 +575,44 @@ export default function App() {
         <ScenarioScreen
           scenario={selectedScenario}
           playCount={currentPlayCount}
-          firstSessionMode={runType === 'first'}
+          firstSessionMode={runType === 'first' || runType === 'onboarding-preview'}
           prepBonus={prepBonus}
-          onBack={() => goTo(runType === 'first' ? 'first-session-ready' : 'scenarios')}
+          challengeTarget={activeChallenge}
+          onBack={() =>
+            goTo(
+              runType === 'first'
+                ? 'first-session-ready'
+                : runType === 'onboarding-preview'
+                  ? 'onboarding'
+                  : runType === 'daily-mission'
+                    ? dailyMissionReturnRef.current
+                    : 'scenarios'
+            )
+          }
           onStageComplete={async result => {
             const finalResult = prepBonus > 0
               ? { ...result, xpEarned: result.xpEarned + prepBonus }
               : result;
+            const withIdentity = {
+              ...finalResult,
+              resultId: finalResult.resultId ?? `${finalResult.scenarioId}-${Date.now().toString(36)}`,
+            };
+            const withChallenge = activeChallenge
+              ? {
+                  ...withIdentity,
+                  challengeTarget: activeChallenge,
+                  challengeOutcome: computeChallengeOutcome(withIdentity, activeChallenge),
+                }
+              : withIdentity;
             await trackEvent('stage_completed', {
-              scenarioId: finalResult.scenarioId,
-              stageType: finalResult.stageType,
-              xpEarned: finalResult.xpEarned,
-              userLevel: finalResult.userLevel,
-              messageCount: finalResult.userMessageCount,
+              scenarioId: withChallenge.scenarioId,
+              stageType: withChallenge.stageType,
+              xpEarned: withChallenge.xpEarned,
+              userLevel: withChallenge.userLevel,
+              messageCount: withChallenge.userMessageCount,
               runType,
               prepBonusUsed: prepBonus > 0,
+              challenge: !!activeChallenge,
             });
             if (runType === 'daily-mission') {
               await trackEvent('daily_mission_completed', { scenarioId: finalResult.scenarioId });
@@ -466,7 +620,8 @@ export default function App() {
             if (runType === 'first') {
               await AsyncStorage.setItem('firstSessionState', 'done');
             }
-            setStageResult(finalResult);
+            setStageResult(withChallenge);
+            setActiveChallenge(null);
             goTo('stage-result');
           }}
         />
@@ -477,13 +632,37 @@ export default function App() {
       return (
         <StageResultScreen
           result={stageResult}
-          firstSessionMode={runType === 'first'}
-          onBackHome={() => goTo('home')}
+          firstSessionMode={runType === 'first' || runType === 'onboarding-preview'}
+          onBackHome={() => goTo(runType === 'onboarding-preview' ? 'onboarding' : 'home')}
           onGoScenarios={async () => {
             await trackEvent('next_stage_clicked', { source: 'result', runType });
             const wasFirst = runType === 'first';
+            const wasPreview = runType === 'onboarding-preview';
+            if (wasFirst) {
+              setRunType('normal');
+              goTo('first-session-next');
+              return;
+            }
+            if (wasPreview) {
+              setRunType('normal');
+              goTo('onboarding');
+              return;
+            }
+
+            const replayScenario = scenarios.find(s => s.id === stageResult.scenarioId) ?? null;
+            if (!replayScenario) {
+              setRunType('normal');
+              scenariosReturnRef.current = 'practice-hub';
+              goTo('scenarios');
+              return;
+            }
+            const progress = await getProgress();
+            setSelectedScenario(replayScenario);
+            setCurrentPlayCount(progress.scenarioPlayCounts?.[replayScenario.id] ?? 0);
+            setPrepBonus(0);
+            setActiveChallenge(null);
             setRunType('normal');
-            goTo(wasFirst ? 'first-session-next' : 'scenarios');
+            goTo('scenario');
           }}
           onOpenVocab={() => goTo('vocab')}
           onOpenGrammar={openGrammarFromStageResult}
@@ -494,19 +673,22 @@ export default function App() {
 
     if (screen === 'vocab') return <VocabScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'grammar') {
-      const fromHome = grammarEntryRef.current === 'home';
+      const gOrigin = grammarEntryRef.current;
+      const grammarBackTarget: Screen =
+        gOrigin === 'stage-result' ? 'stage-result' : (gOrigin as Screen);
+      const fromStage = gOrigin === 'stage-result';
       return (
         <GrammarScreen
-          onBack={() => goTo(fromHome ? 'home' : 'stage-result')}
-          scenarioTitle={fromHome ? undefined : stageResult?.scenarioTitle}
-          stageType={fromHome ? undefined : stageResult?.stageType}
+          onBack={() => goTo(grammarBackTarget)}
+          scenarioTitle={fromStage ? stageResult?.scenarioTitle : undefined}
+          stageType={fromStage ? stageResult?.stageType : undefined}
         />
       );
     }
     if (screen === 'quiz') return <QuizScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
-    if (screen === 'stories') return <QuotesScreen onBack={() => goTo('home')} />;
-    if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo('home')} />;
-    if (screen === 'progress') return <ProgressScreen onBack={() => goTo('home')} />;
+    if (screen === 'stories') return <QuotesScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+    if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+    if (screen === 'progress') return <ProgressScreen onBack={() => goTo(progressReturnRef.current)} />;
     if (screen === 'debug') return <DebugPanelScreen onBack={() => goTo('home')} />;
 
     return null;
@@ -514,7 +696,8 @@ export default function App() {
 
   const FAB_HIDDEN_SCREENS: Screen[] = [
     'intro', 'onboarding', 'startup-language', 'first-session-ready',
-    'first-session-next', 'instant-learn', 'stage-result', 'debug', 'home', 'account',
+    'first-session-next', 'instant-learn', 'stage-result', 'debug', 'home', 'learn-hub', 'practice-hub',
+    'profile-hub', 'account',
   ];
   const showFab = !loading && runState === 'idle' && !FAB_HIDDEN_SCREENS.includes(screen);
 
@@ -528,7 +711,14 @@ export default function App() {
           {renderScreen()}
         </Animated.View>
         {showFab && (
-          <TouchableOpacity style={fabStyles.fab} onPress={() => goTo('instant-learn')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={fabStyles.fab}
+            onPress={() => {
+              toolReturnScreenRef.current = screen;
+              goTo('instant-learn');
+            }}
+            activeOpacity={0.85}
+          >
             <Text style={fabStyles.fabIcon}>⚡</Text>
           </TouchableOpacity>
         )}
