@@ -51,7 +51,7 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
     memory?.nextRecommendedFocus ??
     (memory?.savedPhrases?.length
       ? `Son kayıtlı ifade: "${memory.savedPhrases[memory.savedPhrases.length - 1]}"`
-      : 'Sahne sonrası kaydettiğin ifadeler burada görünecek.');
+      : 'Prova sonrası işe yarayan ifadeler burada görünür.');
 
   return (
     <View style={styles.root}>
@@ -103,7 +103,7 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
         </View>
 
         <View style={styles.memoryCard}>
-          <Text style={styles.memoryLabel}>Öğrenme hafızası</Text>
+          <Text style={styles.memoryLabel}>Prova hafızası</Text>
           <Text style={styles.memoryText}>{memoryLine}</Text>
         </View>
 

@@ -17,8 +17,8 @@ import { typography } from '../theme/typography';
 const ACCENT = '#884C32';
 
 /** Satır + boşluk yaklaşık yüksekliği (onLayout olmadan akıcı animasyon) */
-const ROW_UNIT = 76;
-const BODY_PAD = 20;
+const ROW_UNIT = 104;
+const BODY_PAD = 28;
 
 function sectionExpandedHeight(targetCount: number) {
   return targetCount * ROW_UNIT + BODY_PAD;

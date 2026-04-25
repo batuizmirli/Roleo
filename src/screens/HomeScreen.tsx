@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import NotificationsSheet from '../components/NotificationsSheet';
 import { tryParseJson } from '../services/json';
-import WeeklyActivityChart from '../components/WeeklyActivityChart';
-import { getDailyLeaderboard } from '../services/leaderboard';
-import { getProgress, getLevelFromXp, getWeeklyXp, type DailyXpEntry } from '../services/progress';
+import { getProgress, getLevelFromXp } from '../services/progress';
 import { getTodaysMissionScenario } from '../data/scenarios';
 import { ALL_PRACTICE_TARGETS, defaultPracticeTarget } from '../data/practiceGoals';
 
@@ -32,14 +30,13 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
   const [todaySceneTitle, setTodaySceneTitle] = useState('Bugünün sahnesi hazırlanıyor...');
-  const [todaySceneMeta, setTodaySceneMeta] = useState('Gerçek bir konuşmayı prova et');
+  const [todaySceneMeta, setTodaySceneMeta] = useState('Gerçek hayat konuşmasını prova et');
   const [todaySceneGoal, setTodaySceneGoal] = useState('6 turu tamamla ve akışı koru');
   const [lastPlayedDate, setLastPlayedDate] = useState<string | null>(null);
   const [todayMemoryFocus, setTodayMemoryFocus] = useState<string | null>(null);
-  const [memoryPhrase, setMemoryPhrase] = useState<string | null>(null);
-  const [weeklyXpSeries, setWeeklyXpSeries] = useState<DailyXpEntry[]>([]);
   const [xp, setXp] = useState(0);
-  const [leaderboardLine, setLeaderboardLine] = useState<string>('Bugünkü tablo yükleniyor…');
+  const [streak, setStreak] = useState(0);
+  const [smartSuggestion, setSmartSuggestion] = useState('Bugün sahnede daha doğal cevaplara odaklan.');
 
   useEffect(() => {
     loadProfile();
@@ -55,10 +52,9 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
       setProfile(null);
       setLastPlayedDate(null);
       setTodayMemoryFocus(null);
-      setMemoryPhrase(null);
-      setWeeklyXpSeries([]);
       setXp(0);
-      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
+      setStreak(0);
+      setSmartSuggestion('Gerçek hayatta söylemeden önce Roleo’da dene.');
       return;
     }
 
@@ -68,10 +64,9 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
       setProfile(null);
       setLastPlayedDate(null);
       setTodayMemoryFocus(null);
-      setMemoryPhrase(null);
-      setWeeklyXpSeries([]);
       setXp(0);
-      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
+      setStreak(0);
+      setSmartSuggestion('Gerçek hayatta söylemeden önce Roleo’da dene.');
       return;
     }
 
@@ -79,21 +74,9 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
 
     const progress = await getProgress();
     setXp(progress.xp);
-    setWeeklyXpSeries(getWeeklyXp(progress.dailyXpLog ?? {}));
-    const board = await getDailyLeaderboard();
-    const self = board.find(e => e.isSelf);
-    const top = board[0];
-    if (self) {
-      setLeaderboardLine(`Sen · #${self.rank} · ${self.score} puan`);
-    } else if (top) {
-      setLeaderboardLine(`Lider: ${top.name} — bugünkü sahneyi prova et`);
-    } else {
-      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
-    }
+    setStreak(progress.streak);
     setLastPlayedDate(progress.lastPlayedDate);
     setTodayMemoryFocus(progress.learningMemory?.nextRecommendedFocus ?? null);
-    const saved = progress.learningMemory?.savedPhrases ?? [];
-    setMemoryPhrase(saved.length > 0 ? saved[saved.length - 1] : null);
     const mission = getTodaysMissionScenario(
       parsed.language?.code ?? 'es',
       parsed.identity ?? null,
@@ -106,6 +89,11 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
     setTodaySceneTitle(mission.title);
     setTodaySceneMeta(`${mission.location} · ~${minutes} dk${scenarioPlayCount > 0 ? ` · ${scenarioPlayCount} kez oynandı` : ''}`);
     setTodaySceneGoal(`${turnGoal} turu tamamla, ${awkwardCap}'den az garip yanıt ver`);
+    setSmartSuggestion(
+      progress.lastPlayedDate === new Date().toISOString().slice(0, 10)
+        ? 'Pratik’te başka bir gerçek hayat sahnesi prova et.'
+        : 'Öğren’de 2 dakikalık ısınma yap, sonra sahneye gir.'
+    );
   };
 
   const focusHint = profile?.language?.name
@@ -117,11 +105,12 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
   const missionFocusLine =
     todayMemoryFocus ??
     (showYesterdayLesson
-      ? 'Dun sahneye girdin. Bugun hedefin: daha temiz akis ve daha az garip yanit.'
+      ? 'Dün sahneye girdin. Bugün hedefin: daha temiz akış.'
       : focusHint);
 
   const level = getLevelFromXp(xp);
   const bottomNavPad = Math.max(insets.bottom, 12) + 56;
+  const progressPulse = `🔥 ${streak} gün seri · ⭐ ${xp} XP · Seviye ${level}`;
 
   return (
     <View style={styles.root}>
@@ -154,72 +143,15 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         <View style={styles.upperStack}>
           <View style={styles.memoryFocusCard}>
             <Text style={styles.focusCardLabel}>Bugünün odağı</Text>
-            <ScrollView
-              style={styles.focusScroll}
-              contentContainerStyle={styles.focusScrollContent}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-              keyboardShouldPersistTaps="handled"
-              bounces={false}
-            >
-              <Text style={styles.focusCardText}>{missionFocusLine}</Text>
-              {!!memoryPhrase && <Text style={styles.memoryPhrase}>İfade: "{memoryPhrase}"</Text>}
-            </ScrollView>
+            <Text style={styles.focusCardText} numberOfLines={2}>{missionFocusLine}</Text>
           </View>
-
-          <View style={styles.chartPanel}>
-            <View style={styles.chartTitleRow}>
-              <Text style={styles.chartPanelTitle}>İlerleme özeti</Text>
-              <View style={styles.chartWeekPill}>
-                <Text style={styles.chartWeekPillText}>7 gün</Text>
-              </View>
-            </View>
-            <WeeklyActivityChart
-              series={weeklyXpSeries.length ? weeklyXpSeries : getWeeklyXp({})}
-              accent={terracotta}
-              barMuted="rgba(136, 76, 50, 0.35)"
-              barEmpty="rgba(136, 76, 50, 0.12)"
-              barTrackHeight={64}
-              chartPaddingTop={2}
-              dayLabelMarginTop={3}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.statsStrip}
-            onPress={() => onOpenProgress?.()}
-            activeOpacity={onOpenProgress ? 0.88 : 1}
-            disabled={!onOpenProgress}
-            accessibilityRole={onOpenProgress ? 'button' : 'none'}
-            accessibilityLabel="XP ve günlük tablo, detaylı ilerleme"
-          >
-            <View style={styles.statsStripHalf}>
-              <MaterialIcons name="stars" size={18} color={terracotta} />
-              <View style={styles.statsStripText}>
-                <Text style={styles.statsStripLabel}>İkincil</Text>
-                <Text style={styles.statsStripValue} numberOfLines={1}>
-                  Seviye {level} · {xp} XP
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statsStripDivider} />
-            <View style={styles.statsStripHalf}>
-              <MaterialIcons name="groups" size={18} color={terracotta} />
-              <View style={styles.statsStripText}>
-                <Text style={styles.statsStripLabel}>Tablo</Text>
-                <Text style={styles.statsStripValue} numberOfLines={2}>
-                  {leaderboardLine}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.heroWrap}>
           <View style={styles.hero}>
             <View style={styles.heroContent}>
               <Text style={styles.heroHeadline}>Günlük Roleo koşusu</Text>
-            <Text style={styles.heroSubMeta}>Isın, sahneye gir, sonucu gör.</Text>
+              <Text style={styles.heroSubMeta}>Isın, sahneye gir, sonucu gör.</Text>
 
               <View style={styles.todaySceneCard}>
                 <Text style={styles.todaySceneLabel}>Bugünkü sahne</Text>
@@ -240,6 +172,22 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
               </TouchableOpacity>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.progressPulse}
+            onPress={() => onOpenProgress?.()}
+            activeOpacity={onOpenProgress ? 0.88 : 1}
+            disabled={!onOpenProgress}
+            accessibilityRole={onOpenProgress ? 'button' : 'none'}
+            accessibilityLabel="Kompakt ilerleme özeti"
+          >
+            <Text style={styles.progressPulseText} numberOfLines={1}>{progressPulse}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.suggestionCard}>
+            <MaterialIcons name="lightbulb-outline" size={18} color={terracotta} />
+            <Text style={styles.suggestionText} numberOfLines={2}>{smartSuggestion}</Text>
+          </View>
         </View>
       </View>
 
@@ -258,13 +206,13 @@ const styles = StyleSheet.create({
   upperStack: {
     flexShrink: 0,
     paddingHorizontal: 20,
-    paddingTop: 6,
+    paddingTop: 10,
   },
   heroWrap: {
     flex: 1,
     minHeight: 0,
     paddingHorizontal: 20,
-    paddingTop: 2,
+    paddingTop: 8,
     justifyContent: 'flex-start',
   },
   topBar: {
@@ -308,7 +256,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 11,
     paddingBottom: 10,
-    marginBottom: 10,
+    marginBottom: 0,
   },
   focusCardLabel: {
     fontSize: 10,
@@ -317,98 +265,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 6,
   },
-  focusScroll: {
-    maxHeight: 160,
-  },
-  focusScrollContent: {
-    paddingBottom: 4,
-    flexGrow: 0,
-  },
   focusCardText: {
     fontSize: 13,
     lineHeight: 20,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
-  },
-  memoryPhrase: {
-    marginTop: 10,
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: 'Poppins_500Medium',
-    color: '#7A5B4A',
-  },
-  chartPanel: {
-    backgroundColor: 'rgba(252, 249, 248, 0.72)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingTop: 7,
-    paddingBottom: 5,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: outlineVariant,
-  },
-  chartTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  chartPanelTitle: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurfaceVariant,
-    flex: 1,
-    paddingRight: 8,
-  },
-  chartWeekPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: 'rgba(176, 109, 80, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(176, 109, 80, 0.35)',
-  },
-  chartWeekPillText: {
-    fontSize: 10,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-  },
-  statsStrip: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: outlineVariant,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    marginBottom: 0,
-    gap: 2,
-  },
-  statsStripHalf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 0,
-  },
-  statsStripDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(51,51,51,0.12)',
-    marginVertical: 2,
-  },
-  statsStripText: { flex: 1, minWidth: 0 },
-  statsStripLabel: {
-    fontSize: 9,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 1,
-  },
-  statsStripValue: {
-    fontSize: 11,
-    lineHeight: 14,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
   },
@@ -422,6 +281,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
+    marginBottom: 10,
   },
   heroContent: { zIndex: 2 },
   heroHeadline: {
@@ -492,5 +352,39 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: primary,
     letterSpacing: 0.3,
+  },
+  progressPulse: {
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: outlineVariant,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginBottom: 8,
+  },
+  progressPulseText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    color: onSurfaceVariant,
+    textAlign: 'center',
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F9F2ED',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(176, 109, 80, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: 'Poppins_500Medium',
+    color: onSurfaceVariant,
   },
 });

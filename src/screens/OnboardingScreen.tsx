@@ -130,7 +130,7 @@ const THEMES: Record<Step, StepTheme> = {
     overlay: ['rgba(18,5,10,0.50)', 'rgba(18,5,10,0.80)', 'rgba(18,5,10,0.97)'],
     accent: ACCENT,
     label: 'Motivasyon',
-    headline: 'Neden\nöğreniyorsun?',
+    headline: 'Hangi anı\nprova ediyorsun?',
     sub: 'Hedefin, Roleo’da hangi anları prova edeceğini belirler.',
   },
   dailyGoal: {
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 58,
-    paddingBottom: 48,
+    paddingBottom: 156,
     paddingHorizontal: 24,
   },
   topBar: {

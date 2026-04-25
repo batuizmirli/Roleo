@@ -227,6 +227,11 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
             </>
           )}
 
+          <View style={styles.setupHintRow}>
+            <Text style={styles.setupHintStrong}>{questionCount} ton kararı</Text>
+            <Text style={styles.setupHintText}>Sahne öncesi doğal cevap provası</Text>
+          </View>
+
           <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
             <Text style={styles.startBtnText}>{runMode ? 'Ton ısınmasını başlat →' : 'Başla →'}</Text>
           </TouchableOpacity>
@@ -357,7 +362,7 @@ const styles = StyleSheet.create({
   cardSub: { color: colors.textSecondary, fontSize: typography.size.sm, marginBottom: spacing.lg },
   diffRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   diffBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.surfaceAlt, borderRadius: 12, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.divider },
-  diffBtnActive: { borderColor: colors.primaryAccent, backgroundColor: '#2A1F44' },
+  diffBtnActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
   diffText: { color: colors.textPrimary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
   diffTextActive: { color: colors.primaryAccent },
   diffMeta: { color: colors.textMuted, fontSize: typography.size.xs, marginTop: 2 },
@@ -367,35 +372,38 @@ const styles = StyleSheet.create({
   countBtnText: { color: colors.textPrimary, fontSize: 24, fontWeight: typography.weight.bold, lineHeight: 24 },
   countValue: { minWidth: 52, textAlign: 'center', color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
   countMeta: { color: colors.textMuted, fontSize: typography.size.xs, textAlign: 'center', marginBottom: spacing.lg },
-  runWhyBox: { backgroundColor: '#1E293B', borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: '#334155', marginBottom: spacing.lg },
+  setupHintRow: { backgroundColor: colors.surfaceAlt, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg, gap: 3 },
+  setupHintStrong: { color: colors.textPrimary, fontSize: typography.size.sm, fontWeight: typography.weight.black },
+  setupHintText: { color: colors.textSecondary, fontSize: typography.size.xs, fontWeight: typography.weight.semibold },
+  runWhyBox: { backgroundColor: colors.warningSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg },
   runWhyTitle: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
   runWhyText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
   startBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
-  startBtnText: { color: '#0B1020', fontWeight: typography.weight.black, fontSize: typography.size.md },
+  startBtnText: { color: colors.textOnAccent, fontWeight: typography.weight.black, fontSize: typography.size.md },
 
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   topStat: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
   timerBg: { height: 8, borderRadius: 99, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.md },
-  timerFill: { height: 8, borderRadius: 99, backgroundColor: '#EF4444' },
+  timerFill: { height: 8, borderRadius: 99, backgroundColor: colors.warning },
 
   sentenceCard: { minHeight: 170, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.divider, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
   sentenceText: { color: colors.textPrimary, fontSize: 28, fontWeight: typography.weight.black, textAlign: 'center', lineHeight: 38 },
 
   buttonsRow: { flexDirection: 'row', gap: spacing.sm },
   pickBtn: { flex: 1, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1 },
-  realBtn: { backgroundColor: '#102417', borderColor: '#22C55E77' },
-  fakeBtn: { backgroundColor: '#2A1016', borderColor: '#FB718577' },
-  pickText: { color: '#F8FAFC', fontSize: typography.size.md, fontWeight: typography.weight.black },
+  realBtn: { backgroundColor: colors.successSoft, borderColor: colors.success },
+  fakeBtn: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  pickText: { color: colors.textPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
   pickDim: { opacity: 0.45 },
 
   feedbackBox: { marginTop: spacing.md, borderRadius: 12, padding: spacing.md, borderWidth: 1 },
-  feedbackGood: { backgroundColor: '#102417', borderColor: '#22C55E66' },
-  feedbackBad: { backgroundColor: '#2A1016', borderColor: '#FB718566' },
+  feedbackGood: { backgroundColor: colors.successSoft, borderColor: colors.success },
+  feedbackBad: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   feedbackMain: { color: colors.textPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
-  feedbackCorrection: { color: '#FCD34D', fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginTop: spacing.xs },
+  feedbackCorrection: { color: colors.warning, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginTop: spacing.xs },
   feedbackExplain: { color: colors.textSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
   nextBtn: { marginTop: spacing.sm, backgroundColor: colors.primaryAccent, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  nextBtnText: { color: '#0B1020', fontWeight: typography.weight.black, fontSize: typography.size.sm },
+  nextBtnText: { color: colors.textOnAccent, fontWeight: typography.weight.black, fontSize: typography.size.sm },
 
   resultCard: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.divider, alignItems: 'center' },
   resultEmoji: { fontSize: 54 },
@@ -403,6 +411,6 @@ const styles = StyleSheet.create({
   resultScore: { color: colors.primaryAccent, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },
   resultMeta: { color: colors.textSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
   mistakeBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.divider },
-  mistakeTitle: { color: '#F5B800', fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginBottom: spacing.xs },
+  mistakeTitle: { color: colors.warning, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginBottom: spacing.xs },
   mistakeText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20 },
 });

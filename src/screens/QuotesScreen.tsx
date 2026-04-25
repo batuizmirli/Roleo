@@ -16,6 +16,7 @@ import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
 import { awardActivityXP } from '../services/progress';
 import AnimatedPressable from '../components/AnimatedPressable';
+import { colors } from '../theme/colors';
 
 type Quote = {
   original: string;
@@ -59,6 +60,26 @@ const THINKERS = [
   'Simone de Beauvoir',
 ];
 
+const buildOfflineQuoteSet = (targetLangName: string): QuoteSet => {
+  const isSpanish = /spanish|ispanyol/i.test(targetLangName);
+  return {
+    title: 'Çevrimdışı kısa bağlamlar',
+    content: isSpanish
+      ? [
+          { original: 'Perdón, ¿me puede ayudar?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Kafe sahnesi' },
+          { original: 'Estoy aprendiendo, ¿puede repetir?', translation: 'Öğreniyorum, tekrar edebilir misiniz?', author: 'Sokak sahnesi' },
+          { original: 'Quisiera pedir algo sencillo.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Restoran sahnesi' },
+          { original: 'No estoy seguro, pero puedo intentarlo.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+        ]
+      : [
+          { original: 'Sorry, could you help me for a second?', translation: 'Affedersiniz, bana bir saniye yardım edebilir misiniz?', author: 'Street scene' },
+          { original: 'I am still learning. Could you repeat that?', translation: 'Hâlâ öğreniyorum. Tekrar edebilir misiniz?', author: 'Service scene' },
+          { original: 'Could I get something simple to start?', translation: 'Başlamak için basit bir şey alabilir miyim?', author: 'Cafe scene' },
+          { original: 'I am not sure, but I can try.', translation: 'Emin değilim ama deneyebilirim.', author: 'Everyday scene' },
+        ],
+  };
+};
+
 export default function QuotesScreen({ onBack }: Props) {
   const [quoteSet, setQuoteSet] = useState<QuoteSet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +92,7 @@ export default function QuotesScreen({ onBack }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [xpAwarded, setXpAwarded] = useState(false);
+  const [offlineNotice, setOfflineNotice] = useState('');
 
   useEffect(() => { loadQuotes(); }, []);
 
@@ -112,7 +134,7 @@ export default function QuotesScreen({ onBack }: Props) {
   };
 
   const loadQuotes = async () => {
-    setLoading(true); setError(''); setShowTranslations({});
+    setLoading(true); setError(''); setShowTranslations({}); setOfflineNotice('');
     try {
       const profileData = await AsyncStorage.getItem('userProfile');
       if (!profileData) { setError('Profil bulunamad\u0131.'); setLoading(false); return; }
@@ -126,7 +148,7 @@ export default function QuotesScreen({ onBack }: Props) {
       }
       setProfile(p);
       const nativeLang = p.nativeLanguage?.name ?? 'English';
-      const langName = p.language?.name ?? 'Spanish';
+      const langName = p.language?.name ?? 'English';
 
       const cacheKey = `quotes_${p.language?.code}_${new Date().toDateString()}`;
       const cached = await AsyncStorage.getItem(cacheKey);
@@ -170,7 +192,16 @@ Rules:
         setError('S\u00F6zler eksik/bozuk geldi. Tekrar dene.');
       }
     } catch (e: any) {
-      setError(`Hata: ${e.message ?? 'Bilinmeyen hata'}`);
+      const profileData = await AsyncStorage.getItem('userProfile');
+      const p = profileData ? tryParseJson<UserProfile>(profileData) : null;
+      const fallback = buildOfflineQuoteSet(p?.language?.name ?? 'English');
+      setProfile(p ?? null);
+      setQuoteSet(fallback);
+      setQuestions(buildQuiz(fallback));
+      setQIndex(0);
+      setSelected(null);
+      setScore(0);
+      setOfflineNotice('API hazır değil; kısa bağlamlar çevrimdışı örneklerle açıldı.');
     } finally {
       setLoading(false);
     }
@@ -219,7 +250,7 @@ Rules:
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>{'\u2190 Geri'}</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color="#C4B5FD" />
+      <ActivityIndicator size="large" color={colors.primaryAccent} />
       <Text style={styles.loadingText}>{'S\u00F6zler haz\u0131rlan\u0131yor...'}</Text>
     </View>
   );
@@ -242,8 +273,14 @@ Rules:
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>{'\u2190'}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{'\uD83D\uDCAC S\u00F6zler'}</Text>
+        <Text style={styles.title}>{'\uD83D\uDCAC Kısa Bağlamlar'}</Text>
       </View>
+
+      {!!offlineNotice && (
+        <View style={styles.noticeBox}>
+          <Text style={styles.noticeText}>{offlineNotice}</Text>
+        </View>
+      )}
 
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tabBtn, mode === 'read' && styles.tabBtnActive]} onPress={() => setMode('read')}>
@@ -256,7 +293,7 @@ Rules:
 
       {mode === 'read' && quoteSet && (
         <>
-          <Text style={styles.subtitle}>{'S\u00F6ze dokun, \u00E7evirisi a\u00E7\u0131ls\u0131n \u00B7 \u0130lerleme %'}{revealRate}</Text>
+          <Text style={styles.subtitle}>{'Bağlama dokun, anlamı açılsın · İlerleme %'}{revealRate}</Text>
           <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${revealRate}%` }]} /></View>
 
           <View style={styles.storyCard}>
@@ -279,7 +316,7 @@ Rules:
           {!gameDone && currentQuestion && (
             <>
               <Text style={styles.gameProgress}>Soru {qIndex + 1}/{questions.length}</Text>
-              <Text style={styles.gamePrompt}>{'Bu s\u00F6z\u00FCn do\u011Fru \u00E7evirisi hangisi?'}</Text>
+              <Text style={styles.gamePrompt}>Bu bağlamın doğru anlamı hangisi?</Text>
               <View style={styles.quoteBox}>
                 <Text style={styles.quoteText}>{`\u201C${currentQuestion.sentence}\u201D`}</Text>
                 <Text style={styles.quoteAuthor}>{`\u2014 ${currentQuestion.author}`}</Text>
@@ -329,7 +366,7 @@ Rules:
 
       {quoteSet && (
         <TouchableOpacity style={styles.refreshBtn} onPress={loadQuotes}>
-          <Text style={styles.refreshText}>{'\uD83D\uDCAC Yeni S\u00F6zler'}</Text>
+          <Text style={styles.refreshText}>{'\uD83D\uDCAC Yeni Bağlamlar'}</Text>
         </TouchableOpacity>
       )}
       <View style={{ height: 40 }} />
@@ -338,51 +375,53 @@ Rules:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: '#F5F7FA', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   topBack: { position: 'absolute', top: 60, left: 24 },
-  topBackText: { fontSize: 15, color: '#9AABB8', fontWeight: '600' },
+  topBackText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backText: { fontSize: 20, color: colors.textPrimary },
+  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  noticeBox: { backgroundColor: colors.warningSoft, borderRadius: 14, borderWidth: 1, borderColor: colors.primaryBorder, padding: 12, marginBottom: 12 },
+  noticeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#E8EDF2' },
-  tabBtnActive: { borderColor: '#1B9C5A', backgroundColor: '#150F2A' },
-  tabText: { color: '#9AABB8', fontWeight: '700' },
-  tabTextActive: { color: '#1B9C5A' },
-  subtitle: { fontSize: 14, color: '#9AABB8', marginBottom: 10 },
-  progressBar: { height: 6, borderRadius: 3, backgroundColor: '#FFFFFF', marginBottom: 14, overflow: 'hidden' },
-  progressFill: { height: 6, backgroundColor: '#1B9C5A' },
-  storyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1.5, borderColor: '#E8EDF2' },
-  storyTitle: { fontSize: 20, fontWeight: '800', color: '#1B9C5A', marginBottom: 8 },
-  divider: { height: 1, backgroundColor: '#E8EDF2', marginBottom: 12 },
-  sentenceRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1C2035', gap: 4 },
-  sentence: { fontSize: 16, color: '#1A2B3C', lineHeight: 24, fontStyle: 'italic' },
-  authorText: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
-  translation: { fontSize: 14, color: '#1B9C5A', lineHeight: 20, marginTop: 4 },
-  gameCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: '#E8EDF2' },
-  gameTitle: { fontSize: 18, color: '#1B9C5A', fontWeight: '800', marginBottom: 10 },
-  gameProgress: { color: '#9AABB8', marginBottom: 8, fontSize: 13 },
-  gamePrompt: { color: '#DDD', marginBottom: 10, fontSize: 14 },
-  quoteBox: { backgroundColor: '#F5F7FA', borderRadius: 12, padding: 12, marginBottom: 12 },
-  quoteText: { color: '#1A2B3C', fontSize: 16, lineHeight: 22, fontStyle: 'italic' },
-  quoteAuthor: { color: '#94A3B8', fontSize: 13, marginTop: 6 },
-  optionBtn: { backgroundColor: '#F5F7FA', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E8EDF2' },
-  optionCorrect: { borderColor: '#1B9C5A', backgroundColor: '#150F2A' },
-  optionWrong: { borderColor: '#1B9C5A', backgroundColor: '#2A1016' },
+  tabBtn: { backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  tabBtnActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
+  tabText: { color: colors.textSecondary, fontWeight: '700' },
+  tabTextActive: { color: colors.primaryAccent },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 10 },
+  progressBar: { height: 6, borderRadius: 3, backgroundColor: colors.surface, marginBottom: 14, overflow: 'hidden' },
+  progressFill: { height: 6, backgroundColor: colors.primaryAccent },
+  storyCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1.5, borderColor: colors.primaryBorder },
+  storyTitle: { fontSize: 20, fontWeight: '800', color: colors.primaryAccent, marginBottom: 8 },
+  divider: { height: 1, backgroundColor: colors.divider, marginBottom: 12 },
+  sentenceRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divider, gap: 4 },
+  sentence: { fontSize: 16, color: colors.textPrimary, lineHeight: 24, fontStyle: 'italic' },
+  authorText: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  translation: { fontSize: 14, color: colors.primaryAccent, lineHeight: 20, marginTop: 4 },
+  gameCard: { backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.primaryBorder },
+  gameTitle: { fontSize: 18, color: colors.primaryAccent, fontWeight: '800', marginBottom: 10 },
+  gameProgress: { color: colors.textSecondary, marginBottom: 8, fontSize: 13 },
+  gamePrompt: { color: colors.textSecondary, marginBottom: 10, fontSize: 14 },
+  quoteBox: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 12 },
+  quoteText: { color: colors.textPrimary, fontSize: 16, lineHeight: 22, fontStyle: 'italic' },
+  quoteAuthor: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
+  optionBtn: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.primaryBorder },
+  optionCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
+  optionWrong: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
   optionDim: { opacity: 0.45 },
-  optionText: { color: '#1A2B3C', fontSize: 14 },
-  nextBtn: { marginTop: 10, backgroundColor: '#1B9C5A', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  nextBtnText: { color: '#0B1020', fontWeight: '800' },
-  xpEarned: { color: '#1B9C5A', fontWeight: '800', textAlign: 'center', marginBottom: 8, fontSize: 14 },
+  optionText: { color: colors.textPrimary, fontSize: 14 },
+  nextBtn: { marginTop: 10, backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  nextBtnText: { color: colors.textOnAccent, fontWeight: '800' },
+  xpEarned: { color: colors.primaryAccent, fontWeight: '800', textAlign: 'center', marginBottom: 8, fontSize: 14 },
   doneEmoji: { fontSize: 56, textAlign: 'center', marginBottom: 6 },
-  doneText: { color: '#1A2B3C', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 },
-  loadingText: { color: '#9AABB8', fontSize: 14 },
-  errorText: { color: '#1B9C5A', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#1B9C5A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#1A2B3C', fontWeight: '700' },
-  refreshBtn: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2', marginTop: 14 },
-  refreshText: { color: '#1B9C5A', fontWeight: '700', fontSize: 15 },
+  doneText: { color: colors.textPrimary, fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 },
+  loadingText: { color: colors.textSecondary, fontSize: 14 },
+  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  retryText: { color: colors.textOnAccent, fontWeight: '700' },
+  refreshBtn: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginTop: 14 },
+  refreshText: { color: colors.primaryAccent, fontWeight: '700', fontSize: 15 },
 });

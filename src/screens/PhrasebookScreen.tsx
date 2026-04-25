@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 type Phrase = { phrase: string; meaning: string; usage: string; };
 type Category = { category: string; phrases: Phrase[]; };
@@ -33,7 +34,7 @@ export default function PhrasebookScreen({ onBack }: Props) {
       }
       setProfile(p);
       const nativeLang = p.nativeLanguage?.name ?? 'English';
-      const langName = p.language?.name ?? 'Spanish';
+      const langName = p.language?.name ?? 'English';
       const goalDesc = p.goalDescription ?? '';
 
       const cacheKey = `phrasebook_${p.language?.code}`;
@@ -73,7 +74,7 @@ Return ONLY valid JSON:
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>← Geri</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color="#60A5FA" />
+      <ActivityIndicator size="large" color={colors.primaryAccent} />
       <Text style={styles.loadingText}>Phrasebook hazırlanıyor...</Text>
     </View>
   );
@@ -96,9 +97,9 @@ Return ONLY valid JSON:
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>🗣️ Kurtarma Cümleleri</Text>
+        <Text style={styles.title}>🗣️ Sahne İfadeleri</Text>
       </View>
-      <Text style={styles.subtitle}>Her durumda işe yarayan ifadeler — {profile?.language?.flag}</Text>
+      <Text style={styles.subtitle}>Gerçek anda işine yarayacak ifadeler — {profile?.language?.flag}</Text>
 
       {categories.map((cat, i) => (
         <View key={i} style={styles.catCard}>
@@ -125,27 +126,27 @@ Return ONLY valid JSON:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: '#F5F7FA', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   topBack: { position: 'absolute', top: 60, left: 24 },
-  topBackText: { fontSize: 15, color: '#9AABB8', fontWeight: '600' },
+  topBackText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A2B3C' },
-  subtitle: { fontSize: 14, color: '#9AABB8', marginBottom: 28 },
-  catCard: { backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: '#E8EDF2', overflow: 'hidden' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backText: { fontSize: 20, color: colors.textPrimary },
+  title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 28 },
+  catCard: { backgroundColor: colors.surface, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.primaryBorder, overflow: 'hidden' },
   catHeader: { flexDirection: 'row', alignItems: 'center', padding: 18 },
-  catTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#60A5FA' },
-  chevron: { color: '#9AABB8', fontSize: 12 },
-  phrasesList: { borderTopWidth: 1, borderTopColor: '#E8EDF2', padding: 12, gap: 10 },
-  phraseCard: { backgroundColor: '#F5F7FA', borderRadius: 12, padding: 14, gap: 4 },
-  phrase: { fontSize: 16, fontWeight: '700', color: '#1A2B3C' },
-  meaning: { fontSize: 14, color: '#60A5FA' },
-  usage: { fontSize: 12, color: '#B0BEC5', marginTop: 4 },
-  loadingText: { color: '#9AABB8', fontSize: 14 },
-  errorText: { color: '#1B9C5A', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#1B9C5A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#1A2B3C', fontWeight: '700' },
+  catTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.primaryAccent },
+  chevron: { color: colors.textMuted, fontSize: 12 },
+  phrasesList: { borderTopWidth: 1, borderTopColor: colors.divider, padding: 12, gap: 10 },
+  phraseCard: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 14, gap: 4 },
+  phrase: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  meaning: { fontSize: 14, color: colors.primaryAccent },
+  usage: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  loadingText: { color: colors.textSecondary, fontSize: 14 },
+  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  retryText: { color: colors.textOnAccent, fontWeight: '700' },
 });

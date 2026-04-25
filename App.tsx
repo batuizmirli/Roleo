@@ -528,11 +528,13 @@ export default function App() {
           )}
           {screen === 'learn-hub' && (
             <LearnHubScreen
-              onOpenFlashPick={() => openToolScreen('flash-pick')}
+              onOpenVocab={() => {
+                toolReturnScreenRef.current = 'learn-hub';
+                goTo('vocab');
+              }}
               onOpenPronunciation={() => openToolScreen('pronunciation')}
               onOpenInstantLearn={() => openToolScreen('instant-learn')}
               onOpenGrammar={() => openGrammarFrom('learn-hub')}
-              onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
               onOpenPhrasebook={() => openToolScreen('phrasebook')}
               onOpenStories={() => openToolScreen('stories')}
             />
@@ -545,12 +547,12 @@ export default function App() {
               }}
               onStartDailyMission={() => startDailyRun(undefined, 'practice-hub')}
               onStartDailyRun={gid => startDailyRun(gid, 'practice-hub')}
-              onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
-              onOpenInstantLearn={() => openToolScreen('instant-learn')}
               onContinueScenarios={() => {
                 scenariosReturnRef.current = 'practice-hub';
                 handleModeSelect('scenarios');
               }}
+              onOpenFlashPick={() => openToolScreen('flash-pick')}
+              onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
             />
           )}
           {screen === 'profile-hub' && (
@@ -721,7 +723,10 @@ export default function App() {
       );
     }
 
-    if (screen === 'vocab') return <VocabScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    if (screen === 'vocab') {
+      const backTarget = stageResult ? 'stage-result' : toolReturnScreenRef.current;
+      return <VocabScreen onBack={() => goTo(backTarget)} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    }
     if (screen === 'grammar') {
       const gOrigin = grammarEntryRef.current;
       const grammarBackTarget: Screen =

@@ -37,10 +37,10 @@ export default function BottomTabBar({ active, onSelect }: Props) {
   return (
     <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.navInner}>
-        <Item tab="discover" icon="today" label="Bugün" />
-        <Item tab="learn" icon="school" label="Hazırlık" />
-        <Item tab="practice" icon="record-voice-over" label="Sahneler" />
-        <Item tab="profile" icon="person-outline" label="İlerleme" />
+        <Item tab="discover" icon="explore" label="Keşfet" />
+        <Item tab="learn" icon="school" label="Öğren" />
+        <Item tab="practice" icon="record-voice-over" label="Pratik" />
+        <Item tab="profile" icon="person-outline" label="Profil" />
       </View>
     </View>
   );

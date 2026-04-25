@@ -279,6 +279,11 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
             </>
           )}
 
+          <View style={styles.setupHintRow}>
+            <Text style={styles.setupHintStrong}>{questionCount} hızlı seçim</Text>
+            <Text style={styles.setupHintText}>Sahne öncesi kelime refleksi</Text>
+          </View>
+
           <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
             <Text style={styles.startBtnText}>{runMode ? 'Kelime ısınmasını başlat →' : 'Başla →'}</Text>
           </TouchableOpacity>
@@ -421,7 +426,7 @@ const styles = StyleSheet.create({
   setupSub: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20, marginBottom: spacing.lg },
   diffRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   diffBtn: { flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
-  diffBtnActive: { borderColor: colors.primaryAccent, backgroundColor: '#2A1F44' },
+  diffBtnActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
   diffText: { color: colors.textPrimary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
   diffTextActive: { color: colors.primaryAccent },
   diffMeta: { color: colors.textMuted, fontSize: typography.size.xs, marginTop: 3 },
@@ -431,17 +436,20 @@ const styles = StyleSheet.create({
   countBtnText: { color: colors.textPrimary, fontSize: 24, fontWeight: typography.weight.bold, lineHeight: 24 },
   countValue: { minWidth: 52, textAlign: 'center', color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
   countMeta: { color: colors.textMuted, fontSize: typography.size.xs, textAlign: 'center', marginBottom: spacing.lg },
-  runWhyBox: { backgroundColor: '#1E293B', borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: '#334155', marginBottom: spacing.lg },
+  setupHintRow: { backgroundColor: colors.surfaceAlt, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg, gap: 3 },
+  setupHintStrong: { color: colors.textPrimary, fontSize: typography.size.sm, fontWeight: typography.weight.black },
+  setupHintText: { color: colors.textSecondary, fontSize: typography.size.xs, fontWeight: typography.weight.semibold },
+  runWhyBox: { backgroundColor: colors.warningSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg },
   runWhyTitle: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
   runWhyText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
   startBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
-  startBtnText: { color: '#0B1020', fontWeight: typography.weight.black, fontSize: typography.size.md },
+  startBtnText: { color: colors.textOnAccent, fontWeight: typography.weight.black, fontSize: typography.size.md },
 
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   stat: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
   timerBarBg: { height: 8, borderRadius: 99, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.xs },
-  timerBarFill: { height: 8, borderRadius: 99, backgroundColor: '#EF4444' },
-  timerFrozen: { backgroundColor: '#60A5FA' },
+  timerBarFill: { height: 8, borderRadius: 99, backgroundColor: colors.warning },
+  timerFrozen: { backgroundColor: colors.info },
   timerText: { color: colors.textMuted, fontSize: typography.size.xs, marginBottom: spacing.md, textAlign: 'right' },
 
   promptCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.divider, padding: spacing.lg, marginBottom: spacing.md, alignItems: 'center' },
@@ -452,9 +460,9 @@ const styles = StyleSheet.create({
   option: { width: '48.5%', backgroundColor: colors.surface, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
   optionEmoji: { fontSize: 42 },
   optionLabel: { color: colors.textMuted, fontSize: typography.size.xs, marginTop: spacing.xs, textTransform: 'capitalize' },
-  optionHint: { borderColor: '#F5B800', shadowColor: '#F5B800', shadowOpacity: 0.3, shadowRadius: 8 },
-  optionCorrect: { borderColor: '#22C55E', backgroundColor: '#102417' },
-  optionWrong: { borderColor: '#EF4444', backgroundColor: '#2A1016' },
+  optionHint: { borderColor: colors.warning, shadowColor: colors.warning, shadowOpacity: 0.22, shadowRadius: 8 },
+  optionCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
+  optionWrong: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
 
   powerRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   powerBtn: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
@@ -462,8 +470,8 @@ const styles = StyleSheet.create({
   powerText: { color: colors.textPrimary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
 
   feedback: { marginTop: spacing.md, textAlign: 'center', color: colors.textMuted, fontSize: typography.size.sm },
-  feedbackGood: { color: '#22C55E', fontWeight: typography.weight.bold },
-  feedbackBad: { color: '#EF4444', fontWeight: typography.weight.bold },
+  feedbackGood: { color: colors.success, fontWeight: typography.weight.bold },
+  feedbackBad: { color: colors.danger, fontWeight: typography.weight.bold },
   accText: { textAlign: 'center', color: colors.textMuted, fontSize: typography.size.xs, marginTop: spacing.xs },
 
   resultCard: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.divider, alignItems: 'center' },
@@ -472,6 +480,6 @@ const styles = StyleSheet.create({
   resultScore: { color: colors.primaryAccent, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },
   resultMeta: { color: colors.textSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
   troubleBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.divider },
-  troubleTitle: { color: '#F5B800', fontWeight: typography.weight.bold, fontSize: typography.size.sm, marginBottom: spacing.xs },
+  troubleTitle: { color: colors.warning, fontWeight: typography.weight.bold, fontSize: typography.size.sm, marginBottom: spacing.xs },
   troubleText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 19 },
 });

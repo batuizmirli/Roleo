@@ -44,7 +44,7 @@ const SLIDES: IntroSlide[] = [
     features: [
       { icon: 'explore', title: 'Gerçek Anlar', subtitle: 'Kafe, seyahat, iş ve sosyal sahneleri prova et.' },
       { icon: 'mic', title: 'Sahne Provası', subtitle: 'Ne söyleyeceğini gerçek andan önce çalış.' },
-      { icon: 'school', title: 'Pratik Geri Bildirim', subtitle: 'Her turda daha doğal cevabı seçmeyi öğren.' },
+      { icon: 'school', title: 'Prova Geri Bildirimi', subtitle: 'Her turda sahneye daha uygun cevabı seç.' },
     ],
   },
   {

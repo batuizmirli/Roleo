@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 type GrammarLesson = { title: string; rule: string; examples: { sentence: string; translation: string; }[]; tip: string; };
 type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; };
@@ -114,7 +115,7 @@ export default function GrammarScreen({ onBack, scenarioTitle, stageType }: Prop
       }
       setProfile(p);
       const nativeLang = p.nativeLanguage?.name ?? 'English';
-      const langName = p.language?.name ?? 'Spanish';
+      const langName = p.language?.name ?? 'English';
       const goalDesc = p.goalDescription ?? '';
 
       const scenarioSlug = scenarioTitle ? `_${scenarioTitle.replace(/\s+/g, '-').toLowerCase()}` : '';
@@ -148,7 +149,9 @@ Return ONLY valid JSON array:
     } catch (e: any) {
       const msg = String(e?.message ?? 'Bilinmeyen hata');
       if (msg.includes('EXPO_PUBLIC_ANTHROPIC_API_KEY')) {
-        setLessons(buildOfflineLessons(profile?.language?.name ?? 'Spanish'));
+        const profileData = await AsyncStorage.getItem('userProfile');
+        const p = profileData ? tryParseJson<UserProfile>(profileData) : null;
+        setLessons(buildOfflineLessons(p?.language?.name ?? 'English'));
         setError('');
       } else {
         setError(`Hata: ${msg}`);
@@ -164,7 +167,7 @@ Return ONLY valid JSON array:
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>📚 Gramer</Text>
+        <Text style={styles.title}>📚 Sahne Kalıpları</Text>
       </View>
       <Text style={styles.subtitle}>
         {scenarioTitle ? `"${scenarioTitle}" sahnesi · ` : 'Kural + örnek mini dersler · '}
@@ -173,8 +176,8 @@ Return ONLY valid JSON array:
 
       {loading && (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#A78BFA" />
-          <Text style={styles.loadingText}>Dersler hazırlanıyor...</Text>
+          <ActivityIndicator size="large" color={colors.primaryAccent} />
+          <Text style={styles.loadingText}>Sahne kalıpları hazırlanıyor...</Text>
         </View>
       )}
 
@@ -223,7 +226,7 @@ Return ONLY valid JSON array:
           }
           loadGrammar();
         }}>
-          <Text style={styles.refreshText}>🔄 Yeni Dersler</Text>
+          <Text style={styles.refreshText}>🔄 Yeni Kalıplar</Text>
         </TouchableOpacity>
       )}
       <View style={{ height: 40 }} />
@@ -232,34 +235,34 @@ Return ONLY valid JSON array:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  subtitle: { fontSize: 14, color: '#9AABB8', marginBottom: 28 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backText: { fontSize: 20, color: colors.textPrimary },
+  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 28 },
   center: { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  loadingText: { color: '#9AABB8', fontSize: 14 },
-  lessonCard: { backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: '#E8EDF2', overflow: 'hidden' },
+  loadingText: { color: colors.textSecondary, fontSize: 14 },
+  lessonCard: { backgroundColor: colors.surface, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.primaryBorder, overflow: 'hidden' },
   lessonHeader: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 12 },
-  lessonNum: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#A78BFA22', alignItems: 'center', justifyContent: 'center' },
-  lessonNumText: { color: '#A78BFA', fontWeight: '800', fontSize: 14 },
-  lessonTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#1A2B3C' },
-  chevron: { color: '#9AABB8', fontSize: 12 },
-  lessonBody: { paddingHorizontal: 18, paddingBottom: 18, gap: 14, borderTopWidth: 1, borderTopColor: '#E8EDF2', paddingTop: 16 },
-  ruleText: { fontSize: 14, color: '#CCC', lineHeight: 22 },
-  examplesLabel: { fontSize: 11, fontWeight: '700', color: '#A78BFA', letterSpacing: 1.2 },
-  exampleRow: { backgroundColor: '#F5F7FA', borderRadius: 12, padding: 14, gap: 4 },
-  exSentence: { fontSize: 15, color: '#1A2B3C', fontWeight: '600' },
-  exTranslation: { fontSize: 13, color: '#9AABB8' },
-  tipBox: { flexDirection: 'row', gap: 8, backgroundColor: '#F5F7FA', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#A78BFA33' },
+  lessonNum: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.primaryAccentSoft, alignItems: 'center', justifyContent: 'center' },
+  lessonNumText: { color: colors.terracottaDark, fontWeight: '800', fontSize: 14 },
+  lessonTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  chevron: { color: colors.textMuted, fontSize: 12 },
+  lessonBody: { paddingHorizontal: 18, paddingBottom: 18, gap: 14, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 16 },
+  ruleText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
+  examplesLabel: { fontSize: 11, fontWeight: '700', color: colors.primaryAccent, letterSpacing: 1.2 },
+  exampleRow: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 14, gap: 4 },
+  exSentence: { fontSize: 15, color: colors.textPrimary, fontWeight: '600' },
+  exTranslation: { fontSize: 13, color: colors.textSecondary },
+  tipBox: { flexDirection: 'row', gap: 8, backgroundColor: colors.warningSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.primaryBorder },
   tipIcon: { fontSize: 16 },
-  tipText: { flex: 1, fontSize: 13, color: '#A78BFA', lineHeight: 20 },
+  tipText: { flex: 1, fontSize: 13, color: colors.terracottaDark, lineHeight: 20 },
   errorBox: { alignItems: 'center', padding: 24, gap: 12 },
-  errorText: { color: '#1B9C5A', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#1B9C5A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#1A2B3C', fontWeight: '700' },
-  refreshBtn: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2', marginTop: 8 },
-  refreshText: { color: '#A78BFA', fontWeight: '700', fontSize: 15 },
+  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  retryText: { color: colors.textOnAccent, fontWeight: '700' },
+  refreshBtn: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginTop: 8 },
+  refreshText: { color: colors.primaryAccent, fontWeight: '700', fontSize: 15 },
 });

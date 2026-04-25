@@ -12,14 +12,10 @@ import { ALL_PRACTICE_TARGETS, defaultPracticeTarget } from '../data/practiceGoa
 const LESSON_IMAGES = {
   scenarios:
     'https://lh3.googleusercontent.com/aida-public/AB6AXuBbtctSvx_HriBlpMS37XCcnY3eTll-alUxjMwhKb7oMKf-XDm3mjICRemXdXJctnEzyMVmdG3kSQYv1XGbhJsObmRqMfTXT0O4WtVHNf1lpiqR6GY5Ih_khda0f27szL26GNTkAwK_0mv03oFl_fICtzw1tyBkaaXvV6pO8u4U1CvrTH1tt7jYNhj56Dcerd_ablb7hzOVQMvv69iue3lTAE_ibZNDjnru1uRxqcgn-gmeAe-Qe07QUYttbqaeTXcWzhfM-H12nH_q',
-  trueOrFake:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAUjXcrzjE4C6wau0P7C-fkISaTbqT61PsWcgEuTO46gD8gUboOWCPFI_D8XGtcCQeWhVwTen8IOIHksRdn5ihA2pvO8zhf6sM6jr9qnC6mzJmf07It2cdvuuv7dWrKIfHAvMHm1cIJW86R1gQqEmojxcDxvo3qErXsXSvKPYjzx6UfYveHzFSKQYdILZkXN9mgnU2pJjlaabjOgHi6uwRFMrMffLULdx5FkizJOCSrerStULUhj5qY1-axBvSVmCoj7jkktZP8BJlV',
-  instant:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuASzAHrVeV45oQpiluyBlqkJlC65-gea9gcv_n6mRS7PG7TdqjgsihMMGBOmJ-cTtjxGK84c_Hu2P4X0Co6v2NhMB3wG8eH8kYFroeuWZ0QTxGU7KtjSpAETkCFkOmkMXZ97LDPycIHXWNi6FrBbO63zZmuBX7YmPINQhScLFr0BzolxjC2NK59SA03ip1ruzGZtKI2UnehaBKLiFa198E-IBGeOEBtFQxXmrbClU7xG_rXM74N3qIHKyIVXD3hGmMyhTb2N8RvOqKZ',
 } as const;
 
 type PickedCard = {
-  id: 'scenarios' | 'true-or-fake' | 'instant-learn';
+  id: 'scenarios';
   tag: string;
   title: string;
   subtitle: string;
@@ -36,31 +32,15 @@ const PICKED_FOR_YOU: PickedCard[] = [
     image: LESSON_IMAGES.scenarios,
     thumbBg: 'rgba(160, 103, 76, 0.12)',
   },
-  {
-    id: 'true-or-fake',
-    tag: 'TEMEL',
-    title: 'True or Fake',
-    subtitle: 'Doğal mı garip mi, hızlıca ayırt et',
-    image: LESSON_IMAGES.trueOrFake,
-    thumbBg: 'rgba(165, 100, 72, 0.12)',
-  },
-  {
-    id: 'instant-learn',
-    tag: 'İLERİ',
-    title: 'Hızlı Prova',
-    subtitle: 'Kısa bir konuşma anını dene',
-    image: LESSON_IMAGES.instant,
-    thumbBg: 'rgba(231, 226, 217, 0.55)',
-  },
 ];
 
 type Props = {
   onOpenScenarios: () => void;
   onStartDailyMission: () => void;
   onStartDailyRun: (goalId: string) => void;
-  onOpenTrueOrFake?: () => void;
-  onOpenInstantLearn?: () => void;
   onContinueScenarios: () => void;
+  onOpenFlashPick: () => void;
+  onOpenTrueOrFake: () => void;
 };
 
 const surface = '#FCF9F8';
@@ -77,9 +57,9 @@ export default function PracticeHubScreen({
   onOpenScenarios,
   onStartDailyMission,
   onStartDailyRun,
-  onOpenTrueOrFake,
-  onOpenInstantLearn,
   onContinueScenarios,
+  onOpenFlashPick,
+  onOpenTrueOrFake,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [selectedTargetId, setSelectedTargetId] = useState<string>(defaultPracticeTarget().id);
@@ -116,8 +96,6 @@ export default function PracticeHubScreen({
 
   const openPicked = (id: PickedCard['id']) => {
     if (id === 'scenarios') onContinueScenarios();
-    else if (id === 'true-or-fake') onOpenTrueOrFake?.();
-    else onOpenInstantLearn?.();
   };
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
@@ -126,7 +104,7 @@ export default function PracticeHubScreen({
     <View style={styles.root}>
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>Sahneler</Text>
+          <Text style={styles.screenTitle}>Pratik</Text>
         </View>
       </SafeAreaView>
       <ScrollView
@@ -134,8 +112,9 @@ export default function PracticeHubScreen({
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Ana rota bugünkü koşu. Diğer sahneler tekrar ve keşif için burada.</Text>
+        <Text style={styles.subtitle}>Gerçek hayat konuşmalarını prova et. Bugünkü sahne ana rota.</Text>
 
+        <Text style={[styles.sectionTitle, styles.firstSectionTitle]}>Ana Prova</Text>
         <View style={styles.hero}>
           <Text style={styles.heroLabel}>Günlük Roleo koşusu</Text>
           <Text style={styles.heroTitle}>{todaySceneTitle}</Text>
@@ -147,14 +126,23 @@ export default function PracticeHubScreen({
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.compactRow} onPress={onOpenScenarios} activeOpacity={0.88}>
-          <MaterialIcons name="theater-comedy" size={22} color={primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Tüm sahneler</Text>
-            <Text style={styles.rowSub}>Bugünkü koşudan sonra başka gerçek anları keşfet</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={22} color={terracotta} />
-        </TouchableOpacity>
+        <View style={styles.practiceGrid}>
+          <TouchableOpacity style={styles.practiceCard} onPress={onOpenScenarios} activeOpacity={0.88}>
+            <View style={styles.practiceIconWrap}>
+              <MaterialIcons name="theater-comedy" size={21} color={primary} />
+            </View>
+            <Text style={styles.practiceTitle}>Sahne Modu</Text>
+            <Text style={styles.practiceSub}>Gerçek anları serbest prova et</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.practiceCard} onPress={onContinueScenarios} activeOpacity={0.88}>
+            <View style={styles.practiceIconWrap}>
+              <MaterialIcons name="view-list" size={21} color={primary} />
+            </View>
+            <Text style={styles.practiceTitle}>Scenario Library</Text>
+            <Text style={styles.practiceSub}>Kaldığın sahneye veya listeye dön</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={styles.supportRow}
@@ -163,12 +151,31 @@ export default function PracticeHubScreen({
         >
           <MaterialIcons name="directions-run" size={20} color={terracotta} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.supportTitle}>Aynı günlük akışı hedefinle başlat</Text>
-            <Text style={styles.supportSub}>Hazırlık hedefini uygular, yine bugünkü sahneye götürür.</Text>
+            <Text style={styles.supportTitle}>Hedefinle bugünkü sahneyi prova et</Text>
+            <Text style={styles.supportSub}>Kısa ısınma sonrası aynı konuşma akışına gir.</Text>
           </View>
         </TouchableOpacity>
 
-        <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 12 }]}>Destekleyici pratikler</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 18, marginBottom: 12 }]}>Mini Oyunlar</Text>
+        <View style={styles.miniGameGrid}>
+          <TouchableOpacity style={styles.miniGameCard} onPress={onOpenFlashPick} activeOpacity={0.88}>
+            <View style={styles.miniIconWrap}>
+              <MaterialIcons name="bolt" size={22} color={primary} />
+            </View>
+            <Text style={styles.miniTitle}>Flash Pick</Text>
+            <Text style={styles.miniSub}>Kelimeyi hızlı yakala</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.miniGameCard} onPress={onOpenTrueOrFake} activeOpacity={0.88}>
+            <View style={styles.miniIconWrap}>
+              <MaterialIcons name="fact-check" size={22} color={primary} />
+            </View>
+            <Text style={styles.miniTitle}>True or Fake</Text>
+            <Text style={styles.miniSub}>Doğal mı garip mi seç</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 12 }]}>Diğer sahneler</Text>
         <View style={styles.pickedList}>
           {PICKED_FOR_YOU.map(card => (
             <TouchableOpacity
@@ -222,6 +229,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollInner: { paddingHorizontal: 20, paddingTop: 16 },
+  firstSectionTitle: { marginBottom: 10 },
   hero: {
     backgroundColor: primary,
     borderRadius: 24,
@@ -278,17 +286,40 @@ const styles = StyleSheet.create({
     color: primary,
     letterSpacing: 0.3,
   },
-  compactRow: {
+  practiceGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  practiceCard: {
+    flex: 1,
     backgroundColor: white,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: outlineVariant,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    padding: 12,
+    minHeight: 118,
+  },
+  practiceIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(165, 100, 72, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
-    gap: 12,
+  },
+  practiceTitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: onSurface,
+  },
+  practiceSub: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: 'Poppins_500Medium',
+    color: onSurfaceVariant,
+    marginTop: 4,
   },
   supportRow: {
     flexDirection: 'row',
@@ -301,17 +332,6 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     marginBottom: 8,
     gap: 10,
-  },
-  rowTitle: {
-    fontSize: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
-  },
-  rowSub: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
-    marginTop: 2,
   },
   supportTitle: {
     fontSize: 13,
@@ -330,6 +350,40 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
+  },
+  miniGameGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  miniGameCard: {
+    flex: 1,
+    backgroundColor: 'rgba(176, 109, 80, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(176, 109, 80, 0.18)',
+    padding: 12,
+    minHeight: 118,
+  },
+  miniIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(165, 100, 72, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  miniTitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: onSurface,
+  },
+  miniSub: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: 'Poppins_500Medium',
+    color: onSurfaceVariant,
+    marginTop: 4,
   },
   pickedList: { gap: 10 },
   lessonCard: {

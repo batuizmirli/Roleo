@@ -16,6 +16,9 @@ import { Message, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
 import { sendMessage } from '../services/claude';
 import { trackEvent } from '../services/telemetry';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 
 type Props = {
   onBack: () => void;
@@ -40,7 +43,7 @@ export default function InstantLearnScreen({ onBack }: Props) {
       const profileRaw = await AsyncStorage.getItem('userProfile');
       const profile = profileRaw ? tryParseJson<UserProfile>(profileRaw) : null;
       const nativeLanguage = profile?.nativeLanguage?.name ?? 'English';
-      const targetLanguage = profile?.language?.name ?? 'Spanish';
+      const targetLanguage = profile?.language?.name ?? 'English';
       const identityGoal = profile?.identity?.goal ?? profile?.goalDescription ?? 'feel natural in real life';
 
       const prompt = `
@@ -90,15 +93,18 @@ MİNİ SAHNE:
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Instant Learn</Text>
-        <Text style={styles.subtitle}>Sahneye girmeden önce cümleyi yaz. Anlamını çöz, kullanımını öğren, mini sahnesini gör.</Text>
+        <View style={styles.hero}>
+          <Text style={styles.kicker}>Kısa prova</Text>
+          <Text style={styles.title}>Kısa prova</Text>
+          <Text style={styles.subtitle}>Sahneye girmeden önce cümleyi yaz. Anlamını çöz, kullanımını öğren, mini sahnesini gör.</Text>
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Ne duydun?</Text>
           <TextInput
             style={styles.input}
             placeholder="Örn. golazo ne demek?"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textMuted}
             multiline
             value={query}
             onChangeText={setQuery}
@@ -117,7 +123,7 @@ MİNİ SAHNE:
           onPress={handleLearn}
           disabled={!query.trim() || loading}
         >
-          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Açıkla + Mini Sahne Üret</Text>}
+          {loading ? <ActivityIndicator color={colors.textOnAccent} /> : <Text style={styles.buttonText}>Açıkla + mini sahne kur</Text>}
         </TouchableOpacity>
 
         {answer ? (
@@ -125,29 +131,39 @@ MİNİ SAHNE:
             <Text style={styles.answerLabel}>SONUÇ</Text>
             <Text style={styles.answerText}>{answer}</Text>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Bugünkü sahneye küçük bir not bırak</Text>
+            <Text style={styles.emptyText}>Duyduğun bir ifade, mesajdaki bir cümle veya aklına takılan kısa bir cevap yeter.</Text>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
   backBtn: { alignSelf: 'flex-start', marginBottom: 16 },
-  backText: { color: '#9AABB8', fontSize: 15, fontWeight: '600' },
-  title: { color: '#1A2B3C', fontSize: 28, fontWeight: '900' },
-  subtitle: { color: '#6B7B8D', fontSize: 15, lineHeight: 22, marginTop: 8, marginBottom: 24 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: '#E2D7CF' },
-  cardLabel: { color: '#1A2B3C', fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  input: { minHeight: 110, color: '#1A2B3C', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  backText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+  hero: { backgroundColor: colors.surface, borderRadius: 22, padding: spacing.lg, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg },
+  kicker: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
+  title: { color: colors.textPrimary, fontSize: 28, fontWeight: '900' },
+  subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 8 },
+  card: { backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.primaryBorder },
+  cardLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  input: { minHeight: 104, color: colors.textPrimary, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   chipsWrap: { gap: 8, marginTop: 12 },
-  chip: { backgroundColor: '#F4ECE5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#D5C4B8' },
-  chipText: { color: '#8B5E45', fontSize: 12, lineHeight: 18 },
-  button: { backgroundColor: '#A66A4C', borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 18 },
+  chip: { backgroundColor: colors.primaryAccentSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  chipText: { color: colors.terracottaDark, fontSize: 12, lineHeight: 18 },
+  button: { backgroundColor: colors.primaryAccent, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 18 },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFFDF8', fontSize: 16, fontWeight: '800' },
-  answerCard: { marginTop: 18, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2D7CF' },
-  answerLabel: { color: '#8B5E45', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
-  answerText: { color: '#1A2B3C', fontSize: 14, lineHeight: 22 },
+  buttonText: { color: colors.textOnAccent, fontSize: 16, fontWeight: '800' },
+  answerCard: { marginTop: 18, backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
+  answerLabel: { color: colors.primaryAccent, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  answerText: { color: colors.textPrimary, fontSize: 14, lineHeight: 22 },
+  emptyCard: { marginTop: 14, backgroundColor: colors.warningSoft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.primaryBorder },
+  emptyTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800', marginBottom: 4 },
+  emptyText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
 });

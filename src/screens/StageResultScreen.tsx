@@ -105,16 +105,16 @@ export default function StageResultScreen({
     result.learningSummary?.bestReply
     ?? result.turnReviews?.find(t => t.quality === 'good')?.selectedText
     ?? result.nativePhraseHighlight
-    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'You kept the scene moving with clear replies.' : 'You found a few stable replies in the scene.');
+    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'Sahneyi net cevaplarla taşıdın.' : 'Sahnede birkaç sağlam cevap buldun.');
   const awkwardTurn = result.turnReviews?.find(t => t.quality === 'awkward');
   const awkwardMomentLine =
     result.learningSummary?.awkwardMoment
     ?? awkwardTurn?.selectedText
-    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} awkward turn(s) made the scene harder.` : 'No major awkward turn, but one reply can still get cleaner.');
+    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} garip cevap sahneyi zorlaştırdı.` : 'Büyük kopuş yok; bir cevap hâlâ temizlenebilir.');
   const betterAlternativeLine =
     result.learningSummary?.betterAlternative
     ?? (awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText ? awkwardTurn.goodOption : undefined)
-    ?? 'Use a softer, clearer reply when the scene puts pressure on you.';
+    ?? 'Sahne baskı kurduğunda daha yumuşak ve net cevap seç.';
   const nextFocusLine =
     memoryFocus
     ?? result.learningSummary?.nextFocus
@@ -177,21 +177,21 @@ export default function StageResultScreen({
           {!!playerIdentity && <Text style={styles.identityEvolutionLine}>{playerIdentity.evolutionLine}</Text>}
         </View>
         <View style={styles.educationCard}>
-          <Text style={styles.educationTitle}>Scene Coach</Text>
+          <Text style={styles.educationTitle}>Sahne koçu</Text>
           <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Best scene reply</Text>
+            <Text style={styles.educationLabel}>En temiz sahne cevabı</Text>
             <Text style={styles.educationValue}>{bestReplyLine}</Text>
           </View>
           <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Awkward moment</Text>
+            <Text style={styles.educationLabel}>Garip kalan an</Text>
             <Text style={styles.educationValue}>{awkwardMomentLine}</Text>
           </View>
           <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Try this reply next time</Text>
+            <Text style={styles.educationLabel}>Bir dahaki provada bunu dene</Text>
             <Text style={styles.educationValue}>{betterAlternativeLine}</Text>
           </View>
           <View style={styles.educationRowLast}>
-            <Text style={styles.educationLabel}>Next time, focus on...</Text>
+            <Text style={styles.educationLabel}>Sonraki odak</Text>
             <Text style={styles.educationValue}>{nextFocusLine}</Text>
           </View>
         </View>
@@ -325,17 +325,17 @@ export default function StageResultScreen({
             <>
               <Text style={styles.sectionTitle}>İstersen derinleş</Text>
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenVocab}>
-                <Text style={styles.sideTitle}>Scene Boost</Text>
+                <Text style={styles.sideTitle}>Sahne kelimeleri</Text>
                 <Text style={styles.sideDesc}>Aynı sahne için kritik kelime kartları</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenGrammar}>
-                <Text style={styles.sideTitle}>Scene Coach</Text>
+                <Text style={styles.sideTitle}>Sahne koçu</Text>
                 <Text style={styles.sideDesc}>Garip kalan cevaplardan kısa düzeltme</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenQuiz}>
-                <Text style={styles.sideTitle}>Challenge Round</Text>
+                <Text style={styles.sideTitle}>Hızlı tekrar</Text>
                 <Text style={styles.sideDesc}>Sahnedeki cevapları hızlı pekiştir</Text>
               </TouchableOpacity>
             </>

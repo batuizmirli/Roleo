@@ -24,11 +24,10 @@ type ToolRow = {
 };
 
 type Props = {
-  onOpenFlashPick?: () => void;
+  onOpenVocab?: () => void;
   onOpenPronunciation?: () => void;
   onOpenInstantLearn?: () => void;
   onOpenGrammar?: () => void;
-  onOpenTrueOrFake?: () => void;
   onOpenPhrasebook?: () => void;
   onOpenStories?: () => void;
 };
@@ -42,11 +41,10 @@ const outlineVariant = 'rgba(216, 194, 186, 0.35)';
 const white = '#FFFFFF';
 
 export default function LearnHubScreen({
-  onOpenFlashPick,
+  onOpenVocab,
   onOpenPronunciation,
   onOpenInstantLearn,
   onOpenGrammar,
-  onOpenTrueOrFake,
   onOpenPhrasebook,
   onOpenStories,
 }: Props) {
@@ -67,14 +65,15 @@ export default function LearnHubScreen({
     void load();
   }, []);
 
-  const routineTiles: RoutineTile[] = [
+  const prepCards: RoutineTile[] = [
     {
       id: 'kelime',
       label: 'Kelime',
       icon: 'menu-book',
       fill: playedToday ? 1 : 0.35,
       muted: false,
-      onPress: () => onOpenFlashPick?.(),
+      caption: 'Bugünkü sahne için kısa kelime kartları',
+      onPress: () => onOpenVocab?.(),
     },
     {
       id: 'telaffuz',
@@ -82,6 +81,7 @@ export default function LearnHubScreen({
       icon: 'mic',
       fill: Math.min(1, 0.45 + (weeklyTotal > 20 ? 0.25 : 0)),
       muted: false,
+      caption: 'Söylemeden önce sesini hazırla',
       onPress: () => onOpenPronunciation?.(),
     },
     {
@@ -90,31 +90,20 @@ export default function LearnHubScreen({
       icon: 'headphones',
       fill: Math.min(1, 0.55 + (xp > 80 ? 0.3 : 0)),
       muted: false,
-      onPress: () => onOpenInstantLearn?.(),
-    },
-    {
-      id: 'grammar',
-      label: 'Grammar',
-      icon: 'translate',
-      fill: Math.min(1, 0.58 + (weeklyTotal > 15 ? 0.22 : 0) + (xp > 40 ? 0.2 : 0)),
-      muted: false,
-      caption: 'Sahnede işine yarayan kalıp ve örnekler',
-      onPress: () => onOpenGrammar?.(),
+      caption: 'Kelimeleri dinle ve tekrar et',
+      onPress: () => onOpenPronunciation?.(),
     },
   ];
 
   const rhythmDoneLabel = playedToday
     ? 'Bugünkü koşuya bağlandı'
-    : 'Daily Run içinde otomatik gelir';
+    : 'Günlük koşuda otomatik gelir';
 
-  const toolRows: ToolRow[] = [
-    { id: 'grammar', title: 'Grammar', subtitle: 'Sahnede kullanacağın kalıplar', icon: 'translate', onPress: () => onOpenGrammar?.() },
-    { id: 'flash', title: 'Kelime seçimi', subtitle: 'Bir sonraki cevap için hızlı ısınma', icon: 'menu-book', onPress: () => onOpenFlashPick?.() },
-    { id: 'pron', title: 'Telaffuz', subtitle: 'Söylemeden önce sesini hazırla', icon: 'mic', onPress: () => onOpenPronunciation?.() },
-    { id: 'instant', title: 'Hızlı prova', subtitle: 'Kısa bir konuşma anını dene', icon: 'chat', onPress: () => onOpenInstantLearn?.() },
-    { id: 'tof', title: 'True or Fake', subtitle: 'Doğal mı garip mi, sahne öncesi ayırt et', icon: 'fact-check', onPress: () => onOpenTrueOrFake?.() },
-    { id: 'phrase', title: 'Phrasebook', subtitle: 'Gerçek anda işine yarayacak ifadeler', icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
-    { id: 'stories', title: 'Hikayeler', subtitle: 'Kısa bağlamlarla ifade tekrar et', icon: 'auto-stories', onPress: () => onOpenStories?.() },
+  const toolCards: ToolRow[] = [
+    { id: 'grammar', title: 'Sahne Kalıpları', subtitle: 'Gerçek anda kullanacağın kısa yapılar', icon: 'translate', onPress: () => onOpenGrammar?.() },
+    { id: 'phrase', title: 'Sahne İfadeleri', subtitle: 'Gerçek anda işine yarayacak cümleler', icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
+    { id: 'instant', title: 'Kısa prova', subtitle: 'Küçük bir konuşma anını dene', icon: 'chat', onPress: () => onOpenInstantLearn?.() },
+    { id: 'stories', title: 'Kısa Bağlamlar', subtitle: 'Sahneye girmeden ifade tekrar et', icon: 'auto-stories', onPress: () => onOpenStories?.() },
   ];
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
@@ -123,7 +112,7 @@ export default function LearnHubScreen({
     <View style={styles.root}>
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>Hazırlık</Text>
+          <Text style={styles.screenTitle}>Öğren</Text>
         </View>
       </SafeAreaView>
       <ScrollView
@@ -131,14 +120,14 @@ export default function LearnHubScreen({
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Bunlar ana mod değil; bugünkü sahnede daha rahat cevap vermek için kısa destekler.</Text>
+        <Text style={styles.subtitle}>Gerçek hayatta söylemeden önce kısa prova destekleri.</Text>
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Sahne öncesi ısınmalar</Text>
+          <Text style={styles.sectionTitle}>Sahneye Hazırlık</Text>
           <Text style={styles.sectionMeta}>{rhythmDoneLabel}</Text>
         </View>
         <View style={styles.rhythmGrid}>
-          {routineTiles.map(tile => (
+          {prepCards.map(tile => (
             <TouchableOpacity
               key={tile.id}
               style={[styles.rhythmCard, tile.muted && styles.rhythmCardMuted]}
@@ -163,18 +152,15 @@ export default function LearnHubScreen({
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, styles.toolSectionTitle]}>Araç rafı</Text>
-        <View style={styles.toolList}>
-          {toolRows.map(row => (
-            <TouchableOpacity key={row.id} style={styles.toolRow} onPress={row.onPress} activeOpacity={0.88}>
+        <Text style={[styles.sectionTitle, styles.toolSectionTitle]}>Dil Araçları</Text>
+        <View style={styles.toolGrid}>
+          {toolCards.map(row => (
+            <TouchableOpacity key={row.id} style={styles.toolCard} onPress={row.onPress} activeOpacity={0.88}>
               <View style={styles.toolIconWrap}>
                 <MaterialIcons name={row.icon} size={20} color={primary} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.toolTitle}>{row.title}</Text>
-                <Text style={styles.toolSubtitle}>{row.subtitle}</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color={terracotta} />
+              <Text style={styles.toolTitle}>{row.title}</Text>
+              <Text style={styles.toolSubtitle}>{row.subtitle}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -219,7 +205,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
   },
-  toolSectionTitle: { marginBottom: 12, marginTop: 4 },
+  toolSectionTitle: { marginBottom: 12, marginTop: 2 },
   sectionMeta: {
     fontSize: 11,
     fontFamily: 'Poppins_600SemiBold',
@@ -235,6 +221,7 @@ const styles = StyleSheet.create({
   },
   rhythmCard: {
     width: '48%',
+    minHeight: 134,
     backgroundColor: 'rgba(255,255,255,0.68)',
     borderRadius: 16,
     borderWidth: 1,
@@ -290,17 +277,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: primary,
   },
-  toolList: { gap: 10 },
-  toolRow: {
+  toolGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  toolCard: {
+    width: '48%',
+    minHeight: 132,
     backgroundColor: white,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: outlineVariant,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 12,
+    padding: 12,
+    justifyContent: 'space-between',
   },
   toolIconWrap: {
     width: 34,
@@ -309,6 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(165, 100, 72, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 10,
   },
   toolTitle: {
     fontSize: 14,
@@ -317,8 +308,9 @@ const styles = StyleSheet.create({
   },
   toolSubtitle: {
     fontSize: 11,
+    lineHeight: 15,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
-    marginTop: 2,
+    marginTop: 4,
   },
 });
