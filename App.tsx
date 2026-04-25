@@ -74,7 +74,7 @@ type Screen =
   | 'debug';
 
 export default function App() {
-  type RunState = 'idle' | 'flash' | 'truefake' | 'scene' | 'complete';
+  type RunState = 'idle' | 'briefing' | 'flash' | 'truefake' | 'scene' | 'complete';
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -115,7 +115,7 @@ export default function App() {
   const scenariosReturnRef = useRef<Screen>('practice-hub');
   const progressReturnRef = useRef<Screen>('profile-hub');
   const dailyMissionReturnRef = useRef<'home' | 'practice-hub'>('home');
-  const dailyRunExitRef = useRef<'practice-hub'>('practice-hub');
+  const dailyRunExitRef = useRef<'home' | 'practice-hub'>('practice-hub');
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -249,14 +249,20 @@ export default function App() {
     goTo('scenario');
   };
 
-  const startDailyRun = async (goalId?: string) => {
-    dailyRunExitRef.current = 'practice-hub';
+  const startDailyRun = async (goalId?: string, returnTo: 'home' | 'practice-hub' = 'practice-hub') => {
+    dailyRunExitRef.current = returnTo;
     setRunResults([]);
     setDailyRunBoard(null);
-    setRunScenario(null);
     setRunGoalId(goalId);
-    setRunState('flash');
-    await trackEvent('run_started', { source: 'practice-hub', goalId: goalId ?? 'none' });
+    const profileRaw = await AsyncStorage.getItem('userProfile');
+    const profile = profileRaw ? JSON.parse(profileRaw) : null;
+    const languageCode = profile?.language?.code ?? 'es';
+    const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    const progress = await getProgress();
+    setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
+    setRunScenario(scenario);
+    setRunState('briefing');
+    await trackEvent('run_started', { source: returnTo, goalId: goalId ?? 'none', scenarioId: scenario.id });
   };
 
   const handleFlashComplete = async (result: ModuleResult) => {
@@ -268,13 +274,15 @@ export default function App() {
   const handleTrueFakeComplete = async (result: ModuleResult) => {
     setRunResults(r => [...r, result]);
 
-    const profileRaw = await AsyncStorage.getItem('userProfile');
-    const profile = profileRaw ? JSON.parse(profileRaw) : null;
-    const languageCode = profile?.language?.code ?? 'es';
-    const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
-    const progress = await getProgress();
-    setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
-    setRunScenario(scenario);
+    if (!runScenario) {
+      const profileRaw = await AsyncStorage.getItem('userProfile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : null;
+      const languageCode = profile?.language?.code ?? 'es';
+      const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+      const progress = await getProgress();
+      setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
+      setRunScenario(scenario);
+    }
 
     setRunState('scene');
     await trackEvent('module_completed', { module: 'truefake', accuracy: result.accuracy, comboMax: result.comboMax });
@@ -316,13 +324,53 @@ export default function App() {
     setRunState('idle');
   };
 
+  const renderDailyRunBriefing = () => {
+    if (!runScenario) return null;
+    const minutes = runScenario.estimatedMinutes ?? 3;
+    return (
+      <View style={runBriefingStyles.container}>
+        <View style={runBriefingStyles.card}>
+          <Text style={runBriefingStyles.eyebrow}>BUGÜNKÜ ROLEO LOOP</Text>
+          <Text style={runBriefingStyles.title}>Önce ısın, sonra sahneye gir.</Text>
+          <Text style={runBriefingStyles.subtitle}>
+            Bugünkü görev tek akış: kelime refleksi, doğal ton kontrolü, ardından gerçek konuşma provası.
+          </Text>
+
+          <View style={runBriefingStyles.sceneCard}>
+            <Text style={runBriefingStyles.sceneLabel}>Seçili sahne</Text>
+            <Text style={runBriefingStyles.sceneTitle}>{runScenario.title}</Text>
+            <Text style={runBriefingStyles.sceneMeta}>{runScenario.location} · ~{minutes} dk</Text>
+          </View>
+
+          <View style={runBriefingStyles.stepList}>
+            <Text style={runBriefingStyles.step}>1. Warm-up · Kilit kelimeleri hızlı tanı</Text>
+            <Text style={runBriefingStyles.step}>2. Warm-up · Doğal cümle tonunu ayır</Text>
+            <Text style={runBriefingStyles.step}>3. Scene · Aynı sahneyi baskı altında prova et</Text>
+            <Text style={runBriefingStyles.step}>4. Result · Bir sonraki odak noktanı gör</Text>
+          </View>
+
+          <TouchableOpacity style={runBriefingStyles.primaryBtn} onPress={() => setRunState('flash')} activeOpacity={0.9}>
+            <Text style={runBriefingStyles.primaryText}>Günlük koşuya başla →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={runBriefingStyles.secondaryBtn} onPress={resetRun} activeOpacity={0.85}>
+            <Text style={runBriefingStyles.secondaryText}>Şimdilik çık</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderScreen = () => {
+    if (runState === 'briefing') {
+      return renderDailyRunBriefing();
+    }
+
     if (runState === 'flash') {
-      return <FlashPickScreen onBack={resetRun} runMode onComplete={handleFlashComplete} />;
+      return <FlashPickScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleFlashComplete} />;
     }
 
     if (runState === 'truefake') {
-      return <TrueOrFakeScreen onBack={resetRun} runMode onComplete={handleTrueFakeComplete} />;
+      return <TrueOrFakeScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleTrueFakeComplete} />;
     }
 
     if (runState === 'scene') {
@@ -336,6 +384,7 @@ export default function App() {
           playCount={currentPlayCount}
           onBack={resetRun}
           easyStart={easyStart}
+          guidedRunMode
           goalId={runGoalId}
           onRunComplete={handleSceneComplete}
           onStageComplete={() => {
@@ -351,6 +400,7 @@ export default function App() {
           results={runResults}
           dailyRunBoard={dailyRunBoard}
           onExit={() => { resetRun(); goTo(dailyRunExitRef.current); }}
+          onReplay={() => startDailyRun(runGoalId, dailyRunExitRef.current)}
         />
       );
     }
@@ -448,7 +498,7 @@ export default function App() {
             scenariosReturnRef.current = 'practice-hub';
             goTo('scenarios');
           }}
-          onStartMission={() => startDailyMission('practice-hub')}
+          onStartMission={() => startDailyRun(undefined, 'practice-hub')}
         />
       );
     }
@@ -469,7 +519,7 @@ export default function App() {
             <HomeScreen
               onDebug={() => goTo('debug')}
               onOpenAccount={() => goTo('account')}
-              onStartDailyMission={() => startDailyMission('home')}
+              onStartDailyMission={() => startDailyRun(undefined, 'home')}
               onOpenProgress={() => {
                 progressReturnRef.current = 'home';
                 goTo('progress');
@@ -493,8 +543,8 @@ export default function App() {
                 scenariosReturnRef.current = 'practice-hub';
                 goTo('scenarios');
               }}
-              onStartDailyMission={() => startDailyMission('practice-hub')}
-              onStartDailyRun={gid => startDailyRun(gid)}
+              onStartDailyMission={() => startDailyRun(undefined, 'practice-hub')}
+              onStartDailyRun={gid => startDailyRun(gid, 'practice-hub')}
               onOpenTrueOrFake={() => openToolScreen('true-or-fake')}
               onOpenInstantLearn={() => openToolScreen('instant-learn')}
               onContinueScenarios={() => {
@@ -757,5 +807,105 @@ const fabStyles = StyleSheet.create({
   fabIcon: {
     fontSize: 22,
     color: '#FFFDF8',
+  },
+});
+
+const runBriefingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F0E5',
+    paddingHorizontal: 24,
+    paddingTop: 72,
+    paddingBottom: 32,
+    justifyContent: 'center',
+  },
+  card: {
+    backgroundColor: '#FCF9F8',
+    borderRadius: 26,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(136, 76, 50, 0.16)',
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  eyebrow: {
+    color: '#B06D50',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  title: {
+    color: '#1B1C1C',
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  subtitle: {
+    color: '#53433E',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '600',
+    marginBottom: 18,
+  },
+  sceneCard: {
+    backgroundColor: '#884C32',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sceneLabel: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  sceneTitle: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  sceneMeta: {
+    color: 'rgba(255,255,255,0.84)',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  stepList: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  step: {
+    color: '#53433E',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  primaryBtn: {
+    backgroundColor: '#B06D50',
+    borderRadius: 999,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  primaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  secondaryBtn: {
+    marginTop: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  secondaryText: {
+    color: '#7A5B4A',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

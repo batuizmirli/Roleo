@@ -58,7 +58,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
       setMemoryPhrase(null);
       setWeeklyXpSeries([]);
       setXp(0);
-      setLeaderboardLine('Sahneye gir, günlük sıralamaya katıl.');
+      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
       return;
     }
 
@@ -71,7 +71,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
       setMemoryPhrase(null);
       setWeeklyXpSeries([]);
       setXp(0);
-      setLeaderboardLine('Sahneye gir, günlük sıralamaya katıl.');
+      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
       return;
     }
 
@@ -86,9 +86,9 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
     if (self) {
       setLeaderboardLine(`Sen · #${self.rank} · ${self.score} puan`);
     } else if (top) {
-      setLeaderboardLine(`Lider: ${top.name} — sen de sahneye gir`);
+      setLeaderboardLine(`Lider: ${top.name} — bugünkü sahneyi prova et`);
     } else {
-      setLeaderboardLine('Sahneye gir, günlük sıralamaya katıl.');
+      setLeaderboardLine('Bugünkü sahneyi prova et, tabloda yerini al.');
     }
     setLastPlayedDate(progress.lastPlayedDate);
     setTodayMemoryFocus(progress.learningMemory?.nextRecommendedFocus ?? null);
@@ -169,7 +169,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
 
           <View style={styles.chartPanel}>
             <View style={styles.chartTitleRow}>
-              <Text style={styles.chartPanelTitle}>Haftalık aktivite</Text>
+              <Text style={styles.chartPanelTitle}>İlerleme özeti</Text>
               <View style={styles.chartWeekPill}>
                 <Text style={styles.chartWeekPillText}>7 gün</Text>
               </View>
@@ -196,7 +196,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
             <View style={styles.statsStripHalf}>
               <MaterialIcons name="stars" size={18} color={terracotta} />
               <View style={styles.statsStripText}>
-                <Text style={styles.statsStripLabel}>XP</Text>
+                <Text style={styles.statsStripLabel}>İkincil</Text>
                 <Text style={styles.statsStripValue} numberOfLines={1}>
                   Seviye {level} · {xp} XP
                 </Text>
@@ -206,7 +206,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
             <View style={styles.statsStripHalf}>
               <MaterialIcons name="groups" size={18} color={terracotta} />
               <View style={styles.statsStripText}>
-                <Text style={styles.statsStripLabel}>Bugünkü tablo</Text>
+                <Text style={styles.statsStripLabel}>Tablo</Text>
                 <Text style={styles.statsStripValue} numberOfLines={2}>
                   {leaderboardLine}
                 </Text>
@@ -218,11 +218,11 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         <View style={styles.heroWrap}>
           <View style={styles.hero}>
             <View style={styles.heroContent}>
-              <Text style={styles.heroHeadline}>Bugünkü sahne</Text>
-              <Text style={styles.heroSubMeta}>Konuşmadan önce sahnede dene.</Text>
+              <Text style={styles.heroHeadline}>Günlük Roleo koşusu</Text>
+            <Text style={styles.heroSubMeta}>Isın, sahneye gir, sonucu gör.</Text>
 
               <View style={styles.todaySceneCard}>
-                <Text style={styles.todaySceneLabel}>Günlük görev</Text>
+                <Text style={styles.todaySceneLabel}>Bugünkü sahne</Text>
                 <Text style={styles.todaySceneTitle} numberOfLines={2}>
                   {todaySceneTitle}
                 </Text>
@@ -235,7 +235,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
               </View>
 
               <TouchableOpacity style={styles.heroCta} activeOpacity={0.9} onPress={() => onStartDailyMission?.()}>
-                <Text style={styles.heroCtaText}>Sahneye Gir</Text>
+                <Text style={styles.heroCtaText}>Günlük Koşuya Başla</Text>
                 <MaterialIcons name="play-arrow" size={22} color={primary} />
               </TouchableOpacity>
             </View>
@@ -338,11 +338,11 @@ const styles = StyleSheet.create({
     color: '#7A5B4A',
   },
   chartPanel: {
-    backgroundColor: surface,
+    backgroundColor: 'rgba(252, 249, 248, 0.72)',
     borderRadius: 14,
     paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 7,
+    paddingBottom: 5,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: outlineVariant,
@@ -354,9 +354,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   chartPanelTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+    color: onSurfaceVariant,
     flex: 1,
     paddingRight: 8,
   },
@@ -376,11 +376,11 @@ const styles = StyleSheet.create({
   statsStrip: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: white,
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: outlineVariant,
-    paddingVertical: 6,
+    paddingVertical: 5,
     paddingHorizontal: 8,
     marginBottom: 0,
     gap: 2,

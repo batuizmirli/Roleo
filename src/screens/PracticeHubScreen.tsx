@@ -32,7 +32,7 @@ const PICKED_FOR_YOU: PickedCard[] = [
     id: 'scenarios',
     tag: 'ORTA',
     title: 'Sahneye Devam Et',
-    subtitle: 'Kaldığın yerden diyaloglara devam et',
+    subtitle: 'Kaldığın gerçek hayat provasına dön',
     image: LESSON_IMAGES.scenarios,
     thumbBg: 'rgba(160, 103, 76, 0.12)',
   },
@@ -40,15 +40,15 @@ const PICKED_FOR_YOU: PickedCard[] = [
     id: 'true-or-fake',
     tag: 'TEMEL',
     title: 'True or Fake',
-    subtitle: 'Doğru kalıpları hızlıca ayırt et',
+    subtitle: 'Doğal mı garip mi, hızlıca ayırt et',
     image: LESSON_IMAGES.trueOrFake,
     thumbBg: 'rgba(165, 100, 72, 0.12)',
   },
   {
     id: 'instant-learn',
     tag: 'İLERİ',
-    title: 'Serbest Pratik',
-    subtitle: 'Yapay zeka ile dilediğin konuda konuş',
+    title: 'Hızlı Prova',
+    subtitle: 'Kısa bir konuşma anını dene',
     image: LESSON_IMAGES.instant,
     thumbBg: 'rgba(231, 226, 217, 0.55)',
   },
@@ -84,7 +84,7 @@ export default function PracticeHubScreen({
   const insets = useSafeAreaInsets();
   const [selectedTargetId, setSelectedTargetId] = useState<string>(defaultPracticeTarget().id);
   const [todaySceneTitle, setTodaySceneTitle] = useState('Bugünün sahnesi hazırlanıyor...');
-  const [todaySceneMeta, setTodaySceneMeta] = useState('Gerçek bir konuşmayı prova et');
+  const [todaySceneMeta, setTodaySceneMeta] = useState('Gerçek hayat konuşmasını prova et');
   const [todaySceneGoal, setTodaySceneGoal] = useState('6 turu tamamla ve akışı koru');
 
   useEffect(() => {
@@ -126,7 +126,7 @@ export default function PracticeHubScreen({
     <View style={styles.root}>
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>Pratik</Text>
+          <Text style={styles.screenTitle}>Sahneler</Text>
         </View>
       </SafeAreaView>
       <ScrollView
@@ -134,15 +134,15 @@ export default function PracticeHubScreen({
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Gerçek hayat konuşmalarını sahnede prova et.</Text>
+        <Text style={styles.subtitle}>Ana rota bugünkü koşu. Diğer sahneler tekrar ve keşif için burada.</Text>
 
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Bugünkü sahne</Text>
+          <Text style={styles.heroLabel}>Günlük Roleo koşusu</Text>
           <Text style={styles.heroTitle}>{todaySceneTitle}</Text>
           <Text style={styles.heroMeta}>{todaySceneMeta}</Text>
           <Text style={styles.heroGoal}>Hedef: {todaySceneGoal}</Text>
           <TouchableOpacity style={styles.heroCta} activeOpacity={0.9} onPress={onStartDailyMission}>
-            <Text style={styles.heroCtaText}>Sahneye Gir</Text>
+            <Text style={styles.heroCtaText}>Günlük Koşuya Başla</Text>
             <MaterialIcons name="play-arrow" size={22} color={primary} />
           </TouchableOpacity>
         </View>
@@ -150,26 +150,25 @@ export default function PracticeHubScreen({
         <TouchableOpacity style={styles.compactRow} onPress={onOpenScenarios} activeOpacity={0.88}>
           <MaterialIcons name="theater-comedy" size={22} color={primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Sahne listesi</Text>
-            <Text style={styles.rowSub}>Tüm diyalogları gör</Text>
+            <Text style={styles.rowTitle}>Tüm sahneler</Text>
+            <Text style={styles.rowSub}>Bugünkü koşudan sonra başka gerçek anları keşfet</Text>
           </View>
           <MaterialIcons name="chevron-right" size={22} color={terracotta} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.compactRow}
+          style={styles.supportRow}
           onPress={() => onStartDailyRun(selectedTargetId)}
           activeOpacity={0.88}
         >
-          <MaterialIcons name="directions-run" size={22} color={primary} />
+          <MaterialIcons name="directions-run" size={20} color={terracotta} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Günlük koşu</Text>
-            <Text style={styles.rowSub}>Kelime → True/Fake → sahne</Text>
+            <Text style={styles.supportTitle}>Aynı günlük akışı hedefinle başlat</Text>
+            <Text style={styles.supportSub}>Hazırlık hedefini uygular, yine bugünkü sahneye götürür.</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={22} color={terracotta} />
         </TouchableOpacity>
 
-        <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 12 }]}>Önerilen</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 12 }]}>Destekleyici pratikler</Text>
         <View style={styles.pickedList}>
           {PICKED_FOR_YOU.map(card => (
             <TouchableOpacity
@@ -291,6 +290,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 12,
   },
+  supportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(176, 109, 80, 0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(176, 109, 80, 0.18)',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 8,
+    gap: 10,
+  },
   rowTitle: {
     fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
@@ -302,11 +313,23 @@ const styles = StyleSheet.create({
     color: onSurfaceVariant,
     marginTop: 2,
   },
-  sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
+  supportTitle: {
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    color: onSurfaceVariant,
+  },
+  supportSub: {
+    fontSize: 11,
+    lineHeight: 15,
     fontFamily: 'Poppins_500Medium',
-    color: onSurface,
+    color: '#7A6E68',
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: 'Poppins_500Medium',
+    color: onSurfaceVariant,
   },
   pickedList: { gap: 10 },
   lessonCard: {
@@ -314,20 +337,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     backgroundColor: white,
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 18,
+    padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(216,194,186,0.2)',
     shadowColor: '#333',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
   lessonThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   lessonImg: { width: '100%', height: '100%' },
@@ -347,22 +370,22 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   lessonTitle: {
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
     fontFamily: 'Poppins_500Medium',
     color: onSurface,
   },
   lessonSub: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
     marginTop: 4,
   },
   lessonChevron: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: outlineVariant,
     alignItems: 'center',

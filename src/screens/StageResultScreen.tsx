@@ -105,16 +105,16 @@ export default function StageResultScreen({
     result.learningSummary?.bestReply
     ?? result.turnReviews?.find(t => t.quality === 'good')?.selectedText
     ?? result.nativePhraseHighlight
-    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'You kept your replies clear and natural.' : 'You found a few stable moments in the scene.');
+    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'You kept the scene moving with clear replies.' : 'You found a few stable replies in the scene.');
   const awkwardTurn = result.turnReviews?.find(t => t.quality === 'awkward');
   const awkwardMomentLine =
     result.learningSummary?.awkwardMoment
     ?? awkwardTurn?.selectedText
-    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} awkward turn(s) weakened your flow.` : 'No major awkward turn, but there is room to sound smoother.');
+    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} awkward turn(s) made the scene harder.` : 'No major awkward turn, but one reply can still get cleaner.');
   const betterAlternativeLine =
     result.learningSummary?.betterAlternative
     ?? (awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText ? awkwardTurn.goodOption : undefined)
-    ?? 'Use a softer and clearer phrasing on pressured turns.';
+    ?? 'Use a softer, clearer reply when the scene puts pressure on you.';
   const nextFocusLine =
     memoryFocus
     ?? result.learningSummary?.nextFocus
@@ -171,15 +171,15 @@ export default function StageResultScreen({
           {!!playerIdentity && <Text style={styles.identityDescriptor}>{playerIdentity.descriptor}</Text>}
           <Text style={styles.motivationTitle}>{motivation.title}</Text>
           <Text style={styles.motivationSubtitle}>{motivation.subtitle}</Text>
-          <Text style={styles.progressMeaning}>Progress = daha temiz akış + daha yüksek combo + daha çok XP.</Text>
+          <Text style={styles.progressMeaning}>Progress = gerçek ana daha hazır cevaplar + temiz akış + daha güçlü tekrar.</Text>
           {!!deltaLine && <Text style={styles.deltaLine}>{deltaLine}</Text>}
           {!!playerIdentity && <Text style={styles.identityEgoLine}>{playerIdentity.egoLine}</Text>}
           {!!playerIdentity && <Text style={styles.identityEvolutionLine}>{playerIdentity.evolutionLine}</Text>}
         </View>
         <View style={styles.educationCard}>
-          <Text style={styles.educationTitle}>Coach Summary</Text>
+          <Text style={styles.educationTitle}>Scene Coach</Text>
           <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Best reply</Text>
+            <Text style={styles.educationLabel}>Best scene reply</Text>
             <Text style={styles.educationValue}>{bestReplyLine}</Text>
           </View>
           <View style={styles.educationRow}>
@@ -187,7 +187,7 @@ export default function StageResultScreen({
             <Text style={styles.educationValue}>{awkwardMomentLine}</Text>
           </View>
           <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Try saying this instead</Text>
+            <Text style={styles.educationLabel}>Try this reply next time</Text>
             <Text style={styles.educationValue}>{betterAlternativeLine}</Text>
           </View>
           <View style={styles.educationRowLast}>
@@ -197,11 +197,11 @@ export default function StageResultScreen({
         </View>
 
         <TouchableOpacity style={styles.replayHeroBtn} onPress={onGoScenarios} activeOpacity={0.9}>
-          <Text style={styles.replayHeroBtnText}>{firstSessionMode ? 'Devam et ve duzelt' : `Ayni sahneyi duzelt · ${replayCta}`}</Text>
+          <Text style={styles.replayHeroBtnText}>{firstSessionMode ? 'Devam et ve düzelt' : `Aynı sahneyi düzelt · ${replayCta}`}</Text>
         </TouchableOpacity>
         {!firstSessionMode && (
           <TouchableOpacity style={styles.shareHeroBtn} onPress={onShareRun} activeOpacity={0.9}>
-            <Text style={styles.shareHeroBtnText}>{sharing ? 'Preparing share...' : 'Share your run'}</Text>
+            <Text style={styles.shareHeroBtnText}>{sharing ? 'Preparing share...' : 'Share this scene run'}</Text>
           </TouchableOpacity>
         )}
         {!firstSessionMode && (
@@ -228,7 +228,7 @@ export default function StageResultScreen({
 
         <TouchableOpacity style={styles.detailsToggle} onPress={() => setShowDetails(s => !s)} activeOpacity={0.85}>
           <Text style={styles.detailsToggleText}>
-            {showDetails ? 'Hide XP, stats & extras ↑' : 'Show XP, stats & extras ↓'}
+            {showDetails ? 'Hide XP, stats & replay notes ↑' : 'Show XP, stats & replay notes ↓'}
           </Text>
         </TouchableOpacity>
       </Animated.View>
@@ -246,7 +246,7 @@ export default function StageResultScreen({
                 )}
                 {result.flowPath && (
                   <Text style={styles.gameStat}>
-                    {result.flowPath === 'smooth' ? '✨ Smooth flow' : '⚡ You lost the flow'}
+                    {result.flowPath === 'smooth' ? '✨ Temiz sahne akışı' : '⚡ Akış pürüzlü'}
                   </Text>
                 )}
                 {(result.timedOutTurns ?? 0) > 0 && (
@@ -267,8 +267,8 @@ export default function StageResultScreen({
             {leveledUp && (
               <Text style={styles.levelUpHint}>
                 {result.userLevel === 'intermediate'
-                  ? 'Artık intermediate seviyesindesin. AI daha az çeviri yapacak, daha doğal konuşacak.'
-                  : 'Artık advanced seviyesindesin. AI idiom ve slang kullanmaya başlayacak.'}
+                  ? 'Artık intermediate seviyesindesin. Sahnelerde daha az destek, daha çok gerçek cevap seçimi göreceksin.'
+                  : 'Artık advanced seviyesindesin. Sahnelerde daha nüanslı cevap seçenekleri göreceksin.'}
               </Text>
             )}
             <Text style={styles.scoreMetaLight}>Toplam XP: {totalXp} · Level {level}</Text>
@@ -277,7 +277,7 @@ export default function StageResultScreen({
             <Text style={styles.celebrationMuted}>{getCelebrationByLevel(result.userLevel)}</Text>
             {!!result.nativePhraseHighlight && (
               <View style={styles.nativeHighlight}>
-                <Text style={styles.nativeHighlightLabel}>ANA DİL SEVİYESİ İFADE</Text>
+                <Text style={styles.nativeHighlightLabel}>SAHNEDE İŞE YARAYAN İFADE</Text>
                 <Text style={styles.nativeHighlightText}>"{result.nativePhraseHighlight}"</Text>
               </View>
             )}
@@ -287,7 +287,7 @@ export default function StageResultScreen({
           {leaderboard.length > 0 && (
             <View style={styles.lbCard}>
               <Text style={styles.lbTitle}>🏅 Bugünün sıralaması</Text>
-              <Text style={styles.lbSub}>Yerel skor tablosu — tekrar oyna, yüksel.</Text>
+              <Text style={styles.lbSub}>Yerel skor tablosu — aynı sahneyi tekrar prova et, yüksel.</Text>
               {leaderboard.slice(0, 8).map(row => (
                 <View key={row.id} style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}>
                   <Text style={styles.lbRank}>#{row.rank}</Text>
@@ -304,7 +304,7 @@ export default function StageResultScreen({
             <View style={styles.identityCard}>
               <Text style={styles.identityLabel}>HEDEFİNE DOĞRU</Text>
               <Text style={styles.identityTextLight}>"{identityGoal}"</Text>
-              <Text style={styles.identityHint}>Bu sahne o versiyona bir adım daha yaklaştırdı.</Text>
+              <Text style={styles.identityHint}>Bu prova, o gerçek konuşma anına bir adım daha hazırladı.</Text>
             </View>
           )}
 
@@ -323,20 +323,20 @@ export default function StageResultScreen({
 
           {!firstSessionMode && (
             <>
-              <Text style={styles.sectionTitle}>Yan Deneyimler</Text>
+              <Text style={styles.sectionTitle}>İstersen derinleş</Text>
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenVocab}>
-                <Text style={styles.sideTitle}>💬 Scene Boost</Text>
-                <Text style={styles.sideDesc}>Sahne öncesi kritik kelime kartları</Text>
+                <Text style={styles.sideTitle}>Scene Boost</Text>
+                <Text style={styles.sideDesc}>Aynı sahne için kritik kelime kartları</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenGrammar}>
-                <Text style={styles.sideTitle}>📚 Scene Coach</Text>
-                <Text style={styles.sideDesc}>Yaptığın hatalardan mini ders</Text>
+                <Text style={styles.sideTitle}>Scene Coach</Text>
+                <Text style={styles.sideDesc}>Garip kalan cevaplardan kısa düzeltme</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.sideBtn} onPress={onOpenQuiz}>
-                <Text style={styles.sideTitle}>⚡ Challenge Round</Text>
-                <Text style={styles.sideDesc}>3-5 soruluk hızlı pekiştirme</Text>
+                <Text style={styles.sideTitle}>Challenge Round</Text>
+                <Text style={styles.sideDesc}>Sahnedeki cevapları hızlı pekiştir</Text>
               </TouchableOpacity>
             </>
           )}
@@ -546,10 +546,10 @@ const styles = StyleSheet.create({
   nextTitle: { color: '#6B7B8D', fontSize: 12, fontWeight: '800' },
   nextText: { color: '#1A2B3C', fontSize: 16, fontWeight: '900', marginTop: 4 },
   nextGoal: { color: '#8E8AAE', fontSize: 11, marginTop: 6 },
-  sectionTitle: { color: '#1A2B3C', fontSize: 17, fontWeight: '800', marginBottom: 10 },
-  sideBtn: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E8EDF2', marginBottom: 10 },
-  sideTitle: { color: '#1A2B3C', fontSize: 15, fontWeight: '800' },
-  sideDesc: { color: '#9AABB8', fontSize: 12, marginTop: 3 },
+  sectionTitle: { color: '#64748B', fontSize: 14, fontWeight: '800', marginBottom: 8 },
+  sideBtn: { backgroundColor: '#FFFFFFAA', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E8EDF2', marginBottom: 8 },
+  sideTitle: { color: '#334155', fontSize: 13, fontWeight: '800' },
+  sideDesc: { color: '#9AABB8', fontSize: 11, marginTop: 3 },
   primaryBtn: { marginTop: 8, backgroundColor: '#1B9C5A', borderRadius: 14, padding: 16, alignItems: 'center' },
   primaryText: { color: '#1A2B3C', fontSize: 16, fontWeight: '900' },
   secondaryBtn: { marginTop: 10, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center' },

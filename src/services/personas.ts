@@ -128,7 +128,7 @@ const GOAL_CONTEXTS: Record<GoalId, GoalContext> = {
     label: 'B2 konuşma',
     toneInstruction:
       `The user is practising B2-level English. Use a natural, balanced register — not too formal, not too casual. ` +
-      `Favour richer vocabulary and slightly longer turns to push fluency. Gently rephrase if the user makes a B1-level error.`,
+      `Favour richer vocabulary and slightly longer turns to practise clearer real-life replies. Gently rephrase if the user makes a B1-level error.`,
     difficultyNote: `Aim for B2-level options: nuanced but not overly academic.`,
     flavourHint: '',
   },
@@ -257,7 +257,7 @@ export const pickPersonaVariation = (stageType: StageKey, turnSeed: number) => {
 };
 
 export const getCelebrationByLevel = (level: UserLevel) => {
-  if (level === 'advanced' || level === 'fluent') return 'Doğal ve akıcıydı. Harika performans!';
+  if (level === 'advanced' || level === 'fluent') return 'Doğal ve sahneye uygundu. Harika performans!';
   if (level === 'intermediate') return 'Çok iyi gidiyorsun. Akışı tuttun!';
   return 'Harika başlangıç. Her tur daha iyi oluyorsun!';
 };

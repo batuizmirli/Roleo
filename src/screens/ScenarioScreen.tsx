@@ -96,7 +96,7 @@ const getComboTier = (n: number): ComboTier | null => {
   if (n === 1) return { hype: 'Nice', sub: 'Doğru ton', color: '#22C55E', emoji: '👍', glow: '#22C55E55' };
   if (n === 2) return { hype: 'Smooth', sub: 'Akış yakalanıyor', color: '#38BDF8', emoji: '✨', glow: '#38BDF866' };
   if (n === 3) return { hype: "You're on fire", sub: 'Üst üste çok doğal', color: '#F97316', emoji: '🔥', glow: '#F9731688' };
-  return { hype: 'You sound native', sub: 'Native ritim', color: '#A855F7', emoji: '🚀', glow: '#A855F799' };
+  return { hype: 'Clean scene flow', sub: 'Sahne akışı temiz', color: '#A855F7', emoji: '🚀', glow: '#A855F799' };
 };
 
 const timerUrgencyRgb = (left: number, total: number) => {
@@ -168,6 +168,7 @@ type Props = {
   firstSessionMode?: boolean;
   prepBonus?: number;
   easyStart?: boolean;
+  guidedRunMode?: boolean;
   /** Goal id from home screen target selector */
   goalId?: string;
   /** Completed count for this scenario — harder / less hand-holding on replay */
@@ -179,6 +180,7 @@ type Props = {
 
 export default function ScenarioScreen({
   scenario, onBack, onStageComplete, onRunComplete, firstSessionMode = false, prepBonus = 0, easyStart = false, goalId,
+  guidedRunMode = false,
   playCount = 0,
   challengeTarget = null,
 }: Props) {
@@ -293,6 +295,10 @@ export default function ScenarioScreen({
 
   useEffect(() => {
     if (firstSessionMode) return;
+    if (guidedRunMode) {
+      startGame();
+      return;
+    }
     const bootstrap = async () => {
       const raw = await AsyncStorage.getItem(CONV_KEY(scenario.id));
       if (raw) {
@@ -316,7 +322,7 @@ export default function ScenarioScreen({
 
   useEffect(() => {
     if (phase === 'game') {
-      trackEvent('stage_started', { scenarioId: scenario.id, stageType: stageKey, firstSessionMode });
+      trackEvent('stage_started', { scenarioId: scenario.id, stageType: stageKey, firstSessionMode, guidedRunMode });
     }
     return () => {
       if (reactionTimer.current) clearTimeout(reactionTimer.current);
@@ -544,7 +550,7 @@ export default function ScenarioScreen({
       : consecutiveBad === 1
       ? '\nUser made an error. Keep options realistic but make the natural option somewhat clearer.'
       : consecutiveGood >= 3
-      ? '\nUser is on a fluency streak. Options can be slightly more nuanced and subtle.'
+      ? '\nUser is on a clean-reply streak. Options can be slightly more nuanced and subtle.'
       : '';
 
     const goalInject = goalCtx
@@ -557,7 +563,7 @@ export default function ScenarioScreen({
       : '\nArc: SMOOTH PATH — NPC is cooperative; natural forward momentum.';
 
     const replayNote = playCount >= 2
-      ? '\nReplay challenge: user has played this scenario multiple times — vary beats and vocabulary; make "good" less telegraphed; avoid repeating prior NPC lines.'
+      ? '\nReplay challenge: user has rehearsed this scene multiple times — vary beats and vocabulary; make "good" less telegraphed; avoid repeating prior NPC lines.'
       : playCount >= 1
       ? '\nReplay: change specific wording vs a first play; slightly subtler differences between options.'
       : '';
@@ -1162,7 +1168,7 @@ Return ONLY valid JSON:
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.introScroll}>
           <Text style={styles.introBadge}>SAHNE</Text>
-          <Text style={styles.introTitle}>{scenario.location} sahnesini şimdi prova ediyorsun.</Text>
+          <Text style={styles.introTitle}>{scenario.location} sahnesini gerçek andan önce prova ediyorsun.</Text>
           <Text style={styles.introSub}>{persona.name} sana yaklaşır:</Text>
           <View style={styles.quoteBox}>
             <Text style={styles.quoteText}>"{scenario.openingMessage.split('\n')[0]}"</Text>
@@ -1179,12 +1185,12 @@ Return ONLY valid JSON:
             </View>
           )}
           <View style={styles.howItWorksBox}>
-            <Text style={styles.howTitle}>ANA LOOP</Text>
+            <Text style={styles.howTitle}>SAHNE PROVASI</Text>
             <Text style={styles.howItem}>1. NPC sana bir şey söyler</Text>
-            <Text style={styles.howItem}>2. 3 yanıt seç — aynı fikir, farklı ton</Text>
+            <Text style={styles.howItem}>2. 3 yanıt arasından o ana en uygun tonu seç</Text>
             <Text style={styles.howItem}>3. NPC tepkisini hemen görürsün</Text>
-            <Text style={styles.howItem}>4. Üst üste garip cevaplar → sahneyi kaybedersin ❌</Text>
-            <Text style={styles.howItem}>5. Sonunda geri bildirim alır, aynı sahneyi tekrar oynarsın 🔁</Text>
+            <Text style={styles.howItem}>4. Garip cevaplar akışı zorlar; temiz cevaplar sahneyi taşır</Text>
+            <Text style={styles.howItem}>5. Sonunda neyi düzeltip tekrar deneyeceğini görürsün</Text>
           </View>
           <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
             <Text style={styles.preStartBtnText}>Sahneye Gir →</Text>
@@ -1200,8 +1206,8 @@ Return ONLY valid JSON:
       <View style={styles.container}>
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.introScroll}>
-          <Text style={styles.vocabTitle}>Sahneye girmeden önce</Text>
-          <Text style={styles.vocabSubtitle}>Bu kelimeleri bilirsen çok daha kolay olacak 👇</Text>
+          <Text style={styles.vocabTitle}>Söylemeden önce ısın</Text>
+          <Text style={styles.vocabSubtitle}>Bu kelimeler sahnedeki cevabını daha net seçtirir.</Text>
           <View style={styles.vocabGrid}>
             {scenario.vocabHints.map((hint, i) => (
               <View key={i} style={styles.vocabCard}>
@@ -1230,10 +1236,10 @@ Return ONLY valid JSON:
       lostFlowInLastTwo: mx.flowTail,
     });
     const lostFocus = failNearMiss || failFlowTail;
-    const dominantTitle = failNearMiss ? 'YOU WERE RIGHT THERE' : 'THE FLOW SNAPPED AT THE END';
+    const dominantTitle = failNearMiss ? 'ONE REPLY AWAY' : 'THE SCENE LOST FLOW';
     const dominantSub = failNearMiss
-      ? 'You can taste the win — one cleaner answer and that door stays open for you.'
-      : 'Two rough picks in a row shut the scene. You still own the very next run.';
+      ? 'Bir daha dene: o anı daha temiz bir cevapla açabilirsin.'
+      : 'Son seçimler sahnenin akışını bozdu. Aynı anı yeniden prova et.';
 
     if (lostFocus) {
       return (
@@ -1261,15 +1267,15 @@ Return ONLY valid JSON:
     }
 
     const lossHeadline = personality === 'friendly'
-      ? 'This run slipped — that happens to you sometimes.'
+      ? 'Bu prova kaydı — olur.'
       : personality === 'busy'
-      ? 'They walked away — you can pull them back.'
-      : 'The tension broke — you can rebuild the room.';
+      ? 'Karşı taraf uzaklaştı — daha net cevapla geri alabilirsin.'
+      : 'Tansiyon yükseldi — sahneyi daha yumuşak kurabilirsin.';
     const lossSub = personality === 'friendly'
-      ? 'You are not bad at this; you just hit a rough pocket. Shake it off and step back in.'
+      ? 'Bu yüzden prova var: garip cevabı yakala, bir sonraki turda düzelt.'
       : personality === 'busy'
-      ? 'You felt the pressure — next time you answer a beat earlier and keep them with you.'
-      : 'You pushed into sharp edges — next time you ride the line without losing warmth.';
+      ? 'Baskıyı hissettin. Bir sonraki denemede bir beat erken cevap ver.'
+      : 'Sert çizgiye yaklaştın. Bir sonraki denemede net kal, sıcaklığı kaybetme.';
 
     return (
       <View style={styles.container}>
@@ -1324,8 +1330,8 @@ Return ONLY valid JSON:
     let claimCta = 'Claim your XP — I want you hungry for another run →';
     if (almostPerfectRun) {
       claimCta = awkwardCount >= 2
-        ? `Claim XP — you left ${awkwardCount} rough lines behind. Hunt them next →`
-        : 'Claim XP — one rough line kept you from flawless. Erase it next →';
+        ? `Claim XP — ${awkwardCount} rough replies kaldı. Sonraki provada düzelt →`
+        : 'Claim XP — tek bir rough reply kaldı. Sonraki provada temizle →';
     } else if (timeoutCount >= 2) {
       claimCta = `Claim XP — you let the clock steal ${timeoutCount} turns from you →`;
     } else if (timeoutCount === 1) {
@@ -1339,11 +1345,11 @@ Return ONLY valid JSON:
           {almostPerfectRun ? (
             <View style={styles.doneMotivationHero}>
               <Text style={styles.doneMotivationEyebrow}>YOU FINISHED — WITH AN EDGE LEFT</Text>
-              <Text style={styles.doneMotivationTitle}>You are one sharp beat away from a run you brag about</Text>
+              <Text style={styles.doneMotivationTitle}>One cleaner reply would make this scene feel ready</Text>
               <Text style={styles.doneMotivationBody}>
                 {awkwardCount >= 2
-                  ? `You still have ${awkwardCount} answers you would rewrite if I dared you — and I do. Claim XP, then chase them down immediately.`
-                  : 'You still have one answer that keeps this from feeling spotless. Claim XP, then wipe it on the replay while it still stings.'}
+                  ? `You still have ${awkwardCount} replies worth rewriting. Claim XP, then rehearse those moments again.`
+                  : 'One answer still needs a cleaner version. Claim XP, then replay while the moment is fresh.'}
               </Text>
             </View>
           ) : (
@@ -1351,7 +1357,7 @@ Return ONLY valid JSON:
               <Text style={styles.bigEmoji}>{goalMet ? '🎉' : '💪'}</Text>
               <Text style={styles.bigTitle}>{goalMet ? 'You made it through' : 'You hung in there'}</Text>
               <Text style={styles.doneVictoryHint}>
-                {goalMet ? 'Every strong pick landed — I want you to feel that in your chest.' : 'You are closer than you think — one cleaner streak changes the whole read.'}
+                {goalMet ? 'Your strongest picks kept the scene moving.' : 'One cleaner streak changes how this moment plays out.'}
               </Text>
             </Animated.View>
           )}
@@ -1370,7 +1376,7 @@ Return ONLY valid JSON:
                 <View style={styles.almostPerfectBanner}>
                   <Text style={styles.almostPerfectTitle}>Near-perfect run</Text>
                   <Text style={styles.almostPerfectBody}>
-                    You were one cleaner line away from a flawless feel — I am already queueing the next run for you in my head.
+                    One cleaner line would make this rehearsal feel ready for real life.
                   </Text>
                 </View>
               )}
@@ -1379,24 +1385,24 @@ Return ONLY valid JSON:
                   <Text style={styles.journeyLabel}>FOR YOUR NEXT RUN</Text>
                   {donePrevSnap.failed ? (
                     <Text style={styles.journeyText}>
-                      Last time the scene cut early on you. This time you walked it to the end — ride that revenge energy straight into another try.
+                      Last time the scene ended early. This time you carried it through — rehearse it once more while it is fresh.
                     </Text>
                   ) : (
                     <Text style={styles.journeyText}>
                       Last run: combo {donePrevSnap.comboMax} · natural %{Math.round(donePrevSnap.accuracy * 100)}
-                      {donePrevSnap.flowPath === 'friction' ? ' — now you know you can hold the flow longer.' : ' — stack a higher bar while it is hot.'}
+                      {donePrevSnap.flowPath === 'friction' ? ' — now you know where the flow gets fragile.' : ' — replay to make the moment cleaner.'}
                     </Text>
                   )}
                 </View>
               )}
               {hadNearMiss && !hadNativeFlow && !almostPerfectRun && (
                 <View style={styles.nearMissBadge}>
-                  <Text style={styles.nearMissText}>⚡ You almost lost the room — then you clawed it back</Text>
+                  <Text style={styles.nearMissText}>⚡ Akış bozuldu, sonra sahneyi toparladın</Text>
                 </View>
               )}
               {hadNativeFlow && (
                 <View style={styles.nativeFlowBadge}>
-                  <Text style={styles.nativeFlowText}>🚀 You found native-level flow</Text>
+                  <Text style={styles.nativeFlowText}>🚀 Temiz sahne akışı yakaladın</Text>
                 </View>
               )}
 
@@ -1430,18 +1436,18 @@ Return ONLY valid JSON:
               <View style={styles.donePathRow}>
                 <Text style={styles.donePathLabel}>Dallanma</Text>
                 <Text style={styles.donePathVal}>
-                  {computeFlowPath(turnHistory) === 'smooth' ? '✨ Akıcı sohbet' : '⚡ Gergin / pürüzlü'}
+                  {computeFlowPath(turnHistory) === 'smooth' ? '✨ Temiz akış' : '⚡ Gergin / pürüzlü'}
                 </Text>
               </View>
               {timeoutCount > 0 && (
                 <Text style={styles.timeoutNote}>
-                  ⏱ {timeoutCount} turn{timeoutCount >= 2 ? 's' : ''} where time ran out — the clock counted against you.
+                  ⏱ {timeoutCount} turda süre doldu — gerçek anda daha erken cevap vermeyi prova et.
                 </Text>
               )}
 
               {bestPhrase && (
                 <View style={styles.bestPhraseBox}>
-                  <Text style={styles.bestPhraseLabel}>ANA DİL SEVİYESİ İFADE</Text>
+                  <Text style={styles.bestPhraseLabel}>SAHNEDE İŞE YARAYAN İFADE</Text>
                   <Text style={styles.bestPhraseText}>"{bestPhrase}"</Text>
                 </View>
               )}
@@ -1469,8 +1475,8 @@ Return ONLY valid JSON:
           </AnimatedPressable>
           <Text style={styles.doneHintBelow}>
             {almostPerfectRun && !doneDetailsOpen
-              ? 'Next screen doubles down on why you should replay — numbers stay tucked until you open them.'
-              : 'Next screen leads with why you should run this scene again — stats follow your motivation.'}
+              ? 'Sonraki ekran, bu sahneyi neden tekrar prova edeceğini gösterecek.'
+              : 'Sonraki ekran, hangi cevabı gerçek hayata taşımaya hazır olduğunu gösterecek.'}
           </Text>
           <View style={{ height: 20 }} />
         </ScrollView>
@@ -1528,10 +1534,10 @@ Return ONLY valid JSON:
             ]}
           >
             <Text style={[styles.flowRailTitle, { color: livePath === 'smooth' ? '#166534' : '#9A3412' }]}>
-              {livePath === 'smooth' ? 'Smooth flow' : 'You lost the flow'}
+              {livePath === 'smooth' ? 'Clean flow' : 'Flow got rough'}
             </Text>
             <Text style={[styles.flowRailSub, { color: livePath === 'smooth' ? '#15803D' : '#C2410C' }]}>
-              {livePath === 'smooth' ? 'Konuşma dengede — böyle devam.' : 'Garip seçim akışı kesti — toparla.'}
+              {livePath === 'smooth' ? 'Sahne dengede — böyle devam.' : 'Garip seçim akışı zorladı — toparla.'}
             </Text>
           </Animated.View>
 

@@ -6,6 +6,7 @@ import type { DailyRunSnapshot } from '../services/runHook';
 type Props = {
   results: ModuleResult[];
   onExit: () => void;
+  onReplay: () => void;
   dailyRunBoard?: {
     prev: DailyRunSnapshot | null;
     overallAccuracy: number;
@@ -15,7 +16,7 @@ type Props = {
   } | null;
 };
 
-export default function RunResultScreen({ results, onExit, dailyRunBoard }: Props) {
+export default function RunResultScreen({ results, onExit, onReplay, dailyRunBoard }: Props) {
   const intro = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -33,9 +34,19 @@ export default function RunResultScreen({ results, onExit, dailyRunBoard }: Prop
     : 0;
   const maxCombo = results.reduce((m, r) => Math.max(m, r.comboMax ?? 0), 0);
   const scene = results.find(r => r.module === 'scene');
+  const weakest = results.reduce<ModuleResult | null>((current, item) => (
+    !current || item.accuracy < current.accuracy ? item : current
+  ), null);
+  const nextFocus = weakest?.module === 'flash'
+    ? 'Yarın ilk odak: sahne kelimelerini daha hızlı tanı.'
+    : weakest?.module === 'truefake'
+    ? 'Yarın ilk odak: doğal gelen cümleyi daha erken ayır.'
+    : scene?.flowPath === 'friction'
+    ? 'Yarın ilk odak: iki tur üst üste temiz cevapla akışı koru.'
+    : 'Yarın ilk odak: aynı sakin ritmi bir sahne daha ileri taşı.';
 
   const message = overallAccuracy >= 80
-    ? 'Akıcı bir koşuydu — ritmi tuttun.'
+    ? 'Temiz bir koşuydu — sahne ritmini tuttun.'
     : overallAccuracy >= 55
     ? 'Biraz tereddüt ettin ama toparladın.'
     : 'You can do better — yarın aynı koşuyu tekrar al.';
@@ -44,8 +55,8 @@ export default function RunResultScreen({ results, onExit, dailyRunBoard }: Prop
     <ScrollView contentContainerStyle={styles.scroll} style={styles.scrollView}>
       <Animated.View style={{ opacity: intro, transform: [{ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }], width: '100%', alignItems: 'center' }}>
       <Text style={styles.emoji}>{overallAccuracy >= 80 ? '🏆' : overallAccuracy >= 55 ? '🎯' : '💪'}</Text>
-      <Text style={styles.title}>Günlük koşu bitti</Text>
-      <Text style={styles.sub}>Flash → True/False → Sahne zinciri</Text>
+      <Text style={styles.title}>Günlük loop tamam</Text>
+      <Text style={styles.sub}>Warm-up → Scene → Result → Replay/Progress</Text>
 
       {dailyRunBoard?.prev && (
         <View style={styles.compareStrip}>
@@ -62,8 +73,8 @@ export default function RunResultScreen({ results, onExit, dailyRunBoard }: Prop
           ) : null}
           <Text style={styles.challengeStrip}>
             {overallAccuracy < 80
-              ? 'You almost had a clean daily — Fix it tomorrow.'
-              : 'Personal challenge: stack an even cleaner scene next time.'}
+              ? 'Bugünkü prova neredeyse temizdi — yarın düzelt.'
+              : 'Kişisel hedef: bir sonraki sahneyi daha temiz prova et.'}
           </Text>
         </View>
       )}
@@ -74,7 +85,7 @@ export default function RunResultScreen({ results, onExit, dailyRunBoard }: Prop
         <Text style={styles.metric}>En yüksek combo: {maxCombo}</Text>
         {scene?.flowPath && (
           <Text style={styles.metricSmall}>
-            Sahne hattı: {scene.flowPath === 'smooth' ? '✨ Akıcı' : '⚡ Gergin'}
+            Sahne hattı: {scene.flowPath === 'smooth' ? '✨ Temiz' : '⚡ Gergin'}
           </Text>
         )}
       </View>
@@ -88,12 +99,18 @@ export default function RunResultScreen({ results, onExit, dailyRunBoard }: Prop
 
       <Text style={styles.message}>{message}</Text>
 
+      <View style={styles.nextFocusCard}>
+        <Text style={styles.nextFocusLabel}>Bir sonraki odak</Text>
+        <Text style={styles.nextFocusText}>{nextFocus}</Text>
+      </View>
+
       <TouchableOpacity style={styles.btnPrimary} onPress={onExit}>
-        <Text style={styles.btnPrimaryText}>
-          {overallAccuracy >= 65 ? 'Ana ekrana dön →' : 'Run it again soon — ana ekran →'}
-        </Text>
+        <Text style={styles.btnPrimaryText}>İlerlemeye dön →</Text>
       </TouchableOpacity>
-      <Text style={styles.footerHint}>Yarın yeni günlük sıralama ve misyon seni bekliyor.</Text>
+      <TouchableOpacity style={styles.btnSecondary} onPress={onReplay}>
+        <Text style={styles.btnSecondaryText}>Aynı loop’u tekrar prova et</Text>
+      </TouchableOpacity>
+      <Text style={styles.footerHint}>Yarın Roleo seni yine seçili sahne, kısa ısınma ve net odakla karşılar.</Text>
       </Animated.View>
     </ScrollView>
   );
@@ -147,6 +164,17 @@ const styles = StyleSheet.create({
   phraseLabel: { fontSize: 10, fontWeight: '900', color: '#15803D', letterSpacing: 1, marginBottom: 6 },
   phraseText: { fontSize: 16, color: '#14532D', fontWeight: '700', lineHeight: 24 },
   message: { color: '#7C6CF2', fontSize: 16, marginTop: 18, fontWeight: '700', textAlign: 'center', lineHeight: 24 },
+  nextFocusCard: {
+    width: '100%',
+    marginTop: 16,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  nextFocusLabel: { fontSize: 10, fontWeight: '900', color: '#C2410C', letterSpacing: 1, marginBottom: 6 },
+  nextFocusText: { fontSize: 15, color: '#7C2D12', fontWeight: '800', lineHeight: 22 },
   btnPrimary: {
     marginTop: 22,
     backgroundColor: '#1B9C5A',
@@ -157,5 +185,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnPrimaryText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  btnSecondary: {
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8EDF2',
+  },
+  btnSecondaryText: { color: '#475569', fontSize: 14, fontWeight: '800' },
   footerHint: { marginTop: 14, fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
 });

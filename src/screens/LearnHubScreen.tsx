@@ -98,22 +98,23 @@ export default function LearnHubScreen({
       icon: 'translate',
       fill: Math.min(1, 0.58 + (weeklyTotal > 15 ? 0.22 : 0) + (xp > 40 ? 0.2 : 0)),
       muted: false,
-      caption: 'Kural + örnek: zamanlar, edatlar, bağlaçlar',
+      caption: 'Sahnede işine yarayan kalıp ve örnekler',
       onPress: () => onOpenGrammar?.(),
     },
   ];
 
-  const rhythmDoneCount = routineTiles.filter(t => t.fill >= 0.95).length;
-  const rhythmDoneLabel = `${Math.min(4, Math.max(rhythmDoneCount, playedToday ? 1 : 0))}/4 tamamlandı`;
+  const rhythmDoneLabel = playedToday
+    ? 'Bugünkü koşuya bağlandı'
+    : 'Daily Run içinde otomatik gelir';
 
   const toolRows: ToolRow[] = [
-    { id: 'grammar', title: 'Grammar', subtitle: 'Konu başlıkları ve örnekler', icon: 'translate', onPress: () => onOpenGrammar?.() },
-    { id: 'flash', title: 'Kelime seçimi', subtitle: 'Hızlı eşleştirme', icon: 'menu-book', onPress: () => onOpenFlashPick?.() },
-    { id: 'pron', title: 'Telaffuz', subtitle: 'Sesini aç, tekrar et', icon: 'mic', onPress: () => onOpenPronunciation?.() },
-    { id: 'instant', title: 'Serbest pratik', subtitle: 'Yapay zeka ile konuş', icon: 'chat', onPress: () => onOpenInstantLearn?.() },
-    { id: 'tof', title: 'True or Fake', subtitle: 'Doğal / garip kalıplar', icon: 'fact-check', onPress: () => onOpenTrueOrFake?.() },
-    { id: 'phrase', title: 'Phrasebook', subtitle: 'Hazır ifadeler', icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
-    { id: 'stories', title: 'Hikayeler', subtitle: 'Kısa alıntılar ve tekrar', icon: 'auto-stories', onPress: () => onOpenStories?.() },
+    { id: 'grammar', title: 'Grammar', subtitle: 'Sahnede kullanacağın kalıplar', icon: 'translate', onPress: () => onOpenGrammar?.() },
+    { id: 'flash', title: 'Kelime seçimi', subtitle: 'Bir sonraki cevap için hızlı ısınma', icon: 'menu-book', onPress: () => onOpenFlashPick?.() },
+    { id: 'pron', title: 'Telaffuz', subtitle: 'Söylemeden önce sesini hazırla', icon: 'mic', onPress: () => onOpenPronunciation?.() },
+    { id: 'instant', title: 'Hızlı prova', subtitle: 'Kısa bir konuşma anını dene', icon: 'chat', onPress: () => onOpenInstantLearn?.() },
+    { id: 'tof', title: 'True or Fake', subtitle: 'Doğal mı garip mi, sahne öncesi ayırt et', icon: 'fact-check', onPress: () => onOpenTrueOrFake?.() },
+    { id: 'phrase', title: 'Phrasebook', subtitle: 'Gerçek anda işine yarayacak ifadeler', icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
+    { id: 'stories', title: 'Hikayeler', subtitle: 'Kısa bağlamlarla ifade tekrar et', icon: 'auto-stories', onPress: () => onOpenStories?.() },
   ];
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
@@ -122,7 +123,7 @@ export default function LearnHubScreen({
     <View style={styles.root}>
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>Öğren</Text>
+          <Text style={styles.screenTitle}>Hazırlık</Text>
         </View>
       </SafeAreaView>
       <ScrollView
@@ -130,10 +131,10 @@ export default function LearnHubScreen({
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Sahnelere hazırlanmak için kısa çalışmalar.</Text>
+        <Text style={styles.subtitle}>Bunlar ana mod değil; bugünkü sahnede daha rahat cevap vermek için kısa destekler.</Text>
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Mini ısınmalar</Text>
+          <Text style={styles.sectionTitle}>Sahne öncesi ısınmalar</Text>
           <Text style={styles.sectionMeta}>{rhythmDoneLabel}</Text>
         </View>
         <View style={styles.rhythmGrid}>
@@ -162,7 +163,7 @@ export default function LearnHubScreen({
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, { marginBottom: 12, marginTop: 8 }]}>Dil araçları</Text>
+        <Text style={[styles.sectionTitle, styles.toolSectionTitle]}>Araç rafı</Text>
         <View style={styles.toolList}>
           {toolRows.map(row => (
             <TouchableOpacity key={row.id} style={styles.toolRow} onPress={row.onPress} activeOpacity={0.88}>
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
-    marginBottom: 22,
+    marginBottom: 18,
     lineHeight: 19,
   },
   scroll: { flex: 1 },
@@ -213,42 +214,45 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 22,
     fontFamily: 'Poppins_500Medium',
-    color: onSurface,
+    color: onSurfaceVariant,
   },
+  toolSectionTitle: { marginBottom: 12, marginTop: 4 },
   sectionMeta: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: 'Poppins_600SemiBold',
-    color: primary,
+    color: terracotta,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   rhythmGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 28,
+    marginBottom: 22,
   },
   rhythmCard: {
     width: '48%',
-    backgroundColor: white,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: outlineVariant,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
     shadowColor: '#333',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
+    elevation: 1,
   },
   rhythmCardMuted: { opacity: 0.62 },
   rhythmIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(165, 100, 72, 0.15)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(165, 100, 72, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -261,7 +265,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rhythmLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: onSurfaceVariant,
   },
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
   },
   rhythmTrack: {
     width: '100%',
-    height: 6,
+    height: 4,
     borderRadius: 999,
     backgroundColor: colors.creamMuted,
     overflow: 'hidden',
@@ -291,28 +295,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: white,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: outlineVariant,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 12,
   },
   toolIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(165, 100, 72, 0.14)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(165, 100, 72, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   toolTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: onSurface,
   },
   toolSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Poppins_500Medium',
     color: onSurfaceVariant,
     marginTop: 2,

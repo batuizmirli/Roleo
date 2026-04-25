@@ -58,10 +58,10 @@ export const deriveSuccessHook = (prev: SceneRunSnapshot | null, cur: SceneRunSn
 };
 
 export const sceneReplayPrimaryLabel = (hook: ReplayHookKind, nearMiss?: boolean): string => {
-  if (hook === 'fix_mistake' || nearMiss) return 'Fix the last mistake →';
-  if (hook === 'keep_flow') return 'Keep the flow this time →';
-  if (hook === 'beat_combo') return 'Beat your last combo →';
-  if (hook === 'perfect_run') return 'Go for a perfect run →';
+  if (hook === 'fix_mistake' || nearMiss) return 'Son garip cevabı düzelt →';
+  if (hook === 'keep_flow') return 'Bu kez sahne akışını koru →';
+  if (hook === 'beat_combo') return 'Son combo’nu geç →';
+  if (hook === 'perfect_run') return 'Daha temiz bir prova yap →';
   return '🔁 Aynı sahneyi yeniden oyna';
 };
 
@@ -77,10 +77,10 @@ export type LostCtaContext = {
 /** Kayıp ekranı — tam sebebe göre CTA */
 export const buildLostReplayCta = (c: LostCtaContext): string => {
   if (c.lostFlowInLastTwo || c.trailingAwkward >= 2)
-    return `Fix the last ${c.trailingAwkward} mistakes →`;
-  if (c.trailingAwkward === 1) return 'Fix that last mistake →';
-  if (c.nearMiss) return 'You were one pick away — run it again →';
-  if (c.hook === 'keep_flow') return 'Keep the flow for 3 more turns →';
+    return `Son ${c.trailingAwkward} cevabı düzelt →`;
+  if (c.trailingAwkward === 1) return 'Son cevabı düzelt →';
+  if (c.nearMiss) return 'Bir seçim kalmıştı — yeniden prova et →';
+  if (c.hook === 'keep_flow') return 'Akışı 3 tur daha koru →';
   return sceneReplayPrimaryLabel(c.hook, c.nearMiss);
 };
 
@@ -91,18 +91,18 @@ export const buildStageReplayCta = (result: StageResult): string => {
   const awk = result.awkwardTurns ?? 0;
   const to = result.timedOutTurns ?? 0;
 
-  if (to >= 2) return `Beat the clock on those ${to} slow turns →`;
-  if (to === 1) return 'Beat the clock on that slow turn →';
+  if (to >= 2) return `${to} yavaş turu daha hızlı prova et →`;
+  if (to === 1) return 'O yavaş turu daha hızlı prova et →';
 
-  if (cur?.nearMiss && awk >= 2) return `Fix those ${awk} rough picks — right now →`;
-  if (cur?.nearMiss && awk === 1) return 'Fix that one line — instant replay →';
+  if (cur?.nearMiss && awk >= 2) return `${awk} pürüzlü cevabı şimdi düzelt →`;
+  if (cur?.nearMiss && awk === 1) return 'O tek cevabı şimdi düzelt →';
 
-  if (cur?.hookKind === 'keep_flow' || result.flowPath === 'friction') return 'Keep the flow for 3 more turns →';
-  if (cur?.hookKind === 'beat_combo' && prev) return `Beat your combo ${prev.comboMax} (you hit ${cur.comboMax}) →`;
-  if (cur?.hookKind === 'perfect_run') return 'Lock in another perfect run →';
-  if (prev?.failed && !cur?.failed) return 'Chain a cleaner run — you already proved it →';
+  if (cur?.hookKind === 'keep_flow' || result.flowPath === 'friction') return 'Akışı 3 tur daha koru →';
+  if (cur?.hookKind === 'beat_combo' && prev) return `Combo ${prev.comboMax}’i geç (bugün ${cur.comboMax}) →`;
+  if (cur?.hookKind === 'perfect_run') return 'Aynı anı bir kez daha temiz prova et →';
+  if (prev?.failed && !cur?.failed) return 'Daha temiz bir tekrar yap →';
 
-  return 'One more run — while it stings →';
+  return 'Bir kez daha prova et →';
 };
 
 /** Tek ana mesaj — dikkat burada */
@@ -114,46 +114,46 @@ export const getMotivationHero = (result: StageResult): { title: string; subtitl
 
   if (cur?.nearMiss) {
     return {
-      title: 'YOU WERE THAT CLOSE',
+      title: 'ONE REPLY AWAY',
       subtitle:
         awk <= 1
-          ? 'You are one natural answer away from a clean win — I want to see you grab it next tap.'
-          : `Those ${awk} picks stole the shine — you can erase them on the next run.`,
+          ? 'Tek bir daha doğal cevap, bu sahneyi gerçek hayata daha hazır hissettirecek.'
+          : `${awk} seçim akışı bozdu — bir sonraki provada temizleyebilirsin.`,
     };
   }
   if (prev?.failed && !cur?.failed) {
     return {
-      title: 'YOU CRAWLED OUT OF THE HOLE',
-      subtitle: 'Last run the room went cold; this time you stayed. Ride that heat straight into another try.',
+      title: 'YOU KEPT THE SCENE GOING',
+      subtitle: 'Son provada sahne erken kopmuştu; bu kez sonuna kadar taşıdın. Bir kez daha dene.',
     };
   }
   if (cur?.hookKind === 'beat_combo' && prev) {
     return {
       title: `YOUR HIGH COMBO IS ${prev.comboMax}`,
-      subtitle: `You clocked ${cur.comboMax} today — bite back and beat that number before you leave.`,
+      subtitle: `Bugün ${cur.comboMax} yaptın — aynı sahneyi tekrar prova edip ritmi yükselt.`,
     };
   }
   if (cur?.hookKind === 'keep_flow' || result.flowPath === 'friction') {
     return {
-      title: 'THE FLOW STUTTERED',
-      subtitle: 'Next run I want smooth turns, not safe ones — string clean answers longer.',
+      title: 'THE SCENE GOT ROUGH',
+      subtitle: 'Bir sonraki provada güvenli değil, o ana uygun temiz cevapları üst üste getir.',
     };
   }
   if (acc >= 0.85) {
     return {
-      title: 'YOU SHOWED UP',
-      subtitle: 'That felt sharp. Hit it again before the edge fades — mastery loves momentum.',
+      title: 'READY TO REHEARSE IT AGAIN',
+      subtitle: 'Cevapların sahneyi taşıdı. Aynı anı bir kez daha oynayıp daha da temizle.',
     };
   }
   if (!prev) {
     return {
       title: 'THIS RUN IS YOUR BAR',
-      subtitle: 'Nothing to beat yet except yourself — stamp a higher mark next time you open this scene.',
+      subtitle: 'Bu prova senin başlangıç noktan. Bir sonraki denemede aynı anı daha net geçir.',
     };
   }
   return {
-    title: 'STAY IN THE RING',
-    subtitle: 'You are stacking reps on this scene — one more run keeps the story moving.',
+    title: 'REHEARSE THE MOMENT AGAIN',
+    subtitle: 'Bu sahnede tekrar ettikçe hangi cevabın gerçek anda işe yarayacağını görürsün.',
   };
 };
 
@@ -162,8 +162,8 @@ export const oneLineRunDelta = (result: StageResult): string | null => {
   const cur = result.runCompare?.current;
   if (!prev || !cur) return null;
   if (cur.comboMax > prev.comboMax) return `Combo up: ${prev.comboMax} → ${cur.comboMax}.`;
-  if (cur.accuracy > prev.accuracy + 0.04) return `You sharpened accuracy vs last time.`;
-  if (prev.failed && !cur.failed) return `You finished after a rough last run — that matters.`;
+  if (cur.accuracy > prev.accuracy + 0.04) return `Son provaya göre daha temiz cevaplar seçtin.`;
+  if (prev.failed && !cur.failed) return `Geçen sefer kopan sahneyi bu kez tamamladın.`;
   return null;
 };
 
@@ -214,43 +214,43 @@ const deriveIdentityLabel = (result: StageResult): { label: string; descriptor: 
 
   if (combo >= 4 && acc >= 0.78 && awkward <= 1) {
     return {
-      label: 'Smooth Speaker',
-      descriptor: 'You keep conversations clean under pressure.',
-      egoLine: 'Protect this title next run: stay sharp and uninterrupted.',
+      label: 'Scene Flow Keeper',
+      descriptor: 'You keep the rehearsal moving under pressure.',
+      egoLine: 'Protect this next run: choose clean replies before the moment slips.',
     };
   }
   if (timeout <= 0 && combo >= 2 && acc >= 0.62) {
     return {
       label: 'Flow Keeper',
-      descriptor: 'You hold rhythm and keep momentum alive.',
-      egoLine: 'Guard your flow streak before it cools down.',
+      descriptor: 'You hold the rhythm of the scene.',
+      egoLine: 'Guard this flow before the moment cools down.',
     };
   }
   if (timeout === 0 && result.userMessageCount <= 4 && acc >= 0.52) {
     return {
       label: 'Fast Thinker',
-      descriptor: 'You decide quickly without freezing.',
-      egoLine: 'Own the pace again while your instincts are hot.',
+      descriptor: 'You choose replies before the scene stalls.',
+      egoLine: 'Own the pace again while the moment is fresh.',
     };
   }
   if (recovered) {
     return {
       label: 'Awkward Survivor',
-      descriptor: 'You recover after messy turns and still finish.',
-      egoLine: 'Turn survival into domination on the very next run.',
+      descriptor: 'You recover after messy replies and still finish.',
+      egoLine: 'Turn recovery into a cleaner rehearsal next run.',
     };
   }
   if (awkward >= 3) {
     return {
       label: 'Risk Taker',
-      descriptor: 'You push bold answers and learn in real time.',
+      descriptor: 'You test bold replies and see what breaks.',
       egoLine: 'Keep the courage, trim the rough edges next run.',
     };
   }
   return {
     label: 'Steady Climber',
-    descriptor: 'You are building range run by run.',
-    egoLine: 'Climb again now before this momentum fades.',
+    descriptor: 'You are building practical replies run by run.',
+    egoLine: 'Rehearse again before the moment fades.',
   };
 };
 
@@ -262,18 +262,18 @@ export const resolvePlayerIdentity = async (result: StageResult): Promise<Player
   const stableStreak = prev ? (prev.lastLabel === base.label ? prev.stableStreak + 1 : 1) : 1;
   const runs = (prev?.runs ?? 0) + 1;
 
-  let evolutionLine = 'Identity starts now — lock this in on the next run.';
+  let evolutionLine = 'Your rehearsal style starts here — lock it in on the next run.';
   if (prev) {
     if (prev.lastLabel === base.label && stableStreak >= 3) {
       evolutionLine = `You are cementing ${base.label}. ${stableStreak} runs in a row.`;
     } else if (movingScore > prev.movingScore + 0.025) {
-      evolutionLine = "You're becoming more consistent — it shows in your rhythm.";
+      evolutionLine = 'Your replies are getting more consistent — it shows in the scene.';
     } else if (movingScore + 0.03 < prev.movingScore) {
-      evolutionLine = `This run dipped — win back your ${prev.lastLabel} energy right away.`;
+      evolutionLine = `This run dipped — rehearse your way back to ${prev.lastLabel}.`;
     } else if (prev.lastLabel !== base.label) {
-      evolutionLine = `New title unlocked: ${base.label}. Keep it for a few runs to own it.`;
+      evolutionLine = `New title unlocked: ${base.label}. Keep it for a few rehearsals to own it.`;
     } else {
-      evolutionLine = `You are holding ${base.label}. One cleaner run makes it unquestioned.`;
+      evolutionLine = `You are holding ${base.label}. One cleaner rehearsal makes it stronger.`;
     }
   }
 

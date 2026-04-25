@@ -52,11 +52,11 @@ const NATIVE_LANGUAGES: Language[] = [
 ];
 
 const GOALS: UserGoal[] = [
-  { id: 'travel',  label: 'Travel',  emoji: '✈️', description: 'Navigate new cities with ease' },
-  { id: 'work',    label: 'Work',    emoji: '💼', description: 'Speak up in meetings' },
-  { id: 'culture', label: 'Culture', emoji: '🎭', description: 'Music, film, literature' },
-  { id: 'love',    label: 'Social',  emoji: '❤️', description: 'Build real connections' },
-  { id: 'exam',    label: 'Exam',    emoji: '📚', description: 'Get certified' },
+  { id: 'travel',  label: 'Travel',  emoji: '✈️', description: 'Practice airport, hotel, and city moments' },
+  { id: 'work',    label: 'Work',    emoji: '💼', description: 'Rehearse meetings and quick work replies' },
+  { id: 'culture', label: 'Culture', emoji: '🎭', description: 'Talk about films, music, and local life' },
+  { id: 'love',    label: 'Social',  emoji: '❤️', description: 'Prepare for casual, real conversations' },
+  { id: 'exam',    label: 'Exam',    emoji: '📚', description: 'Turn study into practical scene practice' },
 ];
 
 // ─── Step config ───────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Roleo',
     headline: 'Gerçek konuşmayı\nönce burada dene.',
-    sub: 'Her gün bir gerçek hayat sahnesi: kısa hazırlık, oyun gibi prova, net geri bildirim.',
+    sub: 'Konuşmadan önce prova yap: kısa hazırlık, oyun gibi sahne, net geri bildirim.',
   },
   native: {
     image: IMG_CROWD,
@@ -115,7 +115,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Seviye',
     headline: 'Şu anki seviyen\nnerede? 🎯',
-    sub: 'Dersleri ve ipuçlarını seviyene göre kişiselleştirelim.',
+    sub: 'Sahnelerdeki cevap seçeneklerini ve ipuçlarını seviyene göre ayarlayalım.',
   },
   practiceFocus: {
     image: IMG_MEETING,
@@ -123,7 +123,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Bugünün odağı',
     headline: 'Pratikte önceliğin\nne?',
-    sub: 'Ayrı bir adım: hedefini seç; ardından öğreneceğin dili soracağız.',
+    sub: 'Bugün hangi gerçek konuşma anına hazırlanmak istediğini seç.',
   },
   goal: {
     image: IMG_SOCIAL,
@@ -131,7 +131,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Motivasyon',
     headline: 'Neden\nöğreniyorsun?',
-    sub: 'Hedefin, bugünün sahnesini nasıl seçeceğimizi belirler.',
+    sub: 'Hedefin, Roleo’da hangi anları prova edeceğini belirler.',
   },
   dailyGoal: {
     image: IMG_CAFE,
@@ -139,7 +139,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Günlük hedef',
     headline: 'Günlük\nkaç dakika?',
-    sub: 'Her gün kısa prova, gerçek anlarda ne söyleyeceğini netleştirir.',
+    sub: 'Her gün kısa bir sahne, gerçek anda ne söyleyeceğini netleştirir.',
   },
   dream: {
     image: IMG_CAFE,
@@ -147,7 +147,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Hayalin',
     headline: 'Hayalindeki\nan.',
-    sub: 'Hangi gerçek konuşma anına hazırlanmak istiyorsun?',
+    sub: 'Hangi konuşma anını Roleo’da önceden denemek istiyorsun?',
   },
   context: {
     image: IMG_CAFE,
@@ -155,7 +155,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Ortam',
     headline: 'Nerede,\nkiminle?',
-    sub: 'Mekân ve karşıdaki kişiyi netleştir.',
+    sub: 'Prova etmek istediğin sahneyi ve karşındaki kişiyi netleştir.',
   },
   emotion: {
     image: IMG_MEETING,
@@ -163,7 +163,7 @@ const THEMES: Record<Step, StepTheme> = {
     accent: ACCENT,
     label: 'Duygu',
     headline: 'Nasıl\nhissetmek istersin?',
-    sub: 'Her pratikte bu duyguyu hatırlatacağız.',
+    sub: 'Her sahnede bu hissi hedefleyip cevabını ona göre seçeceksin.',
   },
 };
 
@@ -380,7 +380,7 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
           {step === 'welcome' && !!onTryQuickScene && (
             <TouchableOpacity style={styles.quickTryBtn} onPress={onTryQuickScene} activeOpacity={0.86}>
               <Text style={styles.quickTryTitle}>Hızlı sahne dene (60 sn)</Text>
-              <Text style={styles.quickTrySub}>Roleo'yu hemen hisset, sonra profilini tamamla.</Text>
+              <Text style={styles.quickTrySub}>Gerçek bir konuşma anını hemen prova et, sonra profilini tamamla.</Text>
             </TouchableOpacity>
           )}
 
@@ -431,8 +431,8 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
             <TextStep
               value={dreamText}
               onChange={setDreamText}
-              hint={`e.g. "Ordering coffee in Barcelona, and the waiter smiles back."`}
-              placeholder="Describe your dream moment..."
+              hint={`e.g. "Ordering coffee in Barcelona without freezing."`}
+              placeholder="Describe the moment you want to rehearse..."
               accent={theme.accent}
             />
           )}
@@ -442,7 +442,7 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
               value={contextText}
               onChange={setContextText}
               hint={`e.g. "A busy café in La Rambla — a waiter waiting for my order."`}
-              placeholder="Where are you, who's there..."
+              placeholder="Where are you, and who are you replying to..."
               accent={theme.accent}
             />
           )}
@@ -451,8 +451,8 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
             <TextStep
               value={emotionText}
               onChange={setEmotionText}
-              hint={`e.g. "Cool, relaxed, totally natural" — "Confident in the meeting"`}
-              placeholder="Describe how that feels..."
+              hint={`e.g. "Calm enough to choose the right reply" — "Clear in the meeting"`}
+              placeholder="How do you want to feel in that conversation..."
               accent={theme.accent}
             />
           )}
@@ -510,10 +510,10 @@ function WelcomeVisual({ accent }: { accent: string }) {
 }
 
 const LEVEL_OPTIONS: { id: UserLevel; emoji: string; title: string; sub: string }[] = [
-  { id: 'beginner', emoji: '🌱', title: 'Başlangıç', sub: 'Yeni başlıyorum; temel kalıplar ve güven' },
-  { id: 'intermediate', emoji: '🌿', title: 'Orta', sub: 'Temelleri biliyorum; akıcılığı güçlendiriyorum' },
-  { id: 'advanced', emoji: '🌍', title: 'İleri', sub: 'Konuşmaya rahatım; hız ve nüans istiyorum' },
-  { id: 'fluent', emoji: '🚀', title: 'Akıcı / Ustalık', sub: 'İnce ayar; native seviyeye yakın pratik' },
+  { id: 'beginner', emoji: '🌱', title: 'Başlangıç', sub: 'Temel kalıplarla sahneye güvenli başla' },
+  { id: 'intermediate', emoji: '🌿', title: 'Orta', sub: 'Cevaplarını daha doğal ve net seç' },
+  { id: 'advanced', emoji: '🌍', title: 'İleri', sub: 'Baskı altında ton ve nüans çalış' },
+  { id: 'fluent', emoji: '🚀', title: 'Rahat konuşan', sub: 'Zor sahnelerde daha temiz akış prova et' },
 ];
 
 function LevelStep({

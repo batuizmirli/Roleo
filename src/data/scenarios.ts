@@ -1426,7 +1426,7 @@ const prepFallbackByStage: Record<NonNullable<Scenario['stageType']>, Omit<Scene
   story: {
     vocabWarmup: { title: 'Anlatım kelimeleri', words: ['first', 'then', 'because', 'after', 'finally'] },
     phraseCheck: {
-      title: 'Akıcı hikaye tonu',
+      title: 'Temiz hikaye akışı',
       natural: 'First we met, then we talked for hours.',
       awkward: 'We meet. Talk. End.',
     },

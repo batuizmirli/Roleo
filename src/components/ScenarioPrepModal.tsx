@@ -50,9 +50,9 @@ export default function ScenarioPrepModal({ visible, scenario, profile, playCoun
       const lang = profile?.language?.name ?? 'Spanish';
       const native = profile?.nativeLanguage?.name ?? 'Turkish';
 
-      const prompt = `Generate exactly 3 quick warm-up questions for a ${lang} learner about to do a "${scenario.title}" (${scenario.stageType ?? 'cafe'}) scene.
-Native language: ${native}. Keep prompts very short and practical.
-Mix types: fill_blank (blank in sentence), error_detect (wrong word to fix), auto_complete (conversation opener).
+      const prompt = `Generate exactly 3 quick warm-up questions for a ${lang} learner about to rehearse the "${scenario.title}" (${scenario.stageType ?? 'cafe'}) real-life scene.
+Native language: ${native}. Keep prompts very short, practical, and tied to what they may say in the scene.
+Mix types: fill_blank (blank in a useful reply), error_detect (awkward wording to fix), auto_complete (conversation opener).
 Return ONLY valid JSON array:
 [{"type":"fill_blank","prompt":"short sentence with ___","options":["a","b","c"],"correct":0,"tip":"short tip in ${native}"}]`;
 
@@ -128,13 +128,13 @@ Return ONLY valid JSON array:
               )}
 
               <TouchableOpacity style={styles.primaryBtn} onPress={() => { reset(); onEnter(0); }}>
-                <Text style={styles.primaryBtnText}>⚡ Try Now</Text>
+                <Text style={styles.primaryBtnText}>Direkt sahneye gir</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.prepBtn} onPress={startPrep}>
                 <View>
-                  <Text style={styles.prepBtnTitle}>🧠 Quick Warm-up</Text>
-                  <Text style={styles.prepBtnSub}>3 soru · ~30 sn · +10 XP bonus</Text>
+                  <Text style={styles.prepBtnTitle}>30 sn sahne hazırlığı</Text>
+                  <Text style={styles.prepBtnSub}>3 pratik soru · sahnedeki cevabını hazırla · +10 XP</Text>
                 </View>
               </TouchableOpacity>
 

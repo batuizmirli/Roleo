@@ -12,6 +12,7 @@ type PowerUp = 'fifty_fifty' | 'time_freeze' | 'hint';
 type Props = {
   onBack: () => void;
   runMode?: boolean;
+  runSceneTitle?: string;
   onComplete?: (result: ModuleResult) => void;
 };
 
@@ -25,10 +26,10 @@ const comboBadge = (combo: number) => {
   return '';
 };
 
-export default function FlashPickScreen({ onBack, runMode = false, onComplete }: Props) {
+export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle, onComplete }: Props) {
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
-  const [questionCount, setQuestionCount] = useState(DIFFICULTY_CONFIG.easy.questionCount);
+  const [questionCount, setQuestionCount] = useState(runMode ? 4 : DIFFICULTY_CONFIG.easy.questionCount);
 
   const [questions, setQuestions] = useState<FlashQuestion[]>([]);
   const [index, setIndex] = useState(0);
@@ -224,49 +225,62 @@ export default function FlashPickScreen({ onBack, runMode = false, onComplete }:
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>⚡ Flash Pick</Text>
+          <Text style={styles.title}>{runMode ? '1/2 · Kelime Isınması' : '⚡ Flash Pick'}</Text>
         </View>
 
         <View style={styles.setupCard}>
-          <Text style={styles.setupTitle}>Hızlı seçim moduna hoş geldin</Text>
-          <Text style={styles.setupSub}>Bugünkü sahnede takılmamak için kelimeyi gör, doğru görseli süre dolmadan seç.</Text>
+          <Text style={styles.setupTitle}>{runMode ? 'Önce kelime refleksini aç' : 'Hızlı seçim moduna hoş geldin'}</Text>
+          <Text style={styles.setupSub}>
+            {runMode
+              ? `${runSceneTitle ?? 'Bugünkü sahne'} içinde takılmamak için kilit kelimeyi görünce anlamı hemen yakala. Zorluk ve süre hazır; sadece kısa ısınmayı bitir.`
+              : 'Bugünkü sahnede takılmamak için kelimeyi gör, doğru görseli süre dolmadan seç.'}
+          </Text>
 
-          <View style={styles.diffRow}>
-            {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.diffBtn, difficulty === d && styles.diffBtnActive]}
-                onPress={() => {
-                  setDifficulty(d);
-                  setQuestionCount(DIFFICULTY_CONFIG[d].questionCount);
-                }}
-              >
-                <Text style={[styles.diffText, difficulty === d && styles.diffTextActive]}>{d.toUpperCase()}</Text>
-                <Text style={styles.diffMeta}>{DIFFICULTY_CONFIG[d].seconds}s</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {runMode ? (
+            <View style={styles.runWhyBox}>
+              <Text style={styles.runWhyTitle}>Neden şimdi?</Text>
+              <Text style={styles.runWhyText}>Sahnede cevap seçerken beynin kelimeyi aramasın; kararını konuşmanın tonuna ayır.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.diffRow}>
+                {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[styles.diffBtn, difficulty === d && styles.diffBtnActive]}
+                    onPress={() => {
+                      setDifficulty(d);
+                      setQuestionCount(DIFFICULTY_CONFIG[d].questionCount);
+                    }}
+                  >
+                    <Text style={[styles.diffText, difficulty === d && styles.diffTextActive]}>{d.toUpperCase()}</Text>
+                    <Text style={styles.diffMeta}>{DIFFICULTY_CONFIG[d].seconds}s</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          <Text style={styles.countLabel}>Soru Sayısı</Text>
-          <View style={styles.countRow}>
-            <TouchableOpacity
-              style={styles.countBtn}
-              onPress={() => setQuestionCount(v => Math.max(4, v - 2))}
-            >
-              <Text style={styles.countBtnText}>−</Text>
-            </TouchableOpacity>
-            <Text style={styles.countValue}>{questionCount}</Text>
-            <TouchableOpacity
-              style={styles.countBtn}
-              onPress={() => setQuestionCount(v => Math.min(getFlashPickMaxCount(), v + 2))}
-            >
-              <Text style={styles.countBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.countMeta}>Min 4 · Max {getFlashPickMaxCount()}</Text>
+              <Text style={styles.countLabel}>Soru Sayısı</Text>
+              <View style={styles.countRow}>
+                <TouchableOpacity
+                  style={styles.countBtn}
+                  onPress={() => setQuestionCount(v => Math.max(4, v - 2))}
+                >
+                  <Text style={styles.countBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.countValue}>{questionCount}</Text>
+                <TouchableOpacity
+                  style={styles.countBtn}
+                  onPress={() => setQuestionCount(v => Math.min(getFlashPickMaxCount(), v + 2))}
+                >
+                  <Text style={styles.countBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.countMeta}>Min 4 · Max {getFlashPickMaxCount()}</Text>
+            </>
+          )}
 
           <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
-            <Text style={styles.startBtnText}>Başla →</Text>
+            <Text style={styles.startBtnText}>{runMode ? 'Kelime ısınmasını başlat →' : 'Başla →'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -289,12 +303,12 @@ export default function FlashPickScreen({ onBack, runMode = false, onComplete }:
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>⚡ Flash Pick</Text>
+          <Text style={styles.title}>{runMode ? '1/2 · Kelime Isınması' : '⚡ Flash Pick'}</Text>
         </View>
 
         <View style={styles.resultCard}>
           <Text style={styles.resultEmoji}>{score >= 120 ? '🏆' : '🎯'}</Text>
-          <Text style={styles.resultTitle}>Run bitti</Text>
+          <Text style={styles.resultTitle}>{runMode ? 'Kelime refleksi hazır' : 'Run bitti'}</Text>
           <Text style={styles.resultScore}>{score} puan</Text>
           <Text style={styles.resultMeta}>Max combo: {maxCombo} {badge}</Text>
           <Text style={styles.resultMeta}>Doğruluk: %{Math.round((correctCount / totalAnswered) * 100)}</Text>
@@ -308,7 +322,7 @@ export default function FlashPickScreen({ onBack, runMode = false, onComplete }:
 
           {runMode && onComplete ? (
             <TouchableOpacity style={styles.startBtn} onPress={() => onComplete(result)}>
-              <Text style={styles.startBtnText}>Daily Run’da Devam Et →</Text>
+              <Text style={styles.startBtnText}>Ton ısınmasına geç →</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
@@ -329,7 +343,7 @@ export default function FlashPickScreen({ onBack, runMode = false, onComplete }:
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>⚡ Flash Pick</Text>
+        <Text style={styles.title}>{runMode ? '1/2 · Kelime Isınması' : '⚡ Flash Pick'}</Text>
         <Text style={styles.scoreMini}>Skor {score}</Text>
       </View>
 
@@ -417,6 +431,9 @@ const styles = StyleSheet.create({
   countBtnText: { color: colors.textPrimary, fontSize: 24, fontWeight: typography.weight.bold, lineHeight: 24 },
   countValue: { minWidth: 52, textAlign: 'center', color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
   countMeta: { color: colors.textMuted, fontSize: typography.size.xs, textAlign: 'center', marginBottom: spacing.lg },
+  runWhyBox: { backgroundColor: '#1E293B', borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: '#334155', marginBottom: spacing.lg },
+  runWhyTitle: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
+  runWhyText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
   startBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
   startBtnText: { color: '#0B1020', fontWeight: typography.weight.black, fontSize: typography.size.md },
 

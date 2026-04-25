@@ -65,12 +65,12 @@ export const buildResultEmotionalLine = (result: StageResult): string => {
   const awkward = result.awkwardTurns ?? 0;
   if ((result.runCompare?.current.nearMiss ?? false) && awkward > 0) {
     return awkward >= 2
-      ? `You dropped flow with ${awkward} rough turns.`
-      : 'You lost the flow on one rough turn.';
+      ? `${awkward} rough turns made the scene harder.`
+      : 'One rough reply made the scene harder.';
   }
-  if ((result.timedOutTurns ?? 0) > 0) return 'The clock pushed you into awkwardness.';
-  if (result.flowPath === 'smooth') return 'You held the flow under pressure.';
-  return 'You survived social pressure and finished.';
+  if ((result.timedOutTurns ?? 0) > 0) return 'The clock pushed your reply late.';
+  if (result.flowPath === 'smooth') return 'You kept the scene moving under pressure.';
+  return 'You finished a pressured real-life scene.';
 };
 
 const challengeDiff = (result: StageResult, target: FriendChallengeTarget): number => {
