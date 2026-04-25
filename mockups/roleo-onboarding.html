@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Roleo — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0A0E14;
+    --bg-mid: #121822;
+    --bg-soft: #1A2230;
+    --ink-primary: #E8EAED;
+    --ink-secondary: #9BA3AE;
+    --ink-tertiary: #5B6573;
+    --accent-warm: #E8B576;
+    --accent-warm-soft: #C99A6A;
+    --accent-glow: rgba(232, 181, 118, 0.18);
+    --hairline: rgba(255, 255, 255, 0.06);
+    --hairline-strong: rgba(255, 255, 255, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+  html, body {
+    background: #050709;
+    font-family: 'Inter Tight', sans-serif;
+    color: var(--ink-primary);
+    min-height: 100vh;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 48px 24px 80px;
+    gap: 64px;
+  }
+
+  .header {
+    text-align: center;
+    max-width: 720px;
+  }
+
+  .header-eyebrow {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 14px;
+    font-weight: 500;
+  }
+
+  .header h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    color: var(--ink-primary);
+    line-height: 1.3;
+  }
+
+  .header h1 em {
+    font-style: italic;
+    color: var(--accent-warm);
+  }
+
+  .header p {
+    margin-top: 12px;
+    color: var(--ink-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .frames {
+    display: flex;
+    gap: 56px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .frame-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .frame-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    font-weight: 500;
+  }
+
+  /* iPhone 15 dimensions: ~393x852 */
+  .phone {
+    width: 380px;
+    height: 824px;
+    background: var(--bg-deep);
+    border-radius: 52px;
+    border: 1px solid #1F2530;
+    box-shadow:
+      0 0 0 8px #0a0c10,
+      0 30px 80px -20px rgba(0, 0, 0, 0.8),
+      0 0 120px -20px rgba(232, 181, 118, 0.06);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .notch {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 36px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+
+  .status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 54px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-primary);
+    z-index: 90;
+    letter-spacing: -0.01em;
+  }
+
+  .status-icons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .status-icons svg {
+    width: 16px;
+    height: 12px;
+  }
+
+  /* Atmospheric background */
+  .atmosphere {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 52px;
+  }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: float 12s ease-in-out infinite;
+  }
+
+  .glow-1 {
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(232, 181, 118, 0.18) 0%, transparent 70%);
+    top: -120px;
+    right: -100px;
+  }
+
+  .glow-2 {
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(95, 124, 168, 0.15) 0%, transparent 70%);
+    bottom: -80px;
+    left: -80px;
+    animation-delay: -6s;
+  }
+
+  .grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.04;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, -20px) scale(1.05); }
+  }
+
+  /* Content */
+  .screen-content {
+    position: relative;
+    z-index: 10;
+    height: 100%;
+    padding: 80px 32px 44px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 56px;
+  }
+
+  .progress-bars {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .progress-bar {
+    height: 2px;
+    flex: 1;
+    background: var(--hairline-strong);
+    border-radius: 1px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-bar.active {
+    background: var(--hairline-strong);
+  }
+
+  .progress-bar.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--accent-warm-soft), var(--accent-warm));
+    animation: fill 1.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  @keyframes fill {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  .step-label {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    margin-left: 16px;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Question */
+  .question-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .question-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--accent-warm);
+    margin-bottom: 24px;
+    font-weight: 500;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .question-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 36px;
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    color: var(--ink-primary);
+    margin-bottom: 14px;
+    opacity: 0;
+    animation: fadeUp 1s 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .question-title em {
+    font-style: italic;
+    color: var(--accent-warm);
+    font-weight: 300;
+  }
+
+  .question-subtitle {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+    margin-bottom: 40px;
+    max-width: 90%;
+    opacity: 0;
+    animation: fadeUp 1s 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  /* Textarea — inviting, atmospheric */
+  .input-card {
+    position: relative;
+    background: linear-gradient(180deg, rgba(26, 34, 48, 0.6) 0%, rgba(18, 24, 34, 0.4) 100%);
+    border: 1px solid var(--hairline-strong);
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    backdrop-filter: blur(20px);
+    margin-bottom: 24px;
+    transition: border-color 0.4s ease;
+    opacity: 0;
+    animation: fadeUp 1s 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .input-card:focus-within {
+    border-color: rgba(232, 181, 118, 0.3);
+  }
+
+  .input-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232, 181, 118, 0.25), transparent);
+    opacity: 0.6;
+  }
+
+  .input-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--ink-primary);
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 17px;
+    line-height: 1.55;
+    min-height: 100px;
+    resize: none;
+    font-style: italic;
+  }
+
+  .input-textarea::placeholder {
+    color: var(--ink-tertiary);
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .input-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .input-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    letter-spacing: 0.04em;
+  }
+
+  .input-hint svg {
+    width: 12px;
+    height: 12px;
+    stroke: var(--accent-warm-soft);
+  }
+
+  .char-count {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    font-feature-settings: 'tnum';
+  }
+
+  /* Suggestions */
+  .suggestions {
+    margin-top: 4px;
+    opacity: 0;
+    animation: fadeUp 1s 1s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .suggestions-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 12.5px;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .chip:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink-primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Footer / CTA */
+  .footer {
+    padding-top: 24px;
+    opacity: 0;
+    animation: fadeUp 1s 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .cta-button {
+    width: 100%;
+    background: var(--ink-primary);
+    color: var(--bg-deep);
+    border: none;
+    border-radius: 999px;
+    padding: 17px 24px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.3s ease, background 0.3s ease;
+    position: relative;
+  }
+
+  .cta-button:hover {
+    transform: translateY(-1px);
+    background: var(--accent-warm);
+  }
+
+  .cta-button .arrow {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.3s ease;
+  }
+
+  .cta-button:hover .arrow {
+    transform: translateX(3px);
+  }
+
+  .footer-meta {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    letter-spacing: 0.06em;
+  }
+
+  .footer-meta a {
+    color: var(--ink-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline-strong);
+    padding-bottom: 1px;
+  }
+
+  /* Variant 2 — subtle differences */
+  .phone.variant-b .question-title { font-size: 32px; }
+  .phone.variant-b .input-textarea { font-family: 'Inter Tight', sans-serif; font-style: normal; font-size: 16px; }
+  .phone.variant-b .input-textarea::placeholder { font-style: normal; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tooltip / annotation strip */
+  .design-notes {
+    max-width: 720px;
+    margin-top: 24px;
+    padding: 32px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+  }
+
+  .design-notes h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 16px;
+    margin-bottom: 14px;
+    color: var(--ink-primary);
+  }
+
+  .design-notes ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 32px;
+  }
+
+  .design-notes li {
+    font-size: 13px;
+    color: var(--ink-secondary);
+    line-height: 1.55;
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .design-notes li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-warm-soft);
+  }
+
+  .design-notes li b {
+    color: var(--ink-primary);
+    font-weight: 500;
+  }
+
+  @media (max-width: 900px) {
+    .design-notes ul { grid-template-columns: 1fr; }
+    .frames { gap: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eyebrow">Roleo · Onboarding · 01 / 04</div>
+  <h1>İlk soru, en <em>önemli</em> soru.</h1>
+  <p>Müfredat, ders, streak değil. Önce niyet. Sonra her şey ona doğru.</p>
+</div>
+
+<div class="frames">
+
+  <!-- VARIANT A — Serif heavy, italic intent -->
+  <div class="frame-wrap">
+    <div class="frame-label">A · Editorial</div>
+    <div class="phone">
+      <div class="notch"></div>
+
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons">
+          <svg viewBox="0 0 18 12" fill="currentColor"><path d="M1 8h2v3H1zM5 6h2v5H5zM9 4h2v7H9zM13 1h2v10h-2z"/></svg>
+          <svg viewBox="0 0 16 12" fill="currentColor"><path d="M8 3.5c2 0 3.8.8 5.2 2l1-1C12.5 3 10.3 2 8 2S3.5 3 1.8 4.5l1 1C4.2 4.3 6 3.5 8 3.5zm0 3c1.2 0 2.3.4 3.2 1.2l1-1C11 5.6 9.6 5 8 5s-3 .6-4.2 1.7l1 1C5.7 6.9 6.8 6.5 8 6.5zm0 3c.7 0 1.3.3 1.8.7l1-1C9.9 8.5 9 8 8 8s-1.9.5-2.8 1.2l1 1c.5-.4 1.1-.7 1.8-.7z"/></svg>
+          <svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="2" width="20" height="8" rx="2"/><rect x="2.5" y="3.5" width="16" height="5" rx="1" fill="currentColor"/><rect x="22" y="4.5" width="1.5" height="3" rx="0.5" fill="currentColor"/></svg>
+        </div>
+      </div>
+
+      <div class="atmosphere">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+        <div class="grain"></div>
+      </div>
+
+      <div class="screen-content">
+        <div class="progress-row">
+          <div class="progress-bars">
+            <div class="progress-bar active"></div>
+            <div class="progress-bar"></div>
+            <div class="progress-bar"></div>
+            <div class="progress-bar"></div>
+          </div>
+          <span class="step-label">01 / 04</span>
+        </div>
+
+        <div class="question-section">
+          <div class="question-eyebrow">İLK ADIM</div>
+          <h2 class="question-title">
+            Bir gün <em>İspanyolca</em> konuştuğunda<br/>
+            nerede olmak istersin?
+          </h2>
+          <p class="question-subtitle">
+            Hayalini yaz. Bir cümle, bir sahne, bir an. Roleo bütün öğrenme yolculuğunu bu cevap üzerine kuracak.
+          </p>
+
+          <div class="input-card">
+            <textarea class="input-textarea" placeholder="Mesela — Barcelona'da bir kafede oturuyorum, garsona kahvemi İspanyolca söylüyorum…"></textarea>
+            <div class="input-meta">
+              <div class="input-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                <span>Ne kadar somut, o kadar iyi</span>
+              </div>
+              <span class="char-count">0 / 280</span>
+            </div>
+          </div>
+
+          <div class="suggestions">
+            <div class="suggestions-label">Başlangıç için</div>
+            <div class="chip-row">
+              <div class="chip">Bir kafede sipariş vermek</div>
+              <div class="chip">İş toplantısında konuşmak</div>
+              <div class="chip">Şarkı sözlerini anlamak</div>
+              <div class="chip">Maç yorumunu çözmek</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <button class="cta-button">
+            Devam et
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+          <div class="footer-meta">
+            Henüz emin değilsen — <a href="#">örneklerden ilham al</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT B — Cleaner sans, same atmosphere -->
+  <div class="frame-wrap">
+    <div class="frame-label">B · Modern</div>
+    <div class="phone variant-b">
+      <div class="notch"></div>
+
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons">
+          <svg viewBox="0 0 18 12" fill="currentColor"><path d="M1 8h2v3H1zM5 6h2v5H5zM9 4h2v7H9zM13 1h2v10h-2z"/></svg>
+          <svg viewBox="0 0 16 12" fill="currentColor"><path d="M8 3.5c2 0 3.8.8 5.2 2l1-1C12.5 3 10.3 2 8 2S3.5 3 1.8 4.5l1 1C4.2 4.3 6 3.5 8 3.5zm0 3c1.2 0 2.3.4 3.2 1.2l1-1C11 5.6 9.6 5 8 5s-3 .6-4.2 1.7l1 1C5.7 6.9 6.8 6.5 8 6.5zm0 3c.7 0 1.3.3 1.8.7l1-1C9.9 8.5 9 8 8 8s-1.9.5-2.8 1.2l1 1c.5-.4 1.1-.7 1.8-.7z"/></svg>
+          <svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="2" width="20" height="8" rx="2"/><rect x="2.5" y="3.5" width="16" height="5" rx="1" fill="currentColor"/><rect x="22" y="4.5" width="1.5" height="3" rx="0.5" fill="currentColor"/></svg>
+        </div>
+      </div>
+
+      <div class="atmosphere">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+        <div class="grain"></div>
+      </div>
+
+      <div class="screen-content">
+        <div class="progress-row">
+          <div class="progress-bars">
+            <div class="progress-bar active"></div>
+            <div class="progress-bar"></div>
+            <div class="progress-bar"></div>
+            <div class="progress-bar"></div>
+          </div>
+          <span class="step-label">01 / 04</span>
+        </div>
+
+        <div class="question-section">
+          <div class="question-eyebrow">İLK ADIM</div>
+          <h2 class="question-title">
+            Neden <em>İspanyolca</em><br/>öğrenmek istiyorsun?
+          </h2>
+          <p class="question-subtitle">
+            Hızlı bir cevap değil, gerçek olanı. Roleo öğrenme yolunu bu sebep üzerine kuracak.
+          </p>
+
+          <div class="input-card">
+            <textarea class="input-textarea" placeholder="Cevabını birkaç cümleyle yaz. Tüm yolculuk bunun üzerine kurulacak."></textarea>
+            <div class="input-meta">
+              <div class="input-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                <span>Sadece sen göreceksin</span>
+              </div>
+              <span class="char-count">0 / 280</span>
+            </div>
+          </div>
+
+          <div class="suggestions">
+            <div class="suggestions-label">İlham gerekirse</div>
+            <div class="chip-row">
+              <div class="chip">Seyahat</div>
+              <div class="chip">Kariyer</div>
+              <div class="chip">Aile</div>
+              <div class="chip">Müzik & film</div>
+              <div class="chip">Kendim için</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <button class="cta-button">
+            Devam et
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+          <div class="footer-meta">
+            Sonra her zaman değiştirebilirsin
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="design-notes">
+  <h3>Tasarım kararları, kısaca</h3>
+  <ul>
+    <li><b>Fraunces (italik) display + Inter Tight body.</b> Duolingo/Babbel'in yuvarlak sans dünyasından ayrışmak için. İtalik <em>"İspanyolca"</em> kelimesi sahneye odak veriyor — film jeneriği gibi.</li>
+    <li><b>Sıcak akcent (#E8B576).</b> Hatch'in soğuk teal'ı yerine mum ışığı tonu seçtim — Roleo'nun "an'a yaklaşma" hissine yakın, gece kafede oturma çağrışımı taşıyor.</li>
+    <li><b>İki yumuşak glow + ince grain.</b> Düz koyu zemin yerine atmosfer. Üst sağda sıcak (hayal), alt solda soğuk (mevcut hal) — gözle görülmeyen ama hissedilen bir gerilim.</li>
+    <li><b>Progress bar 4 adımlık ve incecik.</b> Onboarding'in kısa olduğunu söylüyor, kullanıcıyı korkutmuyor. İlk bar canlı doluyor — momentum hissi.</li>
+    <li><b>Soru iki satıra bölündü.</b> "Bir gün ___ konuştuğunda / nerede olmak istersin" — okuma ritmini yavaşlatıyor, kullanıcıyı sahneye çekiyor.</li>
+    <li><b>Placeholder zaten bir hikaye.</b> Boş input yerine "Barcelona'da bir kafede…" yazıyor; kullanıcı ilk saniyeden ne tür bir cevap beklendiğini anlıyor.</li>
+    <li><b>Hint chip'leri kategorik değil, sahne odaklı.</b> "Seyahat" demek yerine "bir kafede sipariş vermek" — somut bir an çağırıyor.</li>
+    <li><b>CTA krem-beyaz, hover'da sıcak akcent'e döner.</b> Ekrandaki tek parlak yüzey orası — gözün gideceği yer net.</li>
+  </ul>
+</div>
+
+</body>
+</html>
