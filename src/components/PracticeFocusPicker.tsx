@@ -14,7 +14,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { GOAL_SECTIONS, type PracticeTarget } from '../data/practiceGoals';
 import { typography } from '../theme/typography';
 
-const ACCENT = '#884C32';
+import { colors as dsColors } from '../theme/colors';
+const ACCENT = dsColors.accentWarm;
 
 /** Satır + boşluk yaklaşık yüksekliği (onLayout olmadan akıcı animasyon) */
 const ROW_UNIT = 104;
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...typography.lingua.title2,
   },
-  accTitleLight: { color: '#3D3835' },
+  accTitleLight: { color: dsColors.inkPrimary },
   accTitleDark: { color: 'rgba(255,255,255,0.88)' },
   accAnimWrap: {
     overflow: 'hidden',
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   },
   accBodyBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(136, 76, 50, 0.12)',
+    borderBottomColor: dsColors.bgSoft,
     marginBottom: 6,
   },
   row: {
@@ -246,23 +247,23 @@ const styles = StyleSheet.create({
   },
   rowDarkActive: {
     borderColor: ACCENT,
-    backgroundColor: 'rgba(136, 76, 50, 0.12)',
+    backgroundColor: dsColors.bgSoft,
   },
   rowLight: {
-    backgroundColor: '#FAF7F5',
-    borderColor: 'rgba(216,194,186,0.4)',
+    backgroundColor: dsColors.bgSoft,
+    borderColor: dsColors.hairlineStrong,
   },
   rowLightActive: {
     borderColor: ACCENT,
-    backgroundColor: '#FFFBF8',
+    backgroundColor: dsColors.bgMid,
   },
   rowText: { flex: 1, paddingRight: 10 },
   label: { ...typography.lingua.title2, fontFamily: typography.font.semibold },
   labelDark: { color: 'rgba(255,255,255,0.92)' },
-  labelLight: { color: '#1B1C1C' },
+  labelLight: { color: dsColors.inkPrimary },
   hint: { ...typography.lingua.caption, marginTop: 4 },
   hintDark: { color: 'rgba(255,255,255,0.65)' },
-  hintLight: { color: '#53433E' },
+  hintLight: { color: dsColors.inkSecondary },
   circle: {
     width: 26,
     height: 26,
@@ -272,6 +273,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  circleLight: { borderColor: 'rgba(136, 76, 50, 0.28)' },
-  check: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  circleLight: { borderColor: dsColors.hairlineStrong },
+  check: { color: dsColors.inkPrimary, fontSize: 13, fontFamily: 'InterTight_600SemiBold' },
 });

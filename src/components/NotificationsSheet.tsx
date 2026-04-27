@@ -8,22 +8,20 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { colors } from '../theme/colors';
-import { F } from '../theme/fonts';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
 
-type Row = { id: string; icon: React.ComponentProps<typeof MaterialIcons>['name']; tone: string; title: string; body: string; time: string; unread?: boolean };
+type Row = { id: string; icon: React.ComponentProps<typeof Feather>['name']; title: string; body: string; time: string; unread?: boolean };
 
 const TODAY: Row[] = [
   {
     id: '1',
-    icon: 'menu-book',
-    tone: '#E8F0FE',
+    icon: 'book-open',
     title: 'Yeni ders hazır',
     body: 'Başlangıç paketinde bir sonraki sahne açıldı.',
     time: '5 dk önce',
@@ -31,8 +29,7 @@ const TODAY: Row[] = [
   },
   {
     id: '2',
-    icon: 'emoji-events',
-    tone: '#FFF4E5',
+    icon: 'award',
     title: 'Başarı açıldı',
     body: 'Üst üste 5 gün tamamladın, böyle devam!',
     time: '1 sa önce',
@@ -43,8 +40,7 @@ const TODAY: Row[] = [
 const YESTERDAY: Row[] = [
   {
     id: '3',
-    icon: 'person',
-    tone: '#E8F8F0',
+    icon: 'user',
     title: 'Yeni içerik',
     body: 'Telaffuz ipuçları güncellendi.',
     time: 'Dün',
@@ -52,8 +48,7 @@ const YESTERDAY: Row[] = [
   },
   {
     id: '4',
-    icon: 'card-giftcard',
-    tone: '#FCE8F3',
+    icon: 'gift',
     title: 'Özel teklif',
     body: 'Bu hafta premium denemesi için davet.',
     time: 'Dün',
@@ -64,8 +59,8 @@ const YESTERDAY: Row[] = [
 function RowItem({ row }: { row: Row }) {
   return (
     <View style={styles.row}>
-      <View style={[styles.iconCircle, { backgroundColor: row.tone }]}>
-        <MaterialIcons name={row.icon} size={20} color={colors.primaryAccent} />
+      <View style={styles.iconCircle}>
+        <Feather name={row.icon} size={16} color={colors.accentWarmSoft} />
       </View>
       <View style={styles.rowMid}>
         <Text style={styles.rowTitle}>{row.title}</Text>
@@ -86,7 +81,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
       <View style={[styles.card, { marginTop: insets.top + 8 }]}>
         <View style={styles.topRow}>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <MaterialIcons name="arrow-back" size={22} color={colors.textPrimary} />
+            <Feather name="arrow-left" size={20} color={colors.inkSecondary} />
           </TouchableOpacity>
           <Text style={styles.title}>Bildirimler</Text>
           <TouchableOpacity hitSlop={8}>
@@ -95,12 +90,12 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
         </View>
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.section}>Bugün</Text>
+          <Text style={styles.section}>BUGÜN</Text>
           {TODAY.map(r => (
             <RowItem key={r.id} row={r} />
           ))}
           <View style={styles.divider} />
-          <Text style={styles.section}>Dün</Text>
+          <Text style={styles.section}>DÜN</Text>
           {YESTERDAY.map(r => (
             <RowItem key={r.id} row={r} />
           ))}
@@ -111,65 +106,64 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(27, 28, 28, 0.35)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   card: {
     marginHorizontal: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+    backgroundColor: colors.bgMid,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     maxHeight: '78%',
     paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  title: { fontFamily: F.bold, fontSize: 17, color: colors.textPrimary },
-  markAll: { fontFamily: F.semibold, fontSize: 13, color: colors.primaryAccent },
-  scroll: { paddingHorizontal: 12 },
+  title: { fontFamily: 'Fraunces_300Light', fontSize: 17, color: colors.inkPrimary, letterSpacing: -0.2 },
+  markAll: { fontFamily: 'InterTight_500Medium', fontSize: 13, color: colors.accentWarm },
+  scroll: { paddingHorizontal: 14 },
   section: {
-    fontFamily: F.semibold,
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 12,
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 2,
+    color: colors.inkTertiary,
+    marginTop: 14,
     marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
   },
   rowMid: { flex: 1, paddingRight: 8 },
-  rowTitle: { fontFamily: F.semibold, fontSize: 15, color: colors.textPrimary },
-  rowBody: { fontFamily: F.regular, fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 },
-  rowTime: { fontFamily: F.regular, fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  rowTitle: { fontFamily: 'InterTight_500Medium', fontSize: 14, color: colors.inkPrimary },
+  rowBody: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, marginTop: 3, lineHeight: 18 },
+  rowTime: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, marginTop: 5 },
   dot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: colors.primaryAccent,
-    marginTop: 6,
+    backgroundColor: colors.accentWarm,
+    marginTop: 5,
   },
   divider: { height: 8 },
 });

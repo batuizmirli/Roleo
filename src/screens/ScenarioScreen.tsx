@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated, Easing,
+  ImageBackground, Dimensions, Platform,
 } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
 import {
   Scenario, StageResult, UserLevel, UserProfile, ModuleResult, SceneFlowPath,
   SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview,
@@ -13,6 +18,7 @@ import { parseModelJson, tryParseJson } from '../services/json';
 import { getPersonaByStage, getGoalContext } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
 import { recordDailySceneScore } from '../services/leaderboard';
+import { useAppTranslation } from '../i18n';
 import {
   getSceneSnapshot,
   saveSceneSnapshot,
@@ -64,6 +70,30 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_TURNS = 6;
 const REACTION_DELAY_MS = 160;
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const PHOTO_HEIGHT = SCREEN_HEIGHT * 0.60;
+
+// Stage → background photo mapping (Unsplash CDN)
+const SCENE_PHOTOS: Record<string, { uri: string }> = {
+  cafe:     { uri: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=900&q=85&fit=crop' },
+  travel:   { uri: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=900&q=85&fit=crop' },
+  business: { uri: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=900&q=85&fit=crop' },
+  social:   { uri: 'https://images.unsplash.com/photo-1543269664-7eef42226a21?w=900&q=85&fit=crop' },
+  story:    { uri: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&q=85&fit=crop' },
+  survival: { uri: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=900&q=85&fit=crop' },
+};
+const DEFAULT_SCENE_PHOTO: { uri: string } = { uri: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=900&q=85&fit=crop' };
+
+// Turkish role label per stage
+const STAGE_ROLE_TR: Record<string, string> = {
+  cafe:     'Garson',
+  travel:   'Yerel Rehber',
+  business: 'İş Ortağı',
+  social:   'Arkadaş',
+  story:    'Karakter',
+  survival: 'Yerli',
+};
+
 const MOOD_EMOJI: Record<NpcMood, string> = {
   happy: '😊', neutral: '😐', confused: '😕', impatient: '😤',
 };
@@ -74,11 +104,11 @@ const PERSONALITY_LABEL: Record<NpcPersonality, string> = {
   friendly: '😊 Friendly', busy: '⏱ Busy', rude: '😤 Rude',
 };
 const PERSONALITY_COLOR: Record<NpcPersonality, string> = {
-  friendly: '#3DD68C', busy: '#F5B800', rude: '#1B9C5A',
+  friendly: colors.successDs, busy: colors.accentWarmSoft, rude: colors.errorDs,
 };
 
 const qColor = (q: OptionQuality) =>
-  q === 'good' ? '#3DD68C' : q === 'ok' ? '#F5B800' : '#A66A4C';
+  q === 'good' ? colors.successDs : q === 'ok' ? colors.accentWarmSoft : colors.errorDs;
 const qLabel = (q: OptionQuality) =>
   q === 'good' ? '✨ Çok doğal' : q === 'ok' ? '👍 Anlaşıldı' : '😅 Biraz garip';
 
@@ -93,10 +123,10 @@ type ComboTier = {
 /** Escalating combo copy — visible “power” curve */
 const getComboTier = (n: number): ComboTier | null => {
   if (n < 1) return null;
-  if (n === 1) return { hype: 'Nice', sub: 'Doğru ton', color: '#22C55E', emoji: '👍', glow: '#22C55E55' };
-  if (n === 2) return { hype: 'Smooth', sub: 'Akış yakalanıyor', color: '#38BDF8', emoji: '✨', glow: '#38BDF866' };
-  if (n === 3) return { hype: "You're on fire", sub: 'Üst üste çok doğal', color: '#F97316', emoji: '🔥', glow: '#F9731688' };
-  return { hype: 'Clean scene flow', sub: 'Sahne akışı temiz', color: '#A855F7', emoji: '🚀', glow: '#A855F799' };
+  if (n === 1) return { hype: 'Nice', sub: 'Doğru ton', color: colors.successDs, emoji: '👍', glow: '#22C55E55' };
+  if (n === 2) return { hype: 'Smooth', sub: 'Akış yakalanıyor', color: colors.accentWarm, emoji: '✨', glow: '#38BDF866' };
+  if (n === 3) return { hype: "You're on fire", sub: 'Üst üste çok doğal', color: colors.accentWarm, emoji: '🔥', glow: '#F9731688' };
+  return { hype: 'Clean scene flow', sub: 'Sahne akışı temiz', color: colors.accentWarm, emoji: '🚀', glow: '#A855F799' };
 };
 
 const timerUrgencyRgb = (left: number, total: number) => {
@@ -184,6 +214,7 @@ export default function ScenarioScreen({
   playCount = 0,
   challengeTarget = null,
 }: Props) {
+  const t = useAppTranslation();
   const stageKey = scenario.stageType ?? 'social';
   const persona = getPersonaByStage(stageKey);
   const goalCtx = getGoalContext(goalId);
@@ -251,6 +282,23 @@ export default function ScenarioScreen({
   const timerProgress = useRef(new Animated.Value(1)).current;
   const timerShakeLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const timerGlowLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  // ── Scene editorial UI state ───────────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Animation: mic ripple (two concentric rings)
+  const micRipple1 = useRef(new Animated.Value(0)).current;
+  const micRipple2 = useRef(new Animated.Value(0)).current;
+  // Animation: waveform bars (12 bars)
+  const waveAnims = useRef(
+    Array.from({ length: 12 }, () => new Animated.Value(0.3))
+  ).current;
+  // Animation: scene meta dot pulse
+  const metaDotPulse = useRef(new Animated.Value(1)).current;
+  // Animation: screen entrance
+  const sceneEntrance = useRef(new Animated.Value(0)).current;
 
   const animateNpcEntrance = () => {
     npcEntrance.setValue(0);
@@ -568,11 +616,15 @@ export default function ScenarioScreen({
       ? '\nReplay: change specific wording vs a first play; slightly subtler differences between options.'
       : '';
 
+    const npcContext = scenario.systemPrompt
+      ? `NPC context: ${scenario.systemPrompt.split('\n')[0]}\n`
+      : '';
+
     const prompt = isFirst
       ? `Turn-based language roleplay game.
 Scene: "${scenario.title}" at ${scenario.location}.
 Character: ${persona.name} (${persona.roleLabel}). ${personalityPrompt(personality)}
-Target language: ${langName}. User native language: ${nativeLang}.
+${npcContext}Target language: ${langName}. User native language: ${nativeLang}.
 User goal: "${identityGoal}". Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"${goalInject}
 ${branchNote}${replayNote}
 
@@ -589,7 +641,7 @@ Return ONLY valid JSON:
 {"npc_message":"${openingMsg}","npc_mood":"neutral",${reactionFmt},"options":[{"text":"...","quality":"good"},{"text":"...","quality":"ok"},{"text":"...","quality":"awkward"}],"scene_complete":false}`
       : `Turn-based language roleplay.
 Scene: "${scenario.title}" at ${scenario.location}. Character: ${persona.name}. ${personalityPrompt(personality)}
-Target: ${langName}. Native: ${nativeLang}. Goal: "${identityGoal}"${goalInject}
+${npcContext}Target: ${langName}. Native: ${nativeLang}. Goal: "${identityGoal}"${goalInject}
 Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"
 ${branchNote}${replayNote}
 
@@ -1117,6 +1169,92 @@ Return ONLY valid JSON:
     void getSceneSnapshot(scenario.id).then(setDonePrevSnap);
   }, [phase, scenario.id]);
 
+  // Scene meta dot pulse loop
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(metaDotPulse, { toValue: 0.5, duration: 1250, useNativeDriver: true }),
+        Animated.timing(metaDotPulse, { toValue: 1, duration: 1250, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [metaDotPulse]);
+
+  // Scene entrance animation on game start
+  useEffect(() => {
+    if (phase !== 'game') return;
+    sceneEntrance.setValue(0);
+    Animated.timing(sceneEntrance, {
+      toValue: 1,
+      duration: 800,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [phase, sceneEntrance]);
+
+  // Mic ripple animation while recording
+  useEffect(() => {
+    if (!isRecording) {
+      micRipple1.setValue(0);
+      micRipple2.setValue(0);
+      return;
+    }
+    const ripple = (val: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, {
+            toValue: 1,
+            duration: 2500,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(val, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ]),
+      );
+    const r1 = ripple(micRipple1, 0);
+    const r2 = ripple(micRipple2, 1250);
+    r1.start();
+    r2.start();
+    return () => { r1.stop(); r2.stop(); };
+  }, [isRecording, micRipple1, micRipple2]);
+
+  // Waveform animation while recording
+  useEffect(() => {
+    if (!isRecording) {
+      waveAnims.forEach(a => a.setValue(0.3));
+      return;
+    }
+    const loops = waveAnims.map((anim, i) => {
+      const heights = [0.4, 0.7, 1.0, 0.6, 0.85, 0.5, 0.75, 0.45, 0.9, 0.55, 0.7, 0.35];
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 80),
+          Animated.timing(anim, { toValue: heights[i], duration: 400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.3, duration: 400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]),
+      );
+      loop.start();
+      return loop;
+    });
+    return () => loops.forEach(l => l.stop());
+  }, [isRecording, waveAnims]);
+
+  const startRecording = () => {
+    if (selectedIdx !== null) return;
+    setIsRecording(true);
+    if (recordingTimer.current) clearTimeout(recordingTimer.current);
+    recordingTimer.current = setTimeout(() => {
+      setIsRecording(false);
+    }, 3000);
+  };
+
+  const stopRecording = () => {
+    if (recordingTimer.current) clearTimeout(recordingTimer.current);
+    setIsRecording(false);
+  };
+
   // ── Shared header ─────────────────────────────────────────────────────────
 
   const renderHeader = (extra?: React.ReactNode) => (
@@ -1128,7 +1266,7 @@ Return ONLY valid JSON:
         <Text style={styles.headerEmoji}>{scenario.emoji}</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{scenario.title}</Text>
-          <Text style={styles.headerLocation}>📍 {scenario.location}</Text>
+          <Text style={styles.headerLocation}>{scenario.location}</Text>
         </View>
       </View>
       {extra}
@@ -1163,17 +1301,39 @@ Return ONLY valid JSON:
 
   // INTRO
   if (phase === 'intro') {
+    const introBg = scenario.backgroundImage
+      ? { uri: scenario.backgroundImage }
+      : (SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO);
     return (
       <View style={styles.container}>
-        {renderHeader()}
-        <ScrollView contentContainerStyle={styles.introScroll}>
-          <Text style={styles.introBadge}>SAHNE</Text>
-          <Text style={styles.introTitle}>{scenario.location} sahnesini gerçek andan önce prova ediyorsun.</Text>
+        <ImageBackground source={introBg} style={styles.introBgPhoto} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(10,14,20,0.25)', 'rgba(10,14,20,0.65)', colors.bgDeep]}
+            locations={[0, 0.50, 0.88]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
+
+        <TouchableOpacity onPress={onBack} style={styles.introBackBtn}>
+          <Feather name="arrow-left" size={18} color={colors.inkSecondary} />
+        </TouchableOpacity>
+
+        <ScrollView contentContainerStyle={styles.introScroll} showsVerticalScrollIndicator={false}>
+          <View style={{ height: PHOTO_HEIGHT * 0.40 }} />
+
+          <Text style={styles.introBadge}>{scenario.location.toUpperCase()}</Text>
+          <Text style={styles.introTitle}>{scenario.title}</Text>
           <Text style={styles.introSub}>{persona.name} sana yaklaşır:</Text>
-          <View style={styles.quoteBox}>
+
+          <BlurView intensity={22} tint="dark" style={styles.quoteBox}>
             <Text style={styles.quoteText}>"{scenario.openingMessage.split('\n')[0]}"</Text>
+          </BlurView>
+
+          <View style={styles.missionRow}>
+            <Feather name="target" size={13} color={colors.accentWarm} />
+            <Text style={styles.missionText}>{scenario.mission ?? 'Konuşmayı tamamla'}</Text>
           </View>
-          <Text style={styles.missionText}>🎯 Bu sahnede hedefin: {scenario.mission ?? 'Konuşmayı tamamla'}</Text>
+
           {!!challengeTarget && (
             <View style={styles.challengeIntroCard}>
               <Text style={styles.challengeIntroLabel}>FRIEND CHALLENGE</Text>
@@ -1184,17 +1344,22 @@ Return ONLY valid JSON:
               <Text style={styles.challengeIntroTaunt}>{challengeTarget.taunt}</Text>
             </View>
           )}
+
           <View style={styles.howItWorksBox}>
-            <Text style={styles.howTitle}>SAHNE PROVASI</Text>
-            <Text style={styles.howItem}>1. NPC sana bir şey söyler</Text>
-            <Text style={styles.howItem}>2. 3 yanıt arasından o ana en uygun tonu seç</Text>
-            <Text style={styles.howItem}>3. NPC tepkisini hemen görürsün</Text>
-            <Text style={styles.howItem}>4. Garip cevaplar akışı zorlar; temiz cevaplar sahneyi taşır</Text>
-            <Text style={styles.howItem}>5. Sonunda neyi düzeltip tekrar deneyeceğini görürsün</Text>
+            <Text style={styles.howTitle}>NASIL ÇALIŞIR</Text>
+            {['NPC sana bir şey söyler', '3 yanıt arasından en doğal tonu seç', 'Garip cevaplar akışı zorlar, temizler sahneyi taşır', 'Sonunda hangi anı gerçek hayata hazır gördüğünü öğrenirsin'].map((item, i) => (
+              <View key={i} style={styles.howItemRow}>
+                <Text style={styles.howItemNum}>{i + 1}</Text>
+                <Text style={styles.howItem}>{item}</Text>
+              </View>
+            ))}
           </View>
+
           <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
-            <Text style={styles.preStartBtnText}>Sahneye Gir →</Text>
+            <Text style={styles.preStartBtnText}>Sahneye Gir</Text>
+            <Feather name="arrow-right" size={15} color={colors.bgDeep} />
           </TouchableOpacity>
+          <View style={{ height: 36 }} />
         </ScrollView>
       </View>
     );
@@ -1202,23 +1367,41 @@ Return ONLY valid JSON:
 
   // VOCAB
   if (phase === 'vocab' && scenario.vocabHints) {
+    const vocabBg = scenario.backgroundImage
+      ? { uri: scenario.backgroundImage }
+      : (SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO);
     return (
       <View style={styles.container}>
-        {renderHeader()}
-        <ScrollView contentContainerStyle={styles.introScroll}>
-          <Text style={styles.vocabTitle}>Söylemeden önce ısın</Text>
-          <Text style={styles.vocabSubtitle}>Bu kelimeler sahnedeki cevabını daha net seçtirir.</Text>
+        <ImageBackground source={vocabBg} style={styles.introBgPhoto} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(10,14,20,0.25)', 'rgba(10,14,20,0.65)', colors.bgDeep]}
+            locations={[0, 0.50, 0.88]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
+
+        <TouchableOpacity onPress={onBack} style={styles.introBackBtn}>
+          <Feather name="arrow-left" size={18} color={colors.inkSecondary} />
+        </TouchableOpacity>
+
+        <ScrollView contentContainerStyle={styles.introScroll} showsVerticalScrollIndicator={false}>
+          <View style={{ height: PHOTO_HEIGHT * 0.35 }} />
+          <Text style={styles.introBadge}>SAHNEYE HAZIRLIK</Text>
+          <Text style={styles.introTitle}>Söylemeden önce ısın</Text>
+          <Text style={styles.introSub}>Bu kelimeler sahnedeki cevabını daha net seçtirir.</Text>
           <View style={styles.vocabGrid}>
             {scenario.vocabHints.map((hint, i) => (
-              <View key={i} style={styles.vocabCard}>
+              <BlurView key={i} intensity={20} tint="dark" style={styles.vocabCard}>
                 <Text style={styles.vocabWord}>{hint.word}</Text>
                 <Text style={styles.vocabMeaning}>{hint.meaning}</Text>
-              </View>
+              </BlurView>
             ))}
           </View>
           <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
-            <Text style={styles.preStartBtnText}>Sahneye Gir →</Text>
+            <Text style={styles.preStartBtnText}>Sahneye Gir</Text>
+            <Feather name="arrow-right" size={15} color={colors.bgDeep} />
           </TouchableOpacity>
+          <View style={{ height: 36 }} />
         </ScrollView>
       </View>
     );
@@ -1420,15 +1603,15 @@ Return ONLY valid JSON:
 
               <View style={styles.doneStats}>
                 <View style={styles.doneStat}>
-                  <Text style={[styles.doneStatVal, { color: '#3DD68C' }]}>{goodCount}/{total}</Text>
+                  <Text style={[styles.doneStatVal, { color: colors.successDs }]}>{goodCount}/{total}</Text>
                   <Text style={styles.doneStatLbl}>Doğal seçim</Text>
                 </View>
                 <View style={styles.doneStat}>
-                  <Text style={[styles.doneStatVal, { color: '#A78BFA' }]}>{comboPeakRef.current}</Text>
+                  <Text style={[styles.doneStatVal, { color: colors.accentWarm }]}>{comboPeakRef.current}</Text>
                   <Text style={styles.doneStatLbl}>Max combo</Text>
                 </View>
                 <View style={styles.doneStat}>
-                  <Text style={[styles.doneStatVal, { color: '#1B9C5A' }]}>{awkwardCount}</Text>
+                  <Text style={[styles.doneStatVal, { color: colors.errorDs }]}>{awkwardCount}</Text>
                   <Text style={styles.doneStatLbl}>Garip</Text>
                 </View>
               </View>
@@ -1484,329 +1667,454 @@ Return ONLY valid JSON:
     );
   }
 
-  // GAME (main)
+  // GAME (main) — editorial scene design
   const turnNum = turnHistory.length + 1;
   const canFinishEarly = turnHistory.length >= 2 && selectedIdx === null && !optionsLoading;
   const isLastTurn = turnHistory.length + 1 >= MAX_TURNS;
   const comboTier = getComboTier(consecutiveGood);
   const livePath = computeFlowPath(turnHistory);
-  const timerColor = answerTimeLeft !== null && answerTimeTotal > 0
-    ? timerUrgencyRgb(answerTimeLeft, answerTimeTotal)
-    : '#22C55E';
+
+  const scenePhoto = SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO;
+  const npcRoleTr = STAGE_ROLE_TR[stageKey] ?? '';
+  const turnLabel = `${String(turnNum).padStart(2, '0')} / ${String(MAX_TURNS).padStart(2, '0')}`;
+  const sceneCaptionText = scenario.mission ?? scenario.title;
+
+  // Ripple ring scale/opacity for mic button
+  const ripple1Scale = micRipple1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
+  const ripple1Opacity = micRipple1.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.6, 0] });
+  const ripple2Scale = micRipple2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
+  const ripple2Opacity = micRipple2.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.6, 0] });
 
   return (
-    <View style={styles.container}>
-      {renderHeader(
-        <View style={styles.turnBadge}>
-          <Text style={styles.turnText}>{turnNum} / {MAX_TURNS}</Text>
-        </View>
-      )}
+    <View style={gStyles.root}>
+      {/* ── Photo backdrop ─────────────────────────────────────── */}
+      <ImageBackground
+        source={scenePhoto}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: PHOTO_HEIGHT }}
+        resizeMode="cover"
+      >
+        {/* Photo tint — birebir mockup değerleri */}
+        <LinearGradient
+          colors={[
+            'rgba(10,14,20,0.15)',
+            'rgba(10,14,20,0.00)',
+            'rgba(10,14,20,0.40)',
+            'rgba(10,14,20,0.95)',
+          ]}
+          locations={[0, 0.30, 0.80, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </ImageBackground>
 
+      {/* Lower dark fade — mockup: top: 50% (ekranın ortası) */}
+      <LinearGradient
+        colors={['transparent', colors.bgDeep, colors.bgDeep]}
+        locations={[0, 0.30, 1]}
+        style={gStyles.lowerFade}
+        pointerEvents="none"
+      />
+
+
+      {/* ── Combo reward toast (floating) ──────────────────────── */}
       {!!rewardText && (
-        <Animated.View pointerEvents="none" style={[styles.rewardToast, { opacity: rewardOpacity }]}>
-          <View style={[styles.rewardToastInner, comboTier ? { borderColor: comboTier.color + '99', shadowColor: comboTier.color } : undefined]}>
-            <Text style={[styles.rewardToastText, comboTier ? { color: comboTier.color } : undefined]}>{rewardText}</Text>
-          </View>
+        <Animated.View pointerEvents="none" style={[gStyles.rewardToast, { opacity: rewardOpacity }]}>
+          <BlurView intensity={24} tint="dark" style={gStyles.rewardToastInner}>
+            <Text style={[gStyles.rewardToastText, comboTier ? { color: comboTier.color } : undefined]}>
+              {rewardText}
+            </Text>
+          </BlurView>
         </Animated.View>
       )}
 
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.gameScroll}>
+      {/* ── Screen content ─────────────────────────────────────── */}
+      <Animated.View
+        style={[
+          gStyles.screenContent,
+          {
+            opacity: sceneEntrance,
+            transform: [{ translateY: sceneEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+          },
+        ]}
+      >
+        {/* Top bar */}
+        <View style={gStyles.topBar}>
+          {/* Scene meta pill */}
+          <BlurView intensity={20} tint="dark" style={gStyles.sceneMeta}>
+            <Animated.View style={[gStyles.sceneMetaDot, { opacity: metaDotPulse }]} />
+            <Text style={gStyles.sceneMetaText} numberOfLines={1}>
+              <Text style={gStyles.sceneMetaLocation}>{scenario.location}</Text>
+            </Text>
+          </BlurView>
 
-        {/* Progress + goal + combo */}
-        <View style={styles.progressSection}>
-          <View style={styles.dotsRow}>
-            {turnHistory.map((t, i) => (
-              <View key={i} style={[styles.dot, { backgroundColor: qColor(t.quality) }]} />
-            ))}
-            {Array.from({ length: MAX_TURNS - turnHistory.length }).map((_, i) => (
-              <View key={`e${i}`} style={[styles.dot, styles.dotEmpty]} />
-            ))}
+          {/* Top actions */}
+          <View style={gStyles.topActions}>
+            {/* Turn counter */}
+            <BlurView intensity={20} tint="dark" style={gStyles.iconBtn}>
+              <Feather name="clock" size={16} color={colors.inkSecondary} />
+            </BlurView>
+            {/* Exit */}
+            <TouchableOpacity onPress={onBack} activeOpacity={0.7}>
+              <BlurView intensity={20} tint="dark" style={gStyles.iconBtn}>
+                <Feather name="x" size={16} color={colors.inkSecondary} />
+              </BlurView>
+            </TouchableOpacity>
           </View>
+        </View>
 
-          <Animated.View
-            style={[
-              styles.flowRail,
-              {
-                transform: [{ scale: flowPulse }],
-                borderColor: livePath === 'smooth' ? '#22C55E' : '#EA580C',
-                backgroundColor: livePath === 'smooth' ? '#DCFCE7' : '#FFEDD5',
-              },
-            ]}
-          >
-            <Text style={[styles.flowRailTitle, { color: livePath === 'smooth' ? '#166534' : '#9A3412' }]}>
-              {livePath === 'smooth' ? 'Clean flow' : 'Flow got rough'}
-            </Text>
-            <Text style={[styles.flowRailSub, { color: livePath === 'smooth' ? '#15803D' : '#C2410C' }]}>
-              {livePath === 'smooth' ? 'Sahne dengede — böyle devam.' : 'Garip seçim akışı zorladı — toparla.'}
-            </Text>
-          </Animated.View>
+        {/* Scene caption — frosted panel below photo area */}
+        <Animated.View
+          style={[
+            gStyles.sceneCaption,
+            {
+              opacity: sceneEntrance,
+              transform: [{ translateY: sceneEntrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+            },
+          ]}
+        >
+          <BlurView intensity={28} tint="dark" style={gStyles.sceneCaptionBlur}>
+            <Text style={gStyles.sceneCaptionEyebrow}>SAHNE {String(turnNum).padStart(2, '0')}</Text>
+            <Text style={gStyles.sceneCaptionText}>{sceneCaptionText}</Text>
+          </BlurView>
+        </Animated.View>
 
-          <View style={styles.progressMeta}>
-            {scenario.mission && (
-              <Text style={styles.sceneGoalText} numberOfLines={1}>🎯 {scenario.mission}</Text>
-            )}
-            <View style={styles.metaChips}>
-              {comboTier && (
-                <Animated.View
-                  style={[
-                    styles.comboCard,
-                    {
-                      transform: [{ scale: comboCardScale }],
-                      borderColor: comboTier.color + 'AA',
-                      backgroundColor: comboTier.glow,
-                      shadowColor: comboTier.color,
-                    },
-                  ]}
-                >
-                  <Text style={styles.comboEmoji}>{comboTier.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.comboHype, { color: comboTier.color }]}>{comboTier.hype}</Text>
-                    <Text style={styles.comboSub}>{comboTier.sub}</Text>
-                  </View>
-                </Animated.View>
-              )}
+        {/* Scrollable dialogue section */}
+        <ScrollView
+          ref={scrollRef}
+          style={gStyles.dialogueScroll}
+          contentContainerStyle={gStyles.dialogueScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Subtle turn history (dimmed) */}
+          {turnHistory.length > 0 && (
+            <View style={gStyles.historyWrap}>
+              {turnHistory.slice(-2).map((t, i) => (
+                <View key={i} style={gStyles.historyRow}>
+                  <View style={[gStyles.historyDot, { backgroundColor: qColor(t.quality) + '99' }]} />
+                  <Text style={gStyles.historyText} numberOfLines={1}>{t.selectedText}</Text>
+                </View>
+              ))}
             </View>
-          </View>
+          )}
+
+          {/* Combo / flow indicator (subtle) */}
+          {(comboTier || livePath === 'friction') && (
+            <Animated.View
+              style={[
+                gStyles.flowBadge,
+                {
+                  transform: [{ scale: flowPulse }],
+                  borderColor: livePath === 'smooth' && comboTier
+                    ? comboTier.color + '66'
+                    : livePath === 'friction'
+                    ? colors.errorDs + '88'
+                    : colors.hairlineStrong,
+                },
+              ]}
+            >
+              {comboTier ? (
+                <Text style={[gStyles.flowBadgeText, { color: comboTier.color }]}>
+                  {comboTier.emoji} {comboTier.hype}
+                </Text>
+              ) : (
+                <Text style={[gStyles.flowBadgeText, { color: colors.errorDs }]}>
+                  Sahne akışı sarsıldı — toparla
+                </Text>
+              )}
+            </Animated.View>
+          )}
+
+          {/* Timer */}
           {answerTimeLeft !== null && answerTimeTotal > 0 && selectedIdx === null && !!options && (
             <Animated.View
               style={[
-                styles.timerWrap,
+                gStyles.timerWrap,
                 {
                   opacity: timerGlow,
                   transform: [{
-                    translateX: timerShake.interpolate({
-                      inputRange: [-1, 0, 1],
-                      outputRange: [-8, 0, 8],
-                    }),
+                    translateX: timerShake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-6, 0, 6] }),
                   }],
                 },
               ]}
             >
-              <View style={styles.timerRow}>
-                <Text style={styles.timerLabel}>Süre baskısı</Text>
-                <Text style={[
-                  styles.timerCount,
-                  answerTimeLeft <= 3 ? styles.timerCountUrgent : { color: timerColor },
-                ]}>
-                  {answerTimeLeft}s
-                </Text>
-              </View>
-              <View style={styles.timerTrack}>
+              <View style={gStyles.timerTrack}>
                 <Animated.View
                   style={[
-                    styles.timerFill,
+                    gStyles.timerFill,
                     {
-                      width: timerProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                      backgroundColor: timerColor,
+                      width: timerProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                      backgroundColor: answerTimeLeft <= 3 ? colors.errorDs : colors.accentWarmSoft,
                     },
                   ]}
                 />
               </View>
               {answerTimeLeft <= 5 && (
-                <Text style={styles.timerPulseHint}>⚡ Hızlan — düşünce süresi bitiyor</Text>
+                <Text style={gStyles.timerHint}>{answerTimeLeft}s</Text>
               )}
             </Animated.View>
           )}
-          {consecutiveBad === 1 && (
-            <Text style={styles.warningText}>
-              {personality === 'friendly'
-                ? '😕 Karşı taraf biraz kafası karıştı — devam edebilirsin'
-                : personality === 'busy'
-                ? '⏱ NPC\'nin sabrı azalıyor...'
-                : '😤 Karşı tarafın sabrı tükenmek üzere'}
-            </Text>
-          )}
-        </View>
 
-        {/* Chat history (WhatsApp-like flow) */}
-        {turnHistory.length > 0 && (
-          <View style={styles.chatHistoryWrap}>
-            <Text style={styles.chatHistoryTitle}>SOHBET AKIŞI</Text>
-            {turnHistory.map((t, i) => (
-              <View key={`chat-${i}`} style={styles.chatTurnBlock}>
-                <View style={styles.npcBubbleRow}>
-                  <View style={styles.npcBubble}>
-                    <Text style={styles.bubbleName}>{persona.name}</Text>
-                    <Text style={styles.npcBubbleText}>{t.npcMessage}</Text>
-                  </View>
-                </View>
-                <View style={styles.userBubbleRow}>
-                  <View style={styles.userBubble}>
-                    <Text style={styles.bubbleNameYou}>Sen</Text>
-                    <Text style={styles.userBubbleText}>{t.selectedText}</Text>
-                  </View>
-                </View>
+          {/* ── NPC card ─────────────────────────────────────────── */}
+          <Animated.View
+            style={[
+              gStyles.npcLine,
+              isRecording && { opacity: 0.52 },
+              {
+                opacity: npcEntrance,
+                transform: [{
+                  translateX: npcEntrance.interpolate({ inputRange: [0, 1], outputRange: [64, 0] }),
+                }],
+              },
+            ]}
+          >
+            {/* Top shimmer line */}
+            <LinearGradient
+              colors={['transparent', colors.accentWarm + '4D', 'transparent']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={gStyles.npcTopLine}
+            />
+            {/* NPC meta row */}
+            <View style={gStyles.npcMeta}>
+              <View style={gStyles.npcAvatar}>
+                <Text style={gStyles.npcAvatarText}>{persona.name[0]}</Text>
               </View>
-            ))}
-          </View>
-        )}
-
-        {/* NPC card */}
-        <Animated.View
-          style={[
-            styles.npcCard,
-            {
-              opacity: npcEntrance,
-              transform: [
-                {
-                  translateX: npcEntrance.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [84, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.npcAvatarWrap}>
-            <Text style={styles.npcAvatarEmoji}>{scenario.emoji}</Text>
-            <View style={[styles.moodPill, { backgroundColor: PERSONALITY_COLOR[personality] + '20' }]}>
-              <Text style={styles.moodPillEmoji}>{MOOD_EMOJI[npcMood]}</Text>
-            </View>
-          </View>
-          <View style={styles.npcContent}>
-            <View style={styles.npcNameRow}>
-              <Text style={styles.npcName}>{persona.name}</Text>
-              <View style={[styles.personalityTag, { borderColor: PERSONALITY_COLOR[personality] + '50' }]}>
-                <Text style={[styles.personalityText, { color: PERSONALITY_COLOR[personality] }]}>
-                  {PERSONALITY_LABEL[personality]}
-                </Text>
-              </View>
+              <Text style={gStyles.npcName}>
+                {persona.name}
+                {npcRoleTr ? <Text style={gStyles.npcRole}> · {npcRoleTr}</Text> : null}
+              </Text>
               {npcMood !== 'neutral' && (
-                <Text style={[styles.npcMoodLabel, {
-                  color: npcMood === 'happy' ? '#3DD68C' : npcMood === 'confused' ? '#F5B800' : '#1B9C5A',
-                }]}>
-                  · {MOOD_LABEL[npcMood]}
-                </Text>
+                <Text style={gStyles.npcMoodEmoji}>{MOOD_EMOJI[npcMood]}</Text>
               )}
             </View>
+
+            {/* NPC speech */}
             {reactionVisible && npcReaction ? (
               <>
                 <Animated.View
                   style={{
                     opacity: npcReplyEntrance,
-                    transform: [{
-                      translateX: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }),
-                    }],
+                    transform: [{ translateX: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [32, 0] }) }],
                   }}
                 >
-                  <Text style={styles.npcReactionText}>{npcReaction}</Text>
+                  <Text style={gStyles.npcText}>"{npcReaction}"</Text>
                 </Animated.View>
-                <Text style={styles.npcPrevText}>{npcMessage}</Text>
+                <Text style={gStyles.npcPrevText}>{npcMessage}</Text>
               </>
             ) : (
-              <Text style={styles.npcText}>{npcMessage}</Text>
+              <Text style={gStyles.npcText}>"{npcMessage}"</Text>
             )}
-          </View>
-        </Animated.View>
 
-        <Text style={styles.yourTurnLabel}>
-          {selectedIdx !== null ? 'NPC TEPKİSİ' : 'CEVABINI SEÇ'}
-        </Text>
+            {/* Translation toggle (hidden by default) */}
+            <TouchableOpacity
+              style={gStyles.npcTranslationRow}
+              onPress={() => setShowTranslation(p => !p)}
+              activeOpacity={0.6}
+            >
+              <Feather name="info" size={11} color={colors.inkTertiary} style={{ marginTop: 1 }} />
+              {showTranslation && npcReaction ? (
+                <Text style={gStyles.npcTranslationText}>{npcReaction}</Text>
+              ) : (
+                <Text style={gStyles.npcTranslationHint}>çeviriyi göster</Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
 
-        {/* Options */}
-        {optionsLoading ? (
-          <View style={styles.loadingWrap} />
-        ) : options ? (
+          {/* ── User prompt card ─────────────────────────────────── */}
           <Animated.View
             style={[
-              styles.optionsList,
+              gStyles.userPrompt,
               {
                 opacity: optionsOpacity,
-                transform: [{
-                  translateY: optionsEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }),
-                }],
+                transform: [{ translateY: optionsEntrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
               },
             ]}
           >
-            {(() => {
-              const center = (options.length - 1) / 2;
-              return options.map((opt, idx) => {
-                const isSelected = selectedIdx === idx;
-                const revealed = selectedIdx !== null;
-                const isDim = revealed && !isSelected;
-                const isHinted = !revealed && hintIdx === idx;
-                const color = revealed ? qColor(opt.quality) : '#E8EDF2';
-                const towardCenter = (center - idx) * 26;
+            <BlurView intensity={22} tint="dark" style={gStyles.userPromptBlur}>
+              {/* Prompt meta row */}
+              <View style={gStyles.promptMeta}>
+                <Text style={gStyles.promptLabel}>
+                  {selectedIdx !== null ? 'CEVABINI VERDİN' : 'SENIN SIRAN'}
+                </Text>
+                {selectedIdx === null && !isRecording && !!scenario.mission && (
+                  <Text style={gStyles.promptHint} numberOfLines={2}>{scenario.mission}</Text>
+                )}
+              </View>
 
-                return (
-                  <Animated.View
-                    key={idx}
-                    style={{
-                      opacity: optionsOpacity,
-                      transform: [
-                        {
-                          translateY: optionsEntrance.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [towardCenter, 0],
-                          }),
-                        },
-                        {
-                          scale: optionsEntrance.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.68, 1],
-                          }),
-                        },
-                      ],
-                    }}
+              {/* Recording state (Variant B) */}
+              {isRecording ? (
+                <View style={gStyles.recordingWrap}>
+                  {/* Waveform */}
+                  <View style={gStyles.waveform}>
+                    {waveAnims.map((anim, i) => (
+                      <Animated.View
+                        key={i}
+                        style={[
+                          gStyles.waveBar,
+                          { transform: [{ scaleY: anim }] },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={gStyles.recordingHint}>{t('scenario.listening')}</Text>
+                  {/* Stop button */}
+                  <TouchableOpacity
+                    style={gStyles.stopBtn}
+                    onPress={stopRecording}
+                    activeOpacity={0.8}
                   >
-                    <TouchableOpacity
-                      style={[
-                        styles.option,
-                        isSelected && { borderColor: color, backgroundColor: color + '14' },
-                        isDim && styles.optionDim,
-                        isHinted && (consecutiveBad >= 2 ? styles.optionHintStrong : styles.optionHint),
-                      ]}
-                      onPress={() => handleSelect(idx)}
-                      disabled={revealed}
-                      activeOpacity={0.72}
-                    >
-                      <Text style={[styles.optionText, isSelected && { color }]}> 
-                        {opt.text}
-                      </Text>
-                      {isSelected && (
+                    <View style={gStyles.stopBtnInner} />
+                  </TouchableOpacity>
+                </View>
+              ) : selectedIdx !== null ? (
+                /* Selected state — show result */
+                <View style={gStyles.selectedWrap}>
+                  {(() => {
+                    const opt = options?.[selectedIdx];
+                    if (!opt) return null;
+                    const c = qColor(opt.quality);
+                    return (
+                      <>
+                        <Text style={[gStyles.selectedText, { color: c }]}>
+                          "{opt.text}"
+                        </Text>
                         <Animated.View
                           style={{
                             opacity: feedbackEntrance,
-                            transform: [{
-                              translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
-                            }],
+                            transform: [{ translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
                           }}
                         >
-                          <Text style={[styles.optionQualityTag, { color }]}> 
-                            {qLabel(opt.quality)}
-                          </Text>
+                          <Text style={[gStyles.qualityTag, { color: c }]}>{qLabel(opt.quality)}</Text>
                         </Animated.View>
-                      )}
-                      {isHinted && <Text style={styles.hintDot}>•</Text>}
-                    </TouchableOpacity>
-                  </Animated.View>
-                );
-              });
-            })()}
+                      </>
+                    );
+                  })()}
+                </View>
+              ) : (
+                /* Idle — options list */
+                <>
+                  {/* Cue text */}
+                  {optionsLoading ? (
+                    <Text style={gStyles.loadingCue}>
+                      {t('scenario.thinking', { name: persona.name })}
+                    </Text>
+                  ) : (
+                    <View style={gStyles.optionsList}>
+                      {(options ?? []).map((opt, idx) => {
+                        const isHinted = hintIdx === idx;
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            style={[gStyles.option, isHinted && gStyles.optionHinted]}
+                            onPress={() => handleSelect(idx)}
+                            activeOpacity={0.68}
+                          >
+                            <Text style={gStyles.optionText}>{opt.text}</Text>
+                            {isHinted && <View style={gStyles.optionHintDot} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Mic row */}
+                  {!optionsLoading && (
+                    <View style={gStyles.micRow}>
+                      {/* Mic button with ripple */}
+                      <View style={gStyles.micButtonWrap}>
+                        {/* Ripple rings */}
+                        <Animated.View
+                          style={[
+                            gStyles.micRippleRing,
+                            { transform: [{ scale: ripple1Scale }], opacity: ripple1Opacity },
+                          ]}
+                        />
+                        <Animated.View
+                          style={[
+                            gStyles.micRippleRing,
+                            { transform: [{ scale: ripple2Scale }], opacity: ripple2Opacity },
+                          ]}
+                        />
+                        <TouchableOpacity
+                          style={gStyles.micButton}
+                          onPressIn={startRecording}
+                          onPressOut={() => { /* recording auto-stops via timer */ }}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="mic" size={22} color={colors.bgDeep} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={gStyles.micInstruction}>
+                        <Text style={gStyles.micInstructionMain}>{t('scenario.speak')}</Text>
+                        <Text style={gStyles.micInstructionSub}>
+                          {t('scenario.chooseAbove')}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+            </BlurView>
           </Animated.View>
-        ) : null}
+        </ScrollView>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+        {/* ── Bottom actions ─────────────────────────────────────── */}
+        <View style={gStyles.bottomActions}>
+          {/* Row 1: CTA pill — sadece seçim yapıldıysa veya erken bitirilebiliyorsa */}
+          {selectedIdx !== null ? (
+            <AnimatedPressable
+              style={gStyles.ctaBtn}
+              onPress={() => { void handleNext(); }}
+              pressScale={0.97}
+            >
+              <Text style={gStyles.ctaBtnText}>
+                {sceneComplete || isLastTurn ? t('scenario.finish') : t('scenario.nextTurn')}
+              </Text>
+            </AnimatedPressable>
+          ) : canFinishEarly ? (
+            <TouchableOpacity
+              style={gStyles.ctaBtnSecondary}
+              onPress={() => setPhase('done')}
+              activeOpacity={0.7}
+            >
+              <Text style={gStyles.ctaBtnSecondaryText}>{t('scenario.finish')}</Text>
+            </TouchableOpacity>
+          ) : null}
 
-      {/* Bottom bar */}
-      <View style={styles.bottomBar}>
-        {selectedIdx !== null ? (
-          <AnimatedPressable style={styles.primaryBtn} onPress={() => { void handleNext(); }} pressScale={0.97}>
-            <Text style={styles.primaryBtnText}>
-              {sceneComplete || isLastTurn ? '🏁 Sahneyi Bitir' : 'Sonraki Tur →'}
-            </Text>
-          </AnimatedPressable>
-        ) : canFinishEarly ? (
-          <TouchableOpacity style={styles.earlyExitBtn} onPress={() => setPhase('done')}>
-            <Text style={styles.earlyExitText}>Sahneyi Bitir</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+          {/* Row 2: Ghost links — mockup Variant A sol/sağ, Variant B kayıt sırasında */}
+          <View style={gStyles.bottomLinks}>
+            <TouchableOpacity
+              style={[gStyles.bottomLink, isRecording && { opacity: 0 }]}
+              onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+              activeOpacity={0.6}
+            >
+              <View style={gStyles.bottomLinkInner}>
+                <Feather name="rotate-ccw" size={12} color={colors.inkTertiary} />
+                <Text style={gStyles.bottomLinkText}>{t('scenario.replay')}</Text>
+              </View>
+            </TouchableOpacity>
+
+            {isRecording ? (
+              <TouchableOpacity
+                style={gStyles.bottomLink}
+                activeOpacity={0.6}
+                onPress={stopRecording}
+              >
+                <Text style={gStyles.bottomLinkText}>{t('scenario.release')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={gStyles.bottomLink}
+                activeOpacity={0.6}
+                onPress={() => setIsRecording(false)}
+              >
+                <View style={gStyles.bottomLinkInner}>
+                  <Text style={gStyles.bottomLinkText}>{t('scenario.write')}</Text>
+                  <Feather name="edit-2" size={12} color={colors.inkTertiary} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -1814,94 +2122,122 @@ Return ONLY valid JSON:
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#F5F7FA', borderBottomWidth: 1, borderBottomColor: '#FFFFFF', gap: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.bgDeep, borderBottomWidth: 1, borderBottomColor: colors.hairline, gap: 12 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.bgMid, borderWidth: 1, borderColor: colors.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
+  backText: { fontFamily: 'InterTight_400Regular', fontSize: 18, color: colors.inkSecondary },
   headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  headerEmoji: { fontSize: 26 },
-  headerTitle: { fontSize: 15, fontWeight: '800', color: '#1A2B3C' },
-  headerLocation: { fontSize: 11, color: '#B0BEC5', marginTop: 1 },
-  turnBadge: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E8EDF2' },
-  turnText: { color: '#1B9C5A', fontSize: 11, fontWeight: '900' },
+  headerEmoji: { fontSize: 22 },
+  headerTitle: { fontFamily: 'InterTight_500Medium', fontSize: 14, color: colors.inkPrimary },
+  headerLocation: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, marginTop: 1 },
+  turnBadge: { backgroundColor: colors.bgMid, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.hairlineStrong },
+  turnText: { fontFamily: 'InterTight_600SemiBold', color: colors.accentWarmSoft, fontSize: 11 },
 
   centerWrap: { flex: 1, paddingHorizontal: 24, paddingTop: 40, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  bigEmoji: { fontSize: 56, marginBottom: 4 },
-  bigTitle: { fontSize: 22, fontWeight: '900', color: '#1A2B3C', textAlign: 'center' },
-  bigMeta: { fontSize: 14, color: '#9AABB8', marginBottom: 8 },
+  bigEmoji: { fontSize: 48, marginBottom: 4 },
+  bigTitle: { fontFamily: 'Fraunces_300Light', fontSize: 24, letterSpacing: -0.5, color: colors.inkPrimary, textAlign: 'center' },
+  bigMeta: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, marginBottom: 8 },
 
-  primaryBtn: { backgroundColor: '#1B9C5A', borderRadius: 16, paddingVertical: 17, paddingHorizontal: 24, alignItems: 'center', width: '100%' },
-  primaryBtnText: { color: '#1A2B3C', fontSize: 16, fontWeight: '800' },
+  primaryBtn: { backgroundColor: colors.inkPrimary, borderRadius: 999, paddingVertical: 17, paddingHorizontal: 24, alignItems: 'center', width: '100%' },
+  primaryBtnText: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 15, letterSpacing: -0.15 },
   ghostBtn: { paddingVertical: 14, alignItems: 'center', width: '100%' },
-  ghostBtnText: { color: '#B0BEC5', fontSize: 14 },
-  earlyExitBtn: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 14, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: '#E8EDF2' },
-  earlyExitText: { color: '#9AABB8', fontSize: 14, fontWeight: '700' },
+  ghostBtnText: { fontFamily: 'InterTight_400Regular', color: colors.inkTertiary, fontSize: 14 },
+  earlyExitBtn: { backgroundColor: colors.bgMid, borderRadius: 999, paddingVertical: 14, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: colors.hairlineStrong },
+  earlyExitText: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 14 },
 
-  introScroll: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 48, gap: 14 },
-  introBadge: { color: '#8B5E45', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  introTitle: { color: '#1A2B3C', fontSize: 26, fontWeight: '900', lineHeight: 34 },
-  introSub: { color: '#9AABB8', fontSize: 14 },
-  quoteBox: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#E2D7CF' },
-  quoteText: { color: '#1A2B3C', fontSize: 17, fontWeight: '700', lineHeight: 26 },
-  missionText: { color: '#8B5E45', fontSize: 13, lineHeight: 20 },
-  howItWorksBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, gap: 6, borderWidth: 1, borderColor: '#E2D7CF' },
-  howTitle: { color: '#8B5E45', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
-  howItem: { color: '#6B7B8D', fontSize: 13, lineHeight: 22 },
-  vocabTitle: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  vocabSubtitle: { fontSize: 14, color: '#6B7B8D' },
-  vocabGrid: { gap: 8 },
-  vocabCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E2D7CF' },
-  vocabWord: { fontSize: 15, fontWeight: '700', color: '#1A2B3C' },
-  vocabMeaning: { fontSize: 13, color: '#8B5E45', fontWeight: '600' },
-  preStartBtn: {
-    backgroundColor: '#A66A4C',
+  introBgPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  introBackBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 36,
+    left: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(10,14,20,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  introScroll: { paddingHorizontal: 24, paddingBottom: 48, gap: 16 },
+  introBadge: { fontFamily: 'InterTight_500Medium', color: colors.accentWarm, fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' },
+  introTitle: { fontFamily: 'Fraunces_300Light', color: colors.inkPrimary, fontSize: 30, lineHeight: 37, letterSpacing: -0.6 },
+  introSub: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 14 },
+  quoteBox: {
     borderRadius: 16,
+    padding: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  quoteText: { fontFamily: 'Fraunces_300Light_Italic', color: colors.inkPrimary, fontSize: 17, lineHeight: 27 },
+  missionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  missionText: { fontFamily: 'InterTight_400Regular', color: colors.accentWarmSoft, fontSize: 13, lineHeight: 20, flex: 1 },
+  howItWorksBox: { backgroundColor: `${colors.bgMid}CC`, borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: colors.hairline },
+  howTitle: { fontFamily: 'InterTight_500Medium', color: colors.accentWarm, fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase', marginBottom: 2 },
+  howItemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  howItemNum: { fontFamily: 'InterTight_600SemiBold', color: colors.accentWarmSoft, fontSize: 12, width: 16, lineHeight: 20 },
+  howItem: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 13, lineHeight: 20, flex: 1 },
+  vocabTitle: { fontFamily: 'Fraunces_300Light', fontSize: 24, letterSpacing: -0.5, color: colors.inkPrimary },
+  vocabSubtitle: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkSecondary },
+  vocabGrid: { gap: 8 },
+  vocabCard: {
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  vocabWord: { fontFamily: 'InterTight_500Medium', fontSize: 15, color: colors.inkPrimary },
+  vocabMeaning: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.accentWarmSoft },
+  preStartBtn: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
     paddingVertical: 17,
     paddingHorizontal: 24,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     width: '100%',
-    shadowColor: '#A66A4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 5,
   },
-  preStartBtnText: { color: '#FFFDF8', fontSize: 16, fontWeight: '800' },
+  preStartBtnText: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 15, letterSpacing: -0.15 },
   challengeIntroCard: {
     width: '100%',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.bgMid,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: colors.hairlineStrong,
     gap: 4,
   },
-  challengeIntroLabel: { color: '#38BDF8', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  challengeIntroTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900' },
-  challengeIntroSub: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
-  challengeIntroTaunt: { color: '#FBBF24', fontSize: 12, fontWeight: '800', marginTop: 4 },
+  challengeIntroLabel: { fontFamily: 'InterTight_500Medium', color: colors.accentWarm, fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' },
+  challengeIntroTitle: { fontFamily: 'Fraunces_300Light', color: colors.inkPrimary, fontSize: 18, letterSpacing: -0.3 },
+  challengeIntroSub: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 12 },
+  challengeIntroTaunt: { fontFamily: 'Fraunces_300Light_Italic', color: colors.accentWarm, fontSize: 13, marginTop: 4 },
 
   // Lost
-  failReactionBox: { width: '100%', backgroundColor: '#FEECEC', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#F7CACA' },
-  failReactionName: { fontSize: 11, fontWeight: '900', color: '#EF4444', letterSpacing: 1, marginBottom: 6 },
-  failReactionText: { fontSize: 16, color: '#1A2B3C', fontWeight: '700', lineHeight: 24 },
-  failTip: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E8EDF2' },
-  failTipText: { fontSize: 13, color: '#6B7B8D', lineHeight: 20 },
+  failReactionBox: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
+  failReactionName: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.errorDs, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
+  failReactionText: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 16, color: colors.inkPrimary, lineHeight: 24 },
+  failTip: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.hairline },
+  failTipText: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
 
   // Game
   gameScroll: { paddingHorizontal: 20, paddingTop: 16 },
   progressSection: { marginBottom: 18, gap: 8 },
   chatHistoryWrap: { marginBottom: 14, gap: 8 },
-  chatHistoryTitle: { fontSize: 10, fontWeight: '900', color: '#B0BEC5', letterSpacing: 1.4, paddingHorizontal: 2 },
+  chatHistoryTitle: { fontSize: 10, fontFamily: 'InterTight_600SemiBold', color: colors.inkTertiary, letterSpacing: 1.4, paddingHorizontal: 2 },
   chatTurnBlock: { gap: 6 },
   npcBubbleRow: { alignItems: 'flex-start' },
   userBubbleRow: { alignItems: 'flex-end' },
   npcBubble: {
     maxWidth: '88%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgMid,
     borderWidth: 1,
-    borderColor: '#E8EDF2',
+    borderColor: colors.hairlineStrong,
     borderRadius: 14,
     borderTopLeftRadius: 6,
     paddingHorizontal: 12,
@@ -1909,205 +2245,201 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     maxWidth: '88%',
-    backgroundColor: '#A66A4C',
+    backgroundColor: 'rgba(40,30,22,0.85)',
     borderWidth: 1,
-    borderColor: '#8B5E45',
+    borderColor: colors.accentGlow,
     borderRadius: 14,
     borderTopRightRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  bubbleName: { fontSize: 10, fontWeight: '900', color: '#1B9C5A', marginBottom: 3, letterSpacing: 0.6 },
-  bubbleNameYou: { fontSize: 10, fontWeight: '900', color: '#F4ECE5', marginBottom: 3, letterSpacing: 0.6, textAlign: 'right' },
-  npcBubbleText: { fontSize: 14, color: '#1A2B3C', lineHeight: 20 },
-  userBubbleText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
+  bubbleName: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.accentWarm, marginBottom: 3, letterSpacing: 1.2 },
+  bubbleNameYou: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.accentWarmSoft, marginBottom: 3, letterSpacing: 1.2, textAlign: 'right' },
+  npcBubbleText: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkPrimary, lineHeight: 20 },
+  userBubbleText: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkPrimary, lineHeight: 20 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  dotEmpty: { backgroundColor: '#E8EDF2' },
+  dotEmpty: { backgroundColor: colors.hairlineStrong },
   progressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, flexWrap: 'wrap', gap: 8 },
-  sceneGoalText: { fontSize: 11, color: '#B0BEC5', flex: 1 },
+  sceneGoalText: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, flex: 1 },
   comboBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
-  comboText: { fontSize: 11, fontWeight: '900' },
-  warningText: { fontSize: 11, color: '#1B9C5A', fontWeight: '700', textAlign: 'center' },
+  comboText: { fontFamily: 'InterTight_500Medium', fontSize: 11 },
+  warningText: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.accentWarmSoft, textAlign: 'center' },
 
-  npcCard: { flexDirection: 'row', gap: 14, marginBottom: 20, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#E8EDF2' },
+  npcCard: { flexDirection: 'row', gap: 14, marginBottom: 20, backgroundColor: 'rgba(40,30,22,0.82)', borderRadius: 18, padding: 18, borderWidth: 1, borderColor: colors.accentGlow },
   npcAvatarWrap: { alignItems: 'center', gap: 6 },
-  npcAvatarEmoji: { fontSize: 30 },
+  npcAvatarEmoji: { fontSize: 28 },
   moodPill: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   moodPillEmoji: { fontSize: 14 },
   npcContent: { flex: 1, gap: 4 },
   npcNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' },
-  npcName: { fontSize: 11, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1 },
+  npcName: { fontFamily: 'InterTight_500Medium', fontSize: 11, color: colors.accentWarm, letterSpacing: 1.2 },
   personalityTag: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
-  personalityText: { fontSize: 9, fontWeight: '800' },
-  npcMoodLabel: { fontSize: 10, fontWeight: '700' },
-  npcText: { fontSize: 18, color: '#1A2B3C', fontWeight: '700', lineHeight: 26 },
-  npcReactionText: { fontSize: 18, color: '#1A2B3C', fontWeight: '700', lineHeight: 26 },
-  npcPrevText: { fontSize: 12, color: '#6B7B8D', marginTop: 4, fontStyle: 'italic' },
+  personalityText: { fontFamily: 'InterTight_500Medium', fontSize: 9 },
+  npcMoodLabel: { fontFamily: 'InterTight_400Regular', fontSize: 10 },
+  npcText: { fontFamily: 'Fraunces_300Light', fontSize: 18, color: colors.inkPrimary, lineHeight: 26, letterSpacing: -0.2 },
+  npcReactionText: { fontFamily: 'Fraunces_300Light', fontSize: 18, color: colors.inkPrimary, lineHeight: 26, letterSpacing: -0.2 },
+  npcPrevText: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 12, color: colors.inkTertiary, marginTop: 4 },
 
-  yourTurnLabel: { fontSize: 10, fontWeight: '900', color: '#B0BEC5', letterSpacing: 1.5, marginBottom: 10 },
+  yourTurnLabel: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.inkTertiary, letterSpacing: 2.6, textTransform: 'uppercase', marginBottom: 10 },
   loadingWrap: { minHeight: 1 },
 
   optionsList: { gap: 10, overflow: 'hidden' },
-  option: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#E8EDF2' },
+  option: { backgroundColor: colors.bgMid, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
   optionDim: { opacity: 0.3 },
-  optionHint: { borderColor: '#D9D2FF', backgroundColor: '#F6F3FF' },
-  optionHintStrong: { borderColor: '#B8ABFF', backgroundColor: '#F1EEFF' },
-  optionText: { color: '#1A2B3C', fontSize: 15, lineHeight: 22 },
-  optionQualityTag: { fontSize: 12, fontWeight: '800', marginTop: 6 },
-  hintDot: { fontSize: 18, color: '#7C6CF2', position: 'absolute', right: 14, top: 14 },
+  optionHint: { borderColor: `${colors.accentWarm}50`, backgroundColor: colors.bgSoft },
+  optionHintStrong: { borderColor: `${colors.accentWarm}88`, backgroundColor: colors.bgSoft },
+  optionText: { fontFamily: 'InterTight_400Regular', color: colors.inkPrimary, fontSize: 15, lineHeight: 22 },
+  optionQualityTag: { fontFamily: 'InterTight_500Medium', fontSize: 12, marginTop: 6 },
+  hintDot: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.accentWarmSoft, position: 'absolute', right: 14, top: 14 },
 
-  bottomBar: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12, backgroundColor: '#F5F7FA', borderTopWidth: 1, borderTopColor: '#E8EDF2' },
+  bottomBar: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12, backgroundColor: colors.bgDeep, borderTopWidth: 1, borderTopColor: colors.hairline },
 
   // Done
   doneScroll: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, alignItems: 'center', gap: 14 },
-  goalRow: { width: '100%', flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1 },
-  goalRowIcon: { fontSize: 20, marginTop: 2 },
-  goalRowStatus: { fontSize: 13, fontWeight: '800', marginBottom: 2 },
-  goalRowText: { fontSize: 12, color: '#9AABB8', lineHeight: 18 },
+  goalRow: { width: '100%', flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: colors.bgMid, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
+  goalRowIcon: { fontSize: 18, marginTop: 2 },
+  goalRowStatus: { fontFamily: 'InterTight_600SemiBold', fontSize: 12, marginBottom: 2 },
+  goalRowText: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.inkSecondary, lineHeight: 18 },
   doneStats: { flexDirection: 'row', gap: 10, width: '100%' },
-  doneStat: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2' },
-  doneStatVal: { fontSize: 22, fontWeight: '900', color: '#1A2B3C' },
-  doneStatLbl: { fontSize: 11, color: '#9AABB8', marginTop: 4 },
-  bestPhraseBox: { width: '100%', backgroundColor: '#F0FAF4', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#D4E8DC' },
-  bestPhraseLabel: { fontSize: 10, fontWeight: '900', color: '#1B9C5A', letterSpacing: 1, marginBottom: 6 },
-  bestPhraseText: { fontSize: 16, color: '#1A2B3C', fontWeight: '700', lineHeight: 24 },
-  replayTitle: { width: '100%', fontSize: 10, fontWeight: '900', color: '#6B7B8D', letterSpacing: 1.5, marginBottom: -4 },
-  replayItem: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: '#E8EDF2' },
+  doneStat: { flex: 1, backgroundColor: colors.bgMid, borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.hairlineStrong },
+  doneStatVal: { fontFamily: 'Fraunces_300Light', fontSize: 26, letterSpacing: -0.5, color: colors.inkPrimary },
+  doneStatLbl: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, marginTop: 4 },
+  bestPhraseBox: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
+  bestPhraseLabel: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.accentWarm, letterSpacing: 2.6, textTransform: 'uppercase', marginBottom: 6 },
+  bestPhraseText: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 16, color: colors.inkPrimary, lineHeight: 24 },
+  replayTitle: { width: '100%', fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.inkTertiary, letterSpacing: 2.6, textTransform: 'uppercase', marginBottom: -4 },
+  replayItem: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: colors.hairline },
   replayHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   replayDot: { width: 7, height: 7, borderRadius: 4 },
-  replayNpc: { fontSize: 11, color: '#B0BEC5', flex: 1 },
-  replayChosen: { fontSize: 13, fontWeight: '700', paddingLeft: 15 },
-  replayBetter: { fontSize: 12, color: '#7C6CF2', paddingLeft: 15, lineHeight: 18 },
-  nativeFlowBadge: { backgroundColor: '#F1EEFF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#D9D2FF' },
-  nativeFlowText: { color: '#7C6CF2', fontSize: 13, fontWeight: '900' },
-  outcomeText: { fontSize: 14, color: '#9AABB8', textAlign: 'center', fontStyle: 'italic', marginTop: -4 },
-  nearMissBadge: { backgroundColor: '#F5B80018', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#F5B80050' },
-  nearMissText: { color: '#F5B800', fontSize: 12, fontWeight: '800' },
-  lostLabel: { backgroundColor: '#FEECEC', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#F7CACA' },
-  lostLabelText: { color: '#EF4444', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  replayNpc: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, flex: 1 },
+  replayChosen: { fontFamily: 'InterTight_500Medium', fontSize: 13, paddingLeft: 15 },
+  replayBetter: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.accentWarmSoft, paddingLeft: 15, lineHeight: 18 },
+  nativeFlowBadge: { backgroundColor: colors.accentGlow, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: `${colors.accentWarm}44` },
+  nativeFlowText: { fontFamily: 'InterTight_500Medium', color: colors.accentWarm, fontSize: 12 },
+  outcomeText: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 14, color: colors.inkSecondary, textAlign: 'center', marginTop: -4 },
+  nearMissBadge: { backgroundColor: `${colors.accentWarmSoft}18`, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: `${colors.accentWarmSoft}50` },
+  nearMissText: { fontFamily: 'InterTight_500Medium', color: colors.accentWarmSoft, fontSize: 12 },
+  lostLabel: { backgroundColor: colors.bgMid, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: colors.hairlineStrong },
+  lostLabelText: { fontFamily: 'InterTight_500Medium', color: colors.errorDs, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' },
 
   lostGradient: { flex: 1, marginHorizontal: 16, marginBottom: 28, borderRadius: 22, paddingHorizontal: 22, paddingVertical: 32, alignItems: 'center', gap: 12 },
   lostGradientDominant: { paddingTop: 40, paddingBottom: 44, gap: 20, justifyContent: 'center' },
   lostDominantTitle: {
+    fontFamily: 'Fraunces_300Light',
     fontSize: 28,
-    fontWeight: '900',
-    color: '#FFF8F5',
+    color: colors.inkPrimary,
     textAlign: 'center',
     lineHeight: 34,
-    letterSpacing: 0.4,
+    letterSpacing: -0.5,
   },
   lostDominantSub: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FECACA',
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 15,
+    color: colors.inkSecondary,
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 4,
   },
   lostNpcWhisper: {
+    fontFamily: 'Fraunces_300Light_Italic',
     fontSize: 14,
-    color: '#A8A29E',
+    color: colors.inkTertiary,
     textAlign: 'center',
-    fontStyle: 'italic',
     lineHeight: 21,
     marginTop: 4,
     paddingHorizontal: 8,
   },
   primaryBtnLostDominant: { paddingVertical: 18, minHeight: 58, width: '100%', marginTop: 12 },
-  primaryBtnTextLostDominant: { fontSize: 16, letterSpacing: 0.2 },
-  lostColdLine: { fontSize: 15, fontStyle: 'italic', color: '#FCA5A5', textAlign: 'center', marginBottom: 4, opacity: 0.95 },
-  lostBigEmoji: { fontSize: 56 },
-  lostLabelOnDark: { backgroundColor: '#FFFFFF18', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#FFFFFF30' },
-  lostLabelTextOnDark: { color: '#FECACA', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  lostHeroTitle: { fontSize: 22, fontWeight: '900', color: '#FFF8F5', textAlign: 'center', lineHeight: 30 },
-  lostHeroSub: { fontSize: 14, color: '#C4B5B5', textAlign: 'center', lineHeight: 22 },
-  lostDismiss: { fontSize: 13, color: '#A8A29E', textAlign: 'center', fontStyle: 'italic', lineHeight: 20, marginTop: 4 },
+  primaryBtnTextLostDominant: { fontSize: 15, letterSpacing: -0.15 },
+  lostColdLine: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 15, color: colors.inkSecondary, textAlign: 'center', marginBottom: 4 },
+  lostBigEmoji: { fontSize: 48 },
+  lostLabelOnDark: { backgroundColor: colors.bgSoft, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: colors.hairlineStrong },
+  lostLabelTextOnDark: { fontFamily: 'InterTight_500Medium', color: colors.errorDs, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' },
+  lostHeroTitle: { fontFamily: 'Fraunces_300Light', fontSize: 24, color: colors.inkPrimary, textAlign: 'center', lineHeight: 30, letterSpacing: -0.5 },
+  lostHeroSub: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkSecondary, textAlign: 'center', lineHeight: 22 },
+  lostDismiss: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 13, color: colors.inkTertiary, textAlign: 'center', lineHeight: 20, marginTop: 4 },
   nearMissCallout: {
     width: '100%',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.bgMid,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: `${colors.accentWarm}44`,
     marginTop: 8,
   },
-  nearMissTitle: { fontSize: 16, fontWeight: '900', color: '#92400E', marginBottom: 6 },
-  nearMissBody: { fontSize: 13, fontWeight: '700', color: '#78350F', lineHeight: 20 },
-  flowTailLine: { fontSize: 13, fontWeight: '800', color: '#FCA5A5', textAlign: 'center', marginTop: 8 },
+  nearMissTitle: { fontFamily: 'Fraunces_300Light', fontSize: 18, color: colors.accentWarm, marginBottom: 6, letterSpacing: -0.3 },
+  nearMissBody: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
+  flowTailLine: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.errorDs, textAlign: 'center', marginTop: 8 },
 
   journeyCard: {
     width: '100%',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.bgSoft,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: colors.hairlineStrong,
     marginTop: 8,
   },
-  journeyLabel: { fontSize: 10, fontWeight: '900', color: '#4F46E5', letterSpacing: 1.2, marginBottom: 6 },
-  journeyText: { fontSize: 13, fontWeight: '700', color: '#312E81', lineHeight: 20 },
+  journeyLabel: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.accentWarm, letterSpacing: 2.6, textTransform: 'uppercase', marginBottom: 6 },
+  journeyText: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
   almostPerfectBanner: {
     width: '100%',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.bgMid,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#6EE7B7',
+    borderColor: colors.hairlineStrong,
     marginTop: 6,
   },
-  almostPerfectTitle: { fontSize: 13, fontWeight: '900', color: '#047857', marginBottom: 4 },
-  almostPerfectBody: { fontSize: 12, fontWeight: '700', color: '#065F46', lineHeight: 18 },
-  failReactionBoxDark: { width: '100%', backgroundColor: '#00000033', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#FFFFFF22' },
-  failReactionNameDark: { fontSize: 11, fontWeight: '900', color: '#FCA5A5', letterSpacing: 1, marginBottom: 6 },
-  failReactionTextDark: { fontSize: 16, color: '#FFF8F5', fontWeight: '700', lineHeight: 24 },
-  failTipDark: { width: '100%', backgroundColor: '#FFFFFF10', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#FFFFFF18' },
-  failTipTextDark: { fontSize: 13, color: '#DDD6D6', lineHeight: 20 },
-  primaryBtnLost: { backgroundColor: '#F97316', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 24, alignItems: 'center', width: '100%', marginTop: 8 },
-  primaryBtnTextLost: { color: '#1A0A06', fontSize: 16, fontWeight: '900' },
+  almostPerfectTitle: { fontFamily: 'InterTight_500Medium', fontSize: 13, color: colors.accentWarm, marginBottom: 4 },
+  almostPerfectBody: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.inkSecondary, lineHeight: 18 },
+  failReactionBoxDark: { width: '100%', backgroundColor: colors.bgSoft, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
+  failReactionNameDark: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.errorDs, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
+  failReactionTextDark: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 16, color: colors.inkPrimary, lineHeight: 24 },
+  failTipDark: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.hairline },
+  failTipTextDark: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
+  primaryBtnLost: { backgroundColor: colors.inkPrimary, borderRadius: 999, paddingVertical: 17, paddingHorizontal: 24, alignItems: 'center', width: '100%', marginTop: 8 },
+  primaryBtnTextLost: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 15, letterSpacing: -0.15 },
   ghostBtnLost: { paddingVertical: 14, alignItems: 'center', width: '100%' },
-  ghostBtnTextLost: { color: '#C4B5FD', fontSize: 14, fontWeight: '700' },
+  ghostBtnTextLost: { fontFamily: 'InterTight_400Regular', color: colors.inkTertiary, fontSize: 14 },
 
   metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end', alignItems: 'center', maxWidth: '52%' },
-  pathChip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, backgroundColor: '#FFFFFF' },
-  pathChipText: { fontSize: 10, fontWeight: '900' },
+  pathChip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, backgroundColor: colors.bgMid },
+  pathChipText: { fontFamily: 'InterTight_500Medium', fontSize: 10 },
   timerWrap: { marginBottom: 12, gap: 6 },
   timerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  timerLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 0.5 },
-  timerCount: { fontSize: 13, fontWeight: '900', color: '#1B9C5A' },
-  timerCountUrgent: { color: '#DC2626', transform: [{ scale: 1.08 }] },
-  timerTrack: { height: 6, borderRadius: 4, backgroundColor: '#E8EDF2', overflow: 'hidden' },
-  timerFill: { height: 6, borderRadius: 4 },
-  timerPulseHint: { fontSize: 11, fontWeight: '800', color: '#EA580C', textAlign: 'center', marginTop: 6 },
+  timerLabel: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, letterSpacing: 0.5 },
+  timerCount: { fontFamily: 'InterTight_600SemiBold', fontSize: 13, color: colors.accentWarmSoft },
+  timerCountUrgent: { color: colors.errorDs, transform: [{ scale: 1.08 }] },
+  timerTrack: { height: 2, borderRadius: 1, backgroundColor: colors.hairlineStrong, overflow: 'hidden' },
+  timerFill: { height: 2, borderRadius: 1 },
+  timerPulseHint: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.errorDs, textAlign: 'center', marginTop: 6 },
 
   flowRail: {
     width: '100%',
     borderRadius: 14,
-    borderWidth: 2,
+    borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginBottom: 12,
   },
-  flowRailTitle: { fontSize: 16, fontWeight: '900', letterSpacing: 0.2 },
-  flowRailSub: { fontSize: 12, fontWeight: '700', marginTop: 4, lineHeight: 18 },
+  flowRailTitle: { fontFamily: 'InterTight_500Medium', fontSize: 15 },
+  flowRailSub: { fontFamily: 'InterTight_400Regular', fontSize: 12, marginTop: 4, lineHeight: 18 },
 
   comboCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderRadius: 14,
-    borderWidth: 2,
+    borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
     maxWidth: '100%',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
-  comboEmoji: { fontSize: 28 },
-  comboHype: { fontSize: 17, fontWeight: '900', letterSpacing: 0.2 },
-  comboSub: { fontSize: 11, fontWeight: '700', color: '#64748B', marginTop: 2 },
+  comboEmoji: { fontSize: 24 },
+  comboHype: { fontFamily: 'Fraunces_300Light', fontSize: 18, letterSpacing: -0.3 },
+  comboSub: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, marginTop: 2 },
 
   rewardToast: {
     position: 'absolute',
@@ -2120,47 +2452,45 @@ const styles = StyleSheet.create({
   },
   rewardToastInner: {
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     paddingVertical: 12,
     paddingHorizontal: 22,
-    backgroundColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
+    overflow: 'hidden',
   },
-  rewardToastText: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
+  rewardToastText: { fontFamily: 'Fraunces_300Light', fontSize: 18, letterSpacing: -0.3, color: colors.inkPrimary },
 
-  doneVictoryHint: { fontSize: 13, color: '#64748B', fontWeight: '700', textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  doneVictoryHint: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, textAlign: 'center', marginTop: 6, lineHeight: 20 },
 
   doneMotivationHero: {
     width: '100%',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.bgMid,
     borderRadius: 18,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.hairlineStrong,
     marginBottom: 4,
   },
   doneMotivationEyebrow: {
+    fontFamily: 'InterTight_500Medium',
     fontSize: 10,
-    fontWeight: '900',
-    color: '#38BDF8',
-    letterSpacing: 1.6,
+    color: colors.accentWarm,
+    letterSpacing: 2.6,
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
   doneMotivationTitle: {
+    fontFamily: 'Fraunces_300Light',
     fontSize: 22,
-    fontWeight: '900',
-    color: '#F8FAFC',
+    letterSpacing: -0.5,
+    color: colors.inkPrimary,
     lineHeight: 28,
     marginBottom: 12,
   },
   doneMotivationBody: {
+    fontFamily: 'InterTight_400Regular',
     fontSize: 14,
-    fontWeight: '700',
-    color: '#CBD5E1',
+    color: colors.inkSecondary,
     lineHeight: 22,
   },
   doneDetailsToggle: {
@@ -2171,15 +2501,622 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   doneDetailsToggleText: {
+    fontFamily: 'InterTight_500Medium',
     fontSize: 13,
-    fontWeight: '800',
-    color: '#1B9C5A',
+    color: colors.accentWarmSoft,
     textDecorationLine: 'underline',
   },
 
-  donePathRow: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#E8EDF2' },
-  donePathLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8' },
-  donePathVal: { fontSize: 13, fontWeight: '900', color: '#1A2B3C' },
-  timeoutNote: { fontSize: 12, color: '#B45309', fontWeight: '700', textAlign: 'center' },
-  doneHintBelow: { fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: -4, lineHeight: 18 },
+  donePathRow: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bgMid, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.hairlineStrong },
+  donePathLabel: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary },
+  donePathVal: { fontFamily: 'InterTight_500Medium', fontSize: 13, color: colors.inkPrimary },
+  timeoutNote: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.accentWarmSoft, textAlign: 'center' },
+  doneHintBelow: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.inkTertiary, textAlign: 'center', marginTop: -4, lineHeight: 18 },
+});
+
+// ─── Game Scene Styles (editorial / photo-realist) ─────────────────────────
+
+const gStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bgDeep,
+  },
+
+  // Lower dark fade — top: 50% of screen (mockup: .lower-fade { top: 50% })
+  lowerFade: {
+    position: 'absolute',
+    top: SCREEN_HEIGHT * 0.50,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  // Ambient warm bloom at center
+  ambientWarm: {
+    position: 'absolute',
+    top: SCREEN_HEIGHT * 0.50,
+    left: 0,
+    right: 0,
+    height: 180,
+    backgroundColor: colors.accentGlow,
+    borderRadius: 999,
+    alignSelf: 'center',
+    width: '100%',
+    opacity: 0.8,
+  },
+
+  // Screen content — full height, column
+  screenContent: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 56 : 40,
+    paddingHorizontal: 22,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
+  },
+
+  // ── Top bar ──────────────────────────────────────────────────
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  sceneMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(10,14,20,0.45)',
+    maxWidth: '60%',
+  },
+
+  sceneMetaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentWarm,
+    shadowColor: colors.accentWarm,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  sceneMetaText: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkSecondary,
+    letterSpacing: 0.04,
+  },
+
+  sceneMetaLocation: {
+    ...typography.bodyMedium,
+    color: colors.inkPrimary,
+  },
+
+  topActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(10,14,20,0.45)',
+  },
+
+  // ── Scene caption ─────────────────────────────────────────────
+  sceneCaption: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    maxWidth: '92%',
+  },
+
+  sceneCaptionBlur: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(10,14,20,0.04)',
+  },
+
+  sceneCaptionEyebrow: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    marginBottom: 5,
+    fontSize: 10,
+  },
+
+  sceneCaptionText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 16,
+    lineHeight: 23,
+    color: colors.inkPrimary,
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+
+  // ── Dialogue scroll ───────────────────────────────────────────
+  dialogueScroll: {
+    flex: 1,
+  },
+
+  dialogueScrollContent: {
+    justifyContent: 'flex-end',
+    flexGrow: 1,
+    gap: 12,
+    paddingTop: 8,
+    paddingBottom: 80,
+  },
+
+  // Dimmed turn history
+  historyWrap: {
+    gap: 4,
+    opacity: 0.45,
+    marginBottom: 4,
+  },
+
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  historyDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+
+  historyText: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkTertiary,
+    flex: 1,
+  },
+
+  // Flow / combo badge
+  flowBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: 'rgba(10,14,20,0.4)',
+  },
+
+  flowBadgeText: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.inkTertiary,
+  },
+
+  // Timer
+  timerWrap: {
+    gap: 4,
+  },
+
+  timerTrack: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.hairlineStrong,
+    overflow: 'hidden',
+  },
+
+  timerFill: {
+    height: 2,
+    borderRadius: 1,
+  },
+
+  timerHint: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.errorDs,
+    textAlign: 'right',
+    marginTop: 2,
+  },
+
+  // ── NPC card ──────────────────────────────────────────────────
+  npcLine: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+    overflow: 'hidden',
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    backgroundColor: 'rgba(40,30,22,0.82)',
+  },
+
+  npcTopLine: {
+    position: 'absolute',
+    top: 0,
+    left: 18,
+    right: 18,
+    height: 1,
+  },
+
+  npcMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+
+  npcAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(107,72,48,1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  npcAvatarText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 11,
+    color: colors.accentWarm,
+  },
+
+  npcName: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkTertiary,
+    letterSpacing: 0.8,
+    flex: 1,
+  },
+
+  npcRole: {
+    ...typography.body,
+    fontSize: 10,
+    color: colors.inkTertiary,
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+
+  npcMoodEmoji: {
+    fontSize: 13,
+  },
+
+  npcText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 18,
+    lineHeight: 27,
+    color: colors.inkPrimary,
+    letterSpacing: -0.3,
+  },
+
+  npcPrevText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+
+  npcTranslationRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+
+  npcTranslationText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    lineHeight: 18,
+    flex: 1,
+  },
+
+  npcTranslationHint: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkTertiary,
+    fontStyle: 'italic',
+  },
+
+  // ── User prompt card ──────────────────────────────────────────
+  userPrompt: {
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+
+  userPromptBlur: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    gap: 12,
+    backgroundColor: 'rgba(10,14,20,0.82)',
+  },
+
+  promptMeta: {
+    gap: 4,
+  },
+
+  promptLabel: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkTertiary,
+    letterSpacing: 2.4,
+  },
+
+  promptHint: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 13,
+    color: colors.inkSecondary,
+    lineHeight: 19,
+  },
+
+  // Options list
+  optionsList: {
+    gap: 8,
+  },
+
+  option: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  optionHinted: {
+    borderColor: colors.accentWarmSoft + '88',
+    backgroundColor: 'rgba(232,181,118,0.06)',
+  },
+
+  optionText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 15,
+    color: colors.inkPrimary,
+    lineHeight: 22,
+    flex: 1,
+  },
+
+  optionHintDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentWarm,
+    marginLeft: 8,
+  },
+
+  // Loading cue
+  loadingCue: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 15,
+    color: colors.inkSecondary,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+  },
+
+  // Selected state
+  selectedWrap: {
+    gap: 8,
+  },
+
+  selectedText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 17,
+    lineHeight: 25,
+    color: colors.inkPrimary,
+    letterSpacing: -0.2,
+  },
+
+  qualityTag: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: colors.inkTertiary,
+  },
+
+  // ── Mic row ───────────────────────────────────────────────────
+  micRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingTop: 4,
+  },
+
+  micButtonWrap: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  micRippleRing: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.accentWarm,
+  },
+
+  micButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.inkPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  micInstruction: {
+    flex: 1,
+    gap: 2,
+  },
+
+  micInstructionMain: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkPrimary,
+  },
+
+  micInstructionSub: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkTertiary,
+  },
+
+  // ── Recording state (Variant B) ───────────────────────────────
+  recordingWrap: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+
+  waveform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    height: 32,
+  },
+
+  waveBar: {
+    width: 3,
+    height: 32,
+    backgroundColor: colors.accentWarm,
+    borderRadius: 2,
+  },
+
+  recordingHint: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkTertiary,
+    letterSpacing: 1.6,
+  },
+
+  stopBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accentWarm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accentWarm,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+
+  stopBtnInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: colors.bgDeep,
+  },
+
+  // ── Bottom actions ─────────────────────────────────────────────
+  bottomActions: {
+    flexDirection: 'column',
+    gap: 8,
+    paddingTop: 8,
+  },
+
+  bottomLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  bottomLink: {
+    paddingVertical: 6,
+  },
+
+  bottomLinkInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+
+  bottomLinkText: {
+    ...typography.body,
+    fontSize: 12,
+    color: colors.inkTertiary,
+  },
+
+  ctaBtn: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  ctaBtnSecondary: {
+    borderRadius: 999,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+
+  ctaBtnSecondaryText: {
+    ...typography.button,
+    fontSize: 14,
+    color: colors.inkSecondary,
+  },
+
+  ctaBtnText: {
+    ...typography.button,
+    fontSize: 14,
+    color: colors.bgDeep,
+  },
+
+  // ── Reward toast ──────────────────────────────────────────────
+  rewardToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 100 : 80,
+    alignSelf: 'center',
+    zIndex: 99,
+  },
+
+  rewardToastInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: 'rgba(10,14,20,0.6)',
+  },
+
+  rewardToastText: {
+    ...typography.eyebrow,
+    fontSize: 11,
+    color: colors.inkPrimary,
+    letterSpacing: 1.4,
+  },
 });

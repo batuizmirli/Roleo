@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Animated, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Easing, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoLinking from 'expo-linking';
 import { useFonts } from 'expo-font';
@@ -10,6 +10,11 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
+import { Fraunces_300Light } from '@expo-google-fonts/fraunces/300Light';
+import { Fraunces_300Light_Italic } from '@expo-google-fonts/fraunces/300Light_Italic';
+import { InterTight_400Regular } from '@expo-google-fonts/inter-tight/400Regular';
+import { InterTight_500Medium } from '@expo-google-fonts/inter-tight/500Medium';
+import { InterTight_600SemiBold } from '@expo-google-fonts/inter-tight/600SemiBold';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FriendChallengeTarget, Scenario, StageResult } from './src/types';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -46,6 +51,8 @@ import { getDailyRunSnapshot, saveDailyRunSnapshot, type DailyRunSnapshot } from
 import { trackEvent } from './src/services/telemetry';
 import type { SceneFlowPath } from './src/types';
 import { computeChallengeOutcome, parseChallengeLink } from './src/services/challengeShare';
+import { colors } from './src/theme/colors';
+import { createTranslator, getUiLanguageFromProfile } from './src/i18n';
 
 type Screen =
   | 'intro'
@@ -81,6 +88,11 @@ export default function App() {
     Poppins_500Medium,
     Poppins_600SemiBold,
     Poppins_700Bold,
+    Fraunces_300Light,
+    Fraunces_300Light_Italic,
+    InterTight_400Regular,
+    InterTight_500Medium,
+    InterTight_600SemiBold,
   });
 
   const [screen, setScreen] = useState<Screen>('onboarding');
@@ -108,6 +120,7 @@ export default function App() {
   const [activeChallenge, setActiveChallenge] = useState<FriendChallengeTarget | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const SW = Dimensions.get('window').width;
   /** Grammar ekranına hangi ekrandan girildiğini ayırt etmek için. */
   const grammarEntryRef = useRef<'home' | 'learn-hub' | 'practice-hub' | 'profile-hub' | 'stage-result'>('stage-result');
   /** Mini oyun / araç ekranlarından geri dönüş hedefi (mevcut ekran anlık kopyası). */
@@ -116,6 +129,7 @@ export default function App() {
   const progressReturnRef = useRef<Screen>('profile-hub');
   const dailyMissionReturnRef = useRef<'home' | 'practice-hub'>('home');
   const dailyRunExitRef = useRef<'home' | 'practice-hub'>('practice-hub');
+  const t = createTranslator(getUiLanguageFromProfile(currentProfile));
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -127,17 +141,9 @@ export default function App() {
       }
 
       try {
-        const profile = JSON.parse(p);
-        const firstSessionState = await AsyncStorage.getItem('firstSessionState');
-        if (firstSessionState === 'pending') {
-          const scenario = getPersonalizedScenario(profile?.language?.code ?? 'es', profile?.identity);
-          setFirstSessionScenario(scenario);
-          setRunType('first');
-          setScreen('intro');
-        } else {
-          setScreen('intro');
-        }
-
+        const parsed = JSON.parse(p);
+        setCurrentProfile(parsed);
+        setScreen('home');
       } catch {
         await AsyncStorage.removeItem('userProfile');
         setScreen('intro');
@@ -178,17 +184,13 @@ export default function App() {
   }, []);
 
   const animateScreenChange = (next: Screen) => {
+    setScreen(next);
+    fadeAnim.setValue(0);
+    slideAnim.setValue(SW * 0.18);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 130, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 8, duration: 130, useNativeDriver: true }),
-    ]).start(() => {
-      setScreen(next);
-      slideAnim.setValue(-8);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      ]).start();
-    });
+      Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
   };
 
   const handleModeSelect = (mode: 'scenarios' | 'stories' | 'phrasebook') => {
@@ -215,6 +217,7 @@ export default function App() {
   const startFirstSession = async () => {
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
+    setCurrentProfile(profile);
     const languageCode = profile?.language?.code ?? 'es';
     const firstScenario = getPersonalizedScenario(languageCode, profile?.identity);
 
@@ -233,6 +236,7 @@ export default function App() {
     dailyMissionReturnRef.current = returnTo;
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
+    setCurrentProfile(profile);
     const languageCode = profile?.language?.code ?? 'es';
     const missionScenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
     const progress = await getProgress();
@@ -256,6 +260,7 @@ export default function App() {
     setRunGoalId(goalId);
     const profileRaw = await AsyncStorage.getItem('userProfile');
     const profile = profileRaw ? JSON.parse(profileRaw) : null;
+    setCurrentProfile(profile);
     const languageCode = profile?.language?.code ?? 'es';
     const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
     const progress = await getProgress();
@@ -329,31 +334,43 @@ export default function App() {
     const minutes = runScenario.estimatedMinutes ?? 3;
     return (
       <View style={runBriefingStyles.container}>
+        <View style={runBriefingStyles.glowWarm} pointerEvents="none" />
+        <View style={runBriefingStyles.glowCool} pointerEvents="none" />
+        <View style={runBriefingStyles.grain} pointerEvents="none" />
         <View style={runBriefingStyles.card}>
-          <Text style={runBriefingStyles.eyebrow}>BUGÜNKÜ ROLEO LOOP</Text>
-          <Text style={runBriefingStyles.title}>Önce ısın, sonra sahneye gir.</Text>
+          <Text style={runBriefingStyles.eyebrow}>{t('run.eyebrow')}</Text>
+          <Text style={runBriefingStyles.title}>
+            {t('run.title.before')} <Text style={runBriefingStyles.titleAccent}>{t('run.title.accent')}</Text>,{'\n'}{t('run.title.after')}
+          </Text>
           <Text style={runBriefingStyles.subtitle}>
-            Bugünkü görev tek akış: kelime refleksi, doğal ton kontrolü, ardından gerçek konuşma provası.
+            {t('run.subtitle')}
           </Text>
 
           <View style={runBriefingStyles.sceneCard}>
-            <Text style={runBriefingStyles.sceneLabel}>Seçili sahne</Text>
+            <Text style={runBriefingStyles.sceneLabel}>{t('run.selectedScene')}</Text>
             <Text style={runBriefingStyles.sceneTitle}>{runScenario.title}</Text>
             <Text style={runBriefingStyles.sceneMeta}>{runScenario.location} · ~{minutes} dk</Text>
           </View>
 
           <View style={runBriefingStyles.stepList}>
-            <Text style={runBriefingStyles.step}>1. Warm-up · Kilit kelimeleri hızlı tanı</Text>
-            <Text style={runBriefingStyles.step}>2. Warm-up · Doğal cümle tonunu ayır</Text>
-            <Text style={runBriefingStyles.step}>3. Scene · Aynı sahneyi baskı altında prova et</Text>
-            <Text style={runBriefingStyles.step}>4. Result · Bir sonraki odak noktanı gör</Text>
+            {[
+              t('run.steps.1'),
+              t('run.steps.2'),
+              t('run.steps.3'),
+              t('run.steps.4'),
+            ].map((step, index) => (
+              <View key={step} style={runBriefingStyles.stepRow}>
+                <Text style={runBriefingStyles.stepNumber}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={runBriefingStyles.step}>{step}</Text>
+              </View>
+            ))}
           </View>
 
           <TouchableOpacity style={runBriefingStyles.primaryBtn} onPress={() => setRunState('flash')} activeOpacity={0.9}>
-            <Text style={runBriefingStyles.primaryText}>Günlük koşuya başla →</Text>
+            <Text style={runBriefingStyles.primaryText}>{t('run.start')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={runBriefingStyles.secondaryBtn} onPress={resetRun} activeOpacity={0.85}>
-            <Text style={runBriefingStyles.secondaryText}>Şimdilik çık</Text>
+            <Text style={runBriefingStyles.secondaryText}>{t('run.exit')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -456,6 +473,7 @@ export default function App() {
             await AsyncStorage.setItem('firstSessionState', onboardingAfterPreview ? 'done' : 'pending');
             const p = await AsyncStorage.getItem('userProfile');
             const prof = p ? JSON.parse(p) : null;
+            setCurrentProfile(prof);
             await trackEvent('onboarding_completed', {
               targetLang: prof?.language?.code,
               nativeLang: prof?.nativeLanguage?.code,
@@ -481,8 +499,13 @@ export default function App() {
     if (screen === 'startup-language') {
       return (
         <StartupLanguageScreen
-          onComplete={() => goTo('home')}
+          onComplete={async () => {
+            const p = await AsyncStorage.getItem('userProfile');
+            setCurrentProfile(p ? JSON.parse(p) : null);
+            goTo('home');
+          }}
           onReset={() => goTo('onboarding')}
+          onSkip={() => goTo('home')}
         />
       );
     }
@@ -692,7 +715,7 @@ export default function App() {
             const wasPreview = runType === 'onboarding-preview';
             if (wasFirst) {
               setRunType('normal');
-              goTo('first-session-next');
+              goTo('home');
               return;
             }
             if (wasPreview) {
@@ -760,9 +783,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: '#F6F0E5' }}>
-        <StatusBar style="dark" />
-        <Animated.View style={{ flex: 1, backgroundColor: '#F6F0E5', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <View style={{ flex: 1, backgroundColor: '#0A0E14' }}>
+        <StatusBar style="light" />
+        <Animated.View style={{ flex: 1, backgroundColor: '#0A0E14', opacity: fadeAnim, transform: [{ translateX: slideAnim }] }}>
           {renderScreen()}
         </Animated.View>
         {showFab && (
@@ -818,90 +841,143 @@ const fabStyles = StyleSheet.create({
 const runBriefingStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F0E5',
+    backgroundColor: colors.bgDeep,
     paddingHorizontal: 24,
     paddingTop: 72,
     paddingBottom: 32,
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  glowWarm: {
+    position: 'absolute',
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    top: -110,
+    right: -120,
+    backgroundColor: colors.accentGlow,
+    opacity: 0.9,
+  },
+  glowCool: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    left: -120,
+    bottom: -90,
+    backgroundColor: 'rgba(95, 124, 168, 0.10)',
+  },
+  grain: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    opacity: 0.5,
   },
   card: {
-    backgroundColor: '#FCF9F8',
-    borderRadius: 26,
+    backgroundColor: 'rgba(18, 24, 34, 0.86)',
+    borderRadius: 28,
     padding: 22,
     borderWidth: 1,
-    borderColor: 'rgba(136, 76, 50, 0.16)',
-    shadowColor: '#333',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
+    borderColor: colors.hairlineStrong,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
     elevation: 4,
   },
   eyebrow: {
-    color: '#B06D50',
+    color: colors.accentWarm,
+    fontFamily: 'InterTight_500Medium',
     fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginBottom: 8,
+    letterSpacing: 2.6,
+    textTransform: 'uppercase',
+    marginBottom: 12,
   },
   title: {
-    color: '#1B1C1C',
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '900',
-    marginBottom: 10,
+    color: colors.inkPrimary,
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.6,
+    marginBottom: 12,
+  },
+  titleAccent: {
+    color: colors.accentWarm,
+    fontFamily: 'Fraunces_300Light_Italic',
   },
   subtitle: {
-    color: '#53433E',
+    color: colors.inkSecondary,
+    fontFamily: 'InterTight_400Regular',
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '600',
-    marginBottom: 18,
+    marginBottom: 20,
   },
   sceneCard: {
-    backgroundColor: '#884C32',
+    backgroundColor: 'rgba(40,30,22,0.86)',
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sceneLabel: {
-    color: 'rgba(255,255,255,0.72)',
+    color: colors.accentWarmSoft,
+    fontFamily: 'InterTight_500Medium',
     fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginBottom: 5,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 7,
   },
   sceneTitle: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
+    color: colors.inkPrimary,
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 21,
+    lineHeight: 27,
+    letterSpacing: -0.3,
   },
   sceneMeta: {
-    color: 'rgba(255,255,255,0.84)',
+    color: colors.inkSecondary,
+    fontFamily: 'InterTight_400Regular',
     fontSize: 13,
-    fontWeight: '700',
     marginTop: 6,
   },
   stepList: {
-    gap: 8,
-    marginBottom: 20,
+    gap: 10,
+    marginBottom: 22,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepNumber: {
+    color: colors.inkTertiary,
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 1,
+    width: 22,
+    textAlign: 'right',
   },
   step: {
-    color: '#53433E',
+    color: colors.inkSecondary,
+    fontFamily: 'InterTight_400Regular',
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: '700',
+    flex: 1,
   },
   primaryBtn: {
-    backgroundColor: '#B06D50',
+    backgroundColor: colors.inkPrimary,
     borderRadius: 999,
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.bgDeep,
+    fontFamily: 'InterTight_600SemiBold',
     fontSize: 15,
-    fontWeight: '900',
   },
   secondaryBtn: {
     marginTop: 10,
@@ -909,8 +985,8 @@ const runBriefingStyles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryText: {
-    color: '#7A5B4A',
+    color: colors.inkTertiary,
+    fontFamily: 'InterTight_500Medium',
     fontSize: 13,
-    fontWeight: '800',
   },
 });

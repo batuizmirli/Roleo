@@ -1,471 +1,393 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Easing,
   PanResponder,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Feather from '@expo/vector-icons/Feather';
 import { colors } from '../theme/colors';
-import { typography } from '../theme/typography';
 
-type Props = {
-  onFinish: () => void;
-};
+const { width: SW } = Dimensions.get('window');
 
-type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
+type Props = { onFinish: () => void };
 
-type IntroFeature = {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-};
-
-type IntroSlide = {
+type Slide = {
   id: string;
+  eyebrow: string;
   heading: string;
+  headingItalic: string;
   lead: string;
-  description: string;
-  features: IntroFeature[];
+  features: { icon: string; title: string; sub: string }[];
 };
 
-const SLIDES: IntroSlide[] = [
+const SLIDES: Slide[] = [
   {
     id: 'welcome',
-    heading: 'Hoş Geldin',
-    lead: 'Konuşmadan önce prova yap.',
-    description: 'Practice real-life conversations before you have them.',
+    eyebrow: '01 / 04',
+    heading: 'Konuşmadan önce',
+    headingItalic: 'prova yap.',
+    lead: 'Gerçek hayat sahnelerini yaşamadan önce dene. Müfredat değil, an.',
     features: [
-      { icon: 'explore', title: 'Gerçek Anlar', subtitle: 'Kafe, seyahat, iş ve sosyal sahneleri prova et.' },
-      { icon: 'mic', title: 'Sahne Provası', subtitle: 'Ne söyleyeceğini gerçek andan önce çalış.' },
-      { icon: 'school', title: 'Prova Geri Bildirimi', subtitle: 'Her turda sahneye daha uygun cevabı seç.' },
+      { icon: 'map-pin',    title: 'Gerçek Anlar',        sub: 'Kafe, seyahat, iş ve sosyal sahneleri prova et.' },
+      { icon: 'mic',        title: 'Sahne Provası',        sub: 'Ne söyleyeceğini gerçek andan önce çalış.' },
+      { icon: 'check',      title: 'Prova Geri Bildirimi', sub: 'Her turda sahneye daha uygun cevabı seç.' },
     ],
   },
   {
     id: 'speak',
-    heading: 'Sahne Modu',
-    lead: 'Gerçek hayat konuşmasını oyun gibi prova et.',
-    description: 'Kısa hazırlık yap, 3 cevap arasından tonu seç, sahnenin nasıl aktığını gör.',
+    eyebrow: '02 / 04',
+    heading: 'Gerçek anı',
+    headingItalic: 'oyun gibi prova et.',
+    lead: '3 cevap seçeneği, ton farkı, sahne akışı. Hepsini konuşmadan önce.',
     features: [
-      { icon: 'local-cafe', title: 'Günlük sahneler', subtitle: 'Kafe, iş, seyahat ve sosyal anlar' },
-      { icon: 'psychology', title: 'Ton farkını gör', subtitle: 'Doğal / idare eder / garip cevap ayrımı' },
-      { icon: 'offline-bolt', title: 'Hemen tekrar et', subtitle: 'Akışı bozan cevabı düzeltip sahneyi yeniden oyna' },
+      { icon: 'coffee',      title: 'Günlük Sahneler',  sub: 'Kafe, iş, seyahat ve sosyal anlar' },
+      { icon: 'sliders',     title: 'Ton Farkını Gör',  sub: 'Doğal / idare eder / garip cevap ayrımı' },
+      { icon: 'refresh-cw',  title: 'Hemen Tekrar Et',  sub: 'Akışı bozan cevabı düzeltip sahneyi yeniden oyna' },
     ],
   },
   {
     id: 'arcade',
-    heading: 'Mini-Game Modları',
-    lead: 'Sahneye girmeden önce ısın.',
-    description: 'Kelime, ton ve telaffuz refleksini kısa oyunlarla hazırla.',
+    eyebrow: '03 / 04',
+    heading: 'Sahneye girmeden',
+    headingItalic: 'önce ısın.',
+    lead: 'Kelime ve ton refleksini kısa oyunlarla hazırla.',
     features: [
-      { icon: 'flash-on', title: 'Flash Pick', subtitle: 'Sahnede işine yarayacak kelime refleksi' },
-      { icon: 'quiz', title: 'True or Fake', subtitle: 'Doğal mı garip mi, hızlı ayırt et' },
-      { icon: 'whatshot', title: 'Combo Sistemi', subtitle: 'Temiz cevapları üst üste getir' },
+      { icon: 'zap',          title: 'Flash Pick',    sub: 'Sahnede işine yarayacak kelime refleksi' },
+      { icon: 'check-circle', title: 'True or Fake',  sub: 'Doğal mı garip mi, hızlı ayırt et' },
+      { icon: 'trending-up',  title: 'Combo Sistemi', sub: 'Temiz cevapları üst üste getir' },
     ],
   },
   {
     id: 'value',
-    heading: 'Sana Ne Katar?',
-    lead: 'Söylemeden önce dene.',
-    description: "Gerçek hayatta söylemeden önce Roleo'da dene.",
+    eyebrow: '04 / 04',
+    heading: 'Söylemeden önce',
+    headingItalic: 'dene.',
+    lead: "Gerçek hayatta yanlış kelimeyi söylemek yerine Roleo'da dene.",
     features: [
-      { icon: 'verified', title: 'Garip anı yakala', subtitle: 'Sahnede neyin tuhaf kaçtığını güvenle gör.' },
-      { icon: 'trending-up', title: 'Tekrarla, düzelt', subtitle: 'Aynı anı yeniden oynayıp daha temiz akış kur.' },
-      { icon: 'chat-bubble-outline', title: 'Ne diyeceğini çalış', subtitle: 'Gerçek konuşmada kullanacağın cevabı önceden prova et.' },
+      { icon: 'eye',            title: 'Garip Anı Yakala',  sub: "Sahnede neyin tuhaf kaçtığını güvenle gör." },
+      { icon: 'edit-2',         title: 'Tekrarla, Düzelt',  sub: 'Aynı anı yeniden oynayıp daha temiz akış kur.' },
+      { icon: 'message-circle', title: 'Ne Diyeceğini Çalış', sub: 'Gerçek konuşmada kullanacağın cevabı önceden prova et.' },
     ],
   },
 ];
 
-const ICON_COLOR = colors.terracottaDark;
-
 export default function RoleoIntroScreen({ onFinish }: Props) {
-  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
-  const indexRef = useRef(0);
-  const transitioningRef = useRef(false);
-  const [nextIndex, setNextIndex] = useState<number | null>(null);
-  const [direction, setDirection] = useState<1 | -1>(1);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value((index + 1) / SLIDES.length)).current;
-  const slide = useMemo(() => SLIDES[index], [index]);
+  const translateX = useRef(new Animated.Value(0)).current;
+
   const isLast = index === SLIDES.length - 1;
-  const cardWidth = Math.min(width - 28, 380);
-  const cardMinHeight = Math.min(Math.max(height * 0.62, 500), 700);
-  const contentWidth = Math.max(cardWidth - 40, 260);
-  const contentHeight = Math.max(cardMinHeight - 96, 380);
+  const slideW = SW; // full screen width; inner padding applied per slide
 
-  const animateTo = (nextIdx: number) => {
-    if (transitioningRef.current || nextIdx === indexRef.current) return;
-    const dir: 1 | -1 = nextIdx > indexRef.current ? 1 : -1;
-    transitioningRef.current = true;
-    setDirection(dir);
-    setNextIndex(nextIdx);
-    slideAnim.setValue(0);
-
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(progressAnim, {
-        toValue: (nextIdx + 1) / SLIDES.length,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]).start(({ finished }) => {
-      if (!finished) return;
-      setIndex(nextIdx);
-      indexRef.current = nextIdx;
-      setNextIndex(null);
-      requestAnimationFrame(() => {
-        slideAnim.setValue(0);
-        transitioningRef.current = false;
-      });
-    });
+  const goToSlide = (nextIdx: number) => {
+    setIndex(nextIdx);
+    Animated.timing(translateX, {
+      toValue: -nextIdx * slideW,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
   };
 
-  const onNext = () => {
-    if (isLast) {
-      onFinish();
-      return;
-    }
-    animateTo(index + 1);
-  };
-
-  const onBack = () => {
-    if (index === 0) return;
-    animateTo(index - 1);
-  };
+  const onNext = () => { if (isLast) { onFinish(); return; } goToSlide(index + 1); };
+  const onBack = () => { if (index > 0) goToSlide(index - 1); };
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderRelease: (_, g) => {
-        if (transitioningRef.current) return;
-        const current = indexRef.current;
-        if (g.dx < -40) {
-          if (current >= SLIDES.length - 1) onFinish();
-          else animateTo(current + 1);
-        } else if (g.dx > 40 && current > 0) {
-          animateTo(current - 1);
-        }
+        if (g.dx < -50) { if (index >= SLIDES.length - 1) onFinish(); else goToSlide(index + 1); }
+        else if (g.dx > 50 && index > 0) goToSlide(index - 1);
       },
     })
   ).current;
 
+  const bottomPad = Math.max(insets.bottom, 16) + 88; // space for CTA
+
   return (
     <View style={styles.root} {...panResponder.panHandlers}>
-      <LinearGradient
-        colors={['#1D3038', '#15343E', '#0E2633']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.leftGlow} />
-      <View style={styles.rightGlow} />
+      {/* Atmosphere glows */}
+      <View style={styles.glow1} pointerEvents="none" />
+      <View style={styles.glow2} pointerEvents="none" />
 
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={onBack} style={[styles.navBtn, index === 0 && styles.hiddenBtn]} disabled={index === 0}>
-            <Text style={[styles.navText, styles.backText]}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.brand}>Roleo</Text>
-          <TouchableOpacity onPress={onFinish} style={styles.navBtn}>
-            <Text style={[styles.navText, styles.skipText]}>Skip</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={[styles.navBtn, index === 0 && { opacity: 0 }]}
+          disabled={index === 0}
+        >
+          <Feather name="arrow-left" size={18} color={colors.inkTertiary} />
+        </TouchableOpacity>
 
-        <View style={styles.centerCanvas}>
-          <View style={[styles.cardWrap, { width: cardWidth }]}>
-            <View style={[styles.glassCard, { minHeight: cardMinHeight }]}>
-              <View style={[styles.contentViewport, { minHeight: contentHeight }]}>
-                <Animated.View
-                  style={[
-                    styles.contentPane,
-                    { width: contentWidth },
-                    {
-                      transform: [{
-                        translateX: slideAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -direction * contentWidth],
-                        }),
-                      }],
-                    },
-                  ]}
-                >
-                  <SlideContent slide={slide} />
-                </Animated.View>
+        <Text style={styles.wordmark}>Roleo</Text>
 
-                {nextIndex !== null ? (
-                  <Animated.View
-                    style={[
-                      styles.contentPane,
-                      { width: contentWidth },
-                      {
-                        transform: [{
-                          translateX: slideAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [direction * contentWidth, 0],
-                          }),
-                        }],
-                      },
-                    ]}
-                  >
-                    <SlideContent slide={SLIDES[nextIndex]} />
-                  </Animated.View>
-                ) : null}
-              </View>
+        <TouchableOpacity onPress={onFinish} style={styles.navBtn}>
+          <Text style={styles.skipText}>Geç</Text>
+        </TouchableOpacity>
+      </View>
 
-              <View style={styles.progressTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
-                />
-              </View>
+      {/* Progress dots */}
+      <View style={styles.dotsRow}>
+        {SLIDES.map((_, i) => (
+          <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+        ))}
+      </View>
+
+      {/* Carousel viewport */}
+      <View style={[styles.viewport, { paddingBottom: bottomPad }]}>
+        <Animated.View
+          style={[
+            styles.slideStrip,
+            { width: SW * SLIDES.length, transform: [{ translateX }] },
+          ]}
+        >
+          {SLIDES.map(slide => (
+            <View key={slide.id} style={{ width: SW }}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16 }}
+              >
+                <SlideBody slide={slide} />
+              </ScrollView>
             </View>
-          </View>
+          ))}
+        </Animated.View>
+      </View>
 
-          <View style={[styles.bottomCtaWrap, { width: cardWidth }]}>
-            <TouchableOpacity style={styles.ctaBtn} onPress={onNext} activeOpacity={0.9} disabled={nextIndex !== null}>
-              <Text style={styles.ctaText}>{isLast ? "Roleo'ya Başla" : 'Devam Et'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
+      {/* CTA */}
+      <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <TouchableOpacity style={styles.cta} onPress={onNext} activeOpacity={0.85}>
+          <Text style={styles.ctaText}>{isLast ? "Roleo'ya Başla" : 'Devam Et'}</Text>
+          <Feather name="arrow-right" size={16} color={colors.bgDeep} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-function SlideContent({ slide }: { slide: IntroSlide }) {
-  const scene = slide.id === 'speak';
+function SlideBody({ slide }: { slide: Slide }) {
   return (
-    <>
-      <View style={styles.headSection}>
-        <Text style={[styles.headline, scene && styles.headlineScene]}>{slide.heading}</Text>
-        <Text style={styles.lead}>{slide.lead}</Text>
-        <Text style={styles.description}>{slide.description}</Text>
-      </View>
-
+    <View style={styles.slideBody}>
+      <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+      <Text style={styles.heading}>
+        {slide.heading}{'\n'}
+        <Text style={styles.headingItalic}>{slide.headingItalic}</Text>
+      </Text>
+      <Text style={styles.lead}>{slide.lead}</Text>
+      <LinearGradient
+        colors={['transparent', `${colors.accentWarm}40`, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.shimmer}
+      />
       <View style={styles.featureList}>
-        {slide.features.map((feature, i) => {
-          const last = i === slide.features.length - 1;
-          return (
-            <View
-              key={`${slide.id}-${i}`}
-              style={[styles.featureRow, !last && styles.featureRowSep]}
-            >
-              <MaterialIcons name={feature.icon} size={24} color={ICON_COLOR} style={styles.featureIcon} />
-              <View style={styles.featureCopy}>
-                <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
-              </View>
+        {slide.features.map((f, i) => (
+          <View
+            key={i}
+            style={[
+              styles.featureRow,
+              i < slide.features.length - 1 && styles.featureRowBorder,
+            ]}
+          >
+            <View style={styles.featureIconCircle}>
+              <Feather name={f.icon as any} size={16} color={colors.accentWarm} />
             </View>
-          );
-        })}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.featureTitle}>{f.title}</Text>
+              <Text style={styles.featureSub}>{f.sub}</Text>
+            </View>
+          </View>
+        ))}
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0F1F29',
+    backgroundColor: colors.bgDeep,
   },
-  leftGlow: {
+
+  glow1: {
     position: 'absolute',
-    top: '26%',
-    left: -90,
-    width: 230,
-    height: 230,
-    borderRadius: 999,
-    backgroundColor: 'rgba(176, 109, 80, 0.16)',
+    width: SW * 0.9,
+    height: SW * 0.9,
+    borderRadius: SW * 0.45,
+    backgroundColor: 'rgba(232,181,118,0.07)',
+    top: -SW * 0.3,
+    right: -SW * 0.3,
   },
-  rightGlow: {
+  glow2: {
     position: 'absolute',
-    bottom: '18%',
-    right: -120,
-    width: 300,
-    height: 300,
-    borderRadius: 999,
-    backgroundColor: 'rgba(246, 240, 229, 0.10)',
+    width: SW * 0.7,
+    height: SW * 0.7,
+    borderRadius: SW * 0.35,
+    backgroundColor: 'rgba(95,124,168,0.06)',
+    bottom: SW * 0.1,
+    left: -SW * 0.25,
   },
-  safe: {
-    flex: 1,
-    paddingTop: 14,
-  },
+
   topBar: {
-    height: 72,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 0,
-    paddingBottom: 0,
-    borderRadius: 18,
-    marginHorizontal: 12,
-    marginTop: 26,
-    marginBottom: 4,
-    backgroundColor: 'rgba(252, 249, 248, 0.04)',
+    paddingHorizontal: 24,
+    paddingBottom: 8,
   },
   navBtn: {
-    minWidth: 48,
+    width: 44,
     height: 44,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  hiddenBtn: {
-    opacity: 0,
-  },
-  navText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontFamily: 'Poppins_600SemiBold',
+  wordmark: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 26,
+    color: colors.accentWarm,
+    letterSpacing: -0.5,
   },
   skipText: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.62)',
-    textAlign: 'right',
-    marginLeft: 'auto',
-  },
-  backText: {
+    fontFamily: 'InterTight_400Regular',
     fontSize: 14,
-    color: 'rgba(255,255,255,0.62)',
+    color: colors.inkTertiary,
+    textAlign: 'right',
   },
-  brand: {
-    color: '#7A7A7A',
-    fontSize: 34,
-    fontFamily: 'Poppins_700Bold',
-    letterSpacing: -0.2,
-  },
-  centerCanvas: {
-    flex: 1,
+
+  dotsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
   },
-  cardWrap: {
-    gap: 16,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.hairlineStrong,
   },
-  glassCard: {
-    borderRadius: 16,
-    padding: 20,
-    backgroundColor: 'rgba(252, 249, 248, 0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
+  dotActive: {
+    width: 20,
+    backgroundColor: colors.accentWarm,
   },
-  contentViewport: {
-    position: 'relative',
+
+  viewport: {
+    flex: 1,
     overflow: 'hidden',
+    paddingTop: 20,
+  },
+  slideStrip: {
+    flexDirection: 'row',
     flex: 1,
   },
-  contentPane: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+
+  slideBody: {
+    paddingBottom: 24,
   },
-  headSection: {
-    marginBottom: 18,
+
+  eyebrow: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 2.6,
+    textTransform: 'uppercase',
+    color: colors.accentWarmSoft,
+    marginBottom: 16,
   },
-  headline: {
-    ...typography.lingua.heading2,
-    color: colors.textPrimary,
-    marginBottom: 4,
+  heading: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 36,
+    color: colors.inkPrimary,
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    marginBottom: 14,
   },
-  /** Sahne Modu slaytı — daha küçük başlık */
-  headlineScene: {
-    fontSize: 22,
-    lineHeight: 28,
+  headingItalic: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.accentWarm,
   },
   lead: {
-    color: 'rgba(59, 49, 38, 0.92)',
-    marginBottom: 6,
-    ...typography.lingua.title2,
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 15,
+    color: colors.inkSecondary,
+    lineHeight: 22,
+    marginBottom: 28,
   },
-  description: {
-    color: colors.textSecondary,
-    ...typography.lingua.description,
-  },
-  featureList: {
+
+  shimmer: {
+    height: 1,
     marginBottom: 24,
+  },
+
+  featureList: {
+    gap: 0,
   },
   featureRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 0,
+    paddingVertical: 16,
   },
-  featureRowSep: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(59, 49, 38, 0.14)',
+  featureRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  featureIcon: {
-    marginTop: 2,
-  },
-  featureCopy: {
-    flex: 1,
-  },
-  featureTitle: {
-    color: colors.textPrimary,
-    ...typography.lingua.title2,
-  },
-  featureSubtitle: {
-    color: 'rgba(83, 67, 62, 0.88)',
-    marginTop: 4,
-    ...typography.lingua.caption,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 99,
-    overflow: 'hidden',
-    backgroundColor: colors.creamMuted,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 99,
-    backgroundColor: colors.terracottaDark,
-  },
-  ctaBtn: {
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: colors.terracottaDark,
+  featureIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: `${colors.accentWarm}12`,
+    borderWidth: 1,
+    borderColor: `${colors.accentWarm}20`,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.terracottaDark,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 6,
+    marginTop: 2,
   },
-  bottomCtaWrap: {
-    marginTop: 'auto',
-    paddingBottom: 2,
+  featureTitle: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 14,
+    color: colors.inkPrimary,
+    marginBottom: 3,
+  },
+  featureSub: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    lineHeight: 17,
+  },
+
+  ctaWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    backgroundColor: colors.bgDeep,
+  },
+  cta: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 17,
+    paddingHorizontal: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   ctaText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 15,
+    color: colors.bgDeep,
   },
 });

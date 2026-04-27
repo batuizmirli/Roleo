@@ -1,5 +1,7 @@
 export const colors = {
-  // Stitch-aligned semantic palette
+  // ─── Legacy palette — kept for backward compat with existing screens ───────
+  // Old semantic colors from pre-design-system era (stitch-aligned palette).
+  // Do not remove; referenced by HomeScreen, ScenarioScreen, etc.
   terracotta: '#B06D50',
   terracottaDark: '#884C32',
   terracottaSoft: '#A56448',
@@ -27,6 +29,7 @@ export const colors = {
   secondaryBorder: '#D6DED0',
   secondaryAccent: '#7D9774',
 
+  // old success: '#7D9774' — preserved below (DS version is #7FB28E)
   success: '#7D9774',
   warning: '#C3914B',
   danger: '#C86C60',
@@ -50,4 +53,28 @@ export const colors = {
   successSoft: '#EAF0E6',
   warningSoft: '#FBF2E4',
   dangerSoft: '#F8E7E4',
-};
+
+  // ─── Design System v2 — CLAUDE.md A3 ─────────────────────────────────────
+  // Zemin — koyu, sinematik
+  bgDeep: '#0A0E14',        // Ana arka plan, en koyu
+  bgMid: '#121822',         // Kart arka planı, ikincil yüzey
+  bgSoft: '#1A2230',        // Üçüncül yüzey, hover state'leri
+
+  // Yazı — yüksek kontrast hiyerarşisi
+  inkPrimary: '#E8EAED',    // Ana metin, başlıklar
+  inkSecondary: '#9BA3AE',  // Alt metin, açıklamalar
+  inkTertiary: '#5B6573',   // Etiket, meta bilgi, ipuçları
+
+  // Akcent — sıcak mum ışığı
+  accentWarm: '#E8B576',                      // Ana vurgu — CTA hover, önemli işaretler
+  accentWarmSoft: '#C99A6A',                  // İkincil sıcak ton, daha bastırılmış
+  accentGlow: 'rgba(232, 181, 118, 0.18)',    // Glow / aura efektleri
+
+  // Çizgiler
+  hairline: 'rgba(255, 255, 255, 0.06)',
+  hairlineStrong: 'rgba(255, 255, 255, 0.12)',
+
+  // Durum (DS versiyonları — mevcut 'success' ve 'danger' korundu)
+  successDs: '#7FB28E',   // DS success — old value '#7D9774' kept as 'success'
+  errorDs: '#C97A6A',     // DS error — yumuşak, asla kırmızı değil
+} as const;

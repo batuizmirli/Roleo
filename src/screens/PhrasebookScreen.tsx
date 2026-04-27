@@ -74,7 +74,7 @@ Return ONLY valid JSON:
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>← Geri</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color={colors.primaryAccent} />
+      <ActivityIndicator size="large" color={colors.accentWarm} />
       <Text style={styles.loadingText}>Phrasebook hazırlanıyor...</Text>
     </View>
   );
@@ -126,27 +126,27 @@ Return ONLY valid JSON:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: { flex: 1, backgroundColor: colors.bgDeep, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   topBack: { position: 'absolute', top: 60, left: 24 },
-  topBackText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
+  topBackText: { fontSize: 15, color: colors.inkSecondary, fontFamily: 'InterTight_600SemiBold' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  backText: { fontSize: 20, color: colors.textPrimary },
-  title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
-  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 28 },
-  catCard: { backgroundColor: colors.surface, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.primaryBorder, overflow: 'hidden' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.bgMid, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.hairlineStrong },
+  backText: { fontSize: 20, color: colors.inkPrimary },
+  title: { fontSize: 20, fontFamily: 'InterTight_600SemiBold', color: colors.inkPrimary },
+  subtitle: { fontSize: 14, color: colors.inkSecondary, marginBottom: 28 },
+  catCard: { backgroundColor: colors.bgMid, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.hairlineStrong, overflow: 'hidden' },
   catHeader: { flexDirection: 'row', alignItems: 'center', padding: 18 },
-  catTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.primaryAccent },
-  chevron: { color: colors.textMuted, fontSize: 12 },
-  phrasesList: { borderTopWidth: 1, borderTopColor: colors.divider, padding: 12, gap: 10 },
-  phraseCard: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 14, gap: 4 },
-  phrase: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
-  meaning: { fontSize: 14, color: colors.primaryAccent },
-  usage: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-  loadingText: { color: colors.textSecondary, fontSize: 14 },
-  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: colors.textOnAccent, fontWeight: '700' },
+  catTitle: { flex: 1, fontSize: 16, fontFamily: 'InterTight_600SemiBold', color: colors.accentWarm },
+  chevron: { color: colors.inkTertiary, fontSize: 12 },
+  phrasesList: { borderTopWidth: 1, borderTopColor: colors.hairline, padding: 12, gap: 10 },
+  phraseCard: { backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, gap: 4 },
+  phrase: { fontSize: 16, fontFamily: 'InterTight_600SemiBold', color: colors.inkPrimary },
+  meaning: { fontSize: 14, color: colors.accentWarm },
+  usage: { fontSize: 12, color: colors.inkTertiary, marginTop: 4 },
+  loadingText: { color: colors.inkSecondary, fontSize: 14 },
+  errorText: { color: colors.errorDs, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  retryText: { color: colors.bgDeep, fontFamily: 'InterTight_600SemiBold' },
 });

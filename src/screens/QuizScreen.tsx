@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 type Question = { question: string; options: string[]; correct: number; explanation: string; };
 type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; };
@@ -36,7 +37,9 @@ export default function QuizScreen({ onBack, scenarioTitle, stageType }: Props) 
       const langName = p.language?.name ?? 'Spanish';
       const goalDesc = p.goalDescription ?? '';
 
-      const sceneContext = scenarioTitle ? `Base the questions on vocabulary and phrases from a "${scenarioTitle}" scene (${stageType ?? 'general'} context).` : 'Mix vocabulary, simple grammar, fill-in-blank, translation questions.';
+      const sceneContext = scenarioTitle
+        ? `Base the questions on vocabulary and phrases from a "${scenarioTitle}" scene (${stageType ?? 'general'} context).`
+        : 'Mix vocabulary, simple grammar, fill-in-blank, translation questions.';
       const prompt = `Create 5 multiple choice quiz questions for a ${langName} beginner learner.
 Goal: "${goalDesc}". Explain in ${nativeLang}.
 ${sceneContext}
@@ -44,7 +47,11 @@ Return ONLY valid JSON array:
 [{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"(why, in ${nativeLang})"}]
 correct is the index (0-3) of the correct answer.`;
 
-      const response = await sendMessage([{ id: '1', role: 'user', content: prompt, timestamp: new Date() }], '', { maxTokens: 1500 });
+      const response = await sendMessage(
+        [{ id: '1', role: 'user', content: prompt, timestamp: new Date() }],
+        '',
+        { maxTokens: 1500 },
+      );
       const parsed = parseModelJson<Question[]>(response, 'array');
       if (parsed?.length) {
         setQuestions(parsed);
@@ -82,7 +89,7 @@ correct is the index (0-3) of the correct answer.`;
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>← Geri</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color="#F5B800" />
+      <ActivityIndicator size="large" color={colors.accentWarm} />
       <Text style={styles.loadingText}>Quiz hazırlanıyor...</Text>
     </View>
   );
@@ -103,12 +110,14 @@ correct is the index (0-3) of the correct answer.`;
     <View style={styles.fullCenter}>
       <Text style={styles.doneEmoji}>{score >= 4 ? '🏆' : score >= 3 ? '⭐' : '📖'}</Text>
       <Text style={styles.doneScore}>{score} / {questions.length}</Text>
-      <Text style={styles.doneLabel}>{score >= 4 ? 'Mükemmel!' : score >= 3 ? 'İyi!' : 'Pratik yapmaya devam et!'}</Text>
-      <TouchableOpacity style={styles.btn} onPress={loadQuiz}>
-        <Text style={styles.btnText}>Yeni Quiz →</Text>
+      <Text style={styles.doneLabel}>
+        {score >= 4 ? 'Mükemmel!' : score >= 3 ? 'İyi!' : 'Pratik yapmaya devam et!'}
+      </Text>
+      <TouchableOpacity style={styles.btnPrimary} onPress={loadQuiz}>
+        <Text style={styles.btnPrimaryText}>Yeni Quiz →</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.backBtnLarge} onPress={onBack}>
-        <Text style={styles.backBtnLargeText}>Ana Menü</Text>
+      <TouchableOpacity style={styles.btnSecondary} onPress={onBack}>
+        <Text style={styles.btnSecondaryText}>Geri Dön</Text>
       </TouchableOpacity>
     </View>
   );
@@ -136,7 +145,9 @@ correct is the index (0-3) of the correct answer.`;
       <View style={styles.options}>
         {q.options.map((opt, idx) => (
           <TouchableOpacity key={idx} style={optionStyle(idx)} onPress={() => handleAnswer(idx)}>
-            <Text style={styles.optionLetter}>{['A', 'B', 'C', 'D'][idx]}</Text>
+            <View style={styles.optionLetterWrap}>
+              <Text style={styles.optionLetter}>{['A', 'B', 'C', 'D'][idx]}</Text>
+            </View>
             <Text style={styles.optionText}>{opt}</Text>
             {selected !== null && idx === q.correct && <Text style={styles.tick}>✓</Text>}
             {selected === idx && idx !== q.correct && <Text style={styles.cross}>✗</Text>}
@@ -151,8 +162,10 @@ correct is the index (0-3) of the correct answer.`;
       )}
 
       {selected !== null && (
-        <TouchableOpacity style={styles.btn} onPress={handleNext}>
-          <Text style={styles.btnText}>{current + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}</Text>
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleNext}>
+          <Text style={styles.btnPrimaryText}>
+            {current + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}
+          </Text>
         </TouchableOpacity>
       )}
       <View style={{ height: 40 }} />
@@ -161,40 +174,131 @@ correct is the index (0-3) of the correct answer.`;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: '#F5F7FA', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: {
+    flex: 1,
+    backgroundColor: colors.bgDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 16,
+  },
   topBack: { position: 'absolute', top: 60, left: 24 },
-  topBackText: { fontSize: 15, color: '#9AABB8', fontWeight: '600' },
+  topBackText: { fontFamily: 'InterTight_500Medium', fontSize: 14, color: colors.inkSecondary },
+
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { flex: 1, fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  progress: { fontSize: 14, color: '#F5B800', fontWeight: '700' },
-  progressBar: { height: 4, backgroundColor: '#FFFFFF', borderRadius: 2, marginBottom: 28 },
-  progressFill: { height: 4, backgroundColor: '#F5B800', borderRadius: 2 },
-  questionCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 24, marginBottom: 20, borderWidth: 1.5, borderColor: '#E8EDF2' },
-  questionText: { fontSize: 18, color: '#1A2B3C', fontWeight: '700', lineHeight: 28 },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: colors.bgMid,
+    borderWidth: 1, borderColor: colors.hairlineStrong,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  backText: { fontSize: 18, color: colors.inkSecondary },
+  title: { flex: 1, fontFamily: 'Fraunces_300Light', fontSize: 22, color: colors.inkPrimary, letterSpacing: -0.3 },
+  progress: { fontFamily: 'InterTight_500Medium', fontSize: 13, color: colors.accentWarm },
+
+  progressBar: { height: 2, backgroundColor: colors.hairlineStrong, borderRadius: 1, marginBottom: 28 },
+  progressFill: { height: 2, backgroundColor: colors.accentWarm, borderRadius: 1 },
+
+  questionCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  questionText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 20,
+    color: colors.inkPrimary,
+    lineHeight: 30,
+    letterSpacing: -0.2,
+  },
+
   options: { gap: 10, marginBottom: 16 },
-  option: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderColor: '#E8EDF2' },
-  optionCorrect: { borderColor: '#3DD68C', backgroundColor: '#0A1A0D' },
-  optionWrong: { borderColor: '#1B9C5A', backgroundColor: '#1A0A0E' },
-  optionDimmed: { opacity: 0.4 },
-  optionLetter: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#F5F7FA', color: '#9AABB8', fontWeight: '800', fontSize: 13, textAlign: 'center', lineHeight: 28 },
-  optionText: { flex: 1, fontSize: 15, color: '#1A2B3C' },
-  tick: { fontSize: 18, color: '#3DD68C', fontWeight: '800' },
-  cross: { fontSize: 18, color: '#1B9C5A', fontWeight: '800' },
-  explanationBox: { backgroundColor: '#1A2A1A', borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2A3A2A' },
-  explanationText: { fontSize: 14, color: '#7BC67E', lineHeight: 22 },
-  btn: { backgroundColor: '#F5B800', borderRadius: 16, padding: 18, alignItems: 'center' },
-  btnText: { color: '#000', fontSize: 16, fontWeight: '800' },
-  loadingText: { color: '#9AABB8', fontSize: 14 },
-  errorText: { color: '#1B9C5A', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#1B9C5A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#1A2B3C', fontWeight: '700' },
+  option: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  optionCorrect: { borderColor: colors.successDs, backgroundColor: `${colors.successDs}15` },
+  optionWrong: { borderColor: colors.errorDs, backgroundColor: `${colors.errorDs}15` },
+  optionDimmed: { opacity: 0.35 },
+  optionLetterWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: colors.bgSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  optionLetter: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 12,
+    color: colors.inkTertiary,
+  },
+  optionText: { flex: 1, fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkPrimary },
+  tick: { fontSize: 16, color: colors.successDs },
+  cross: { fontSize: 16, color: colors.errorDs },
+
+  explanationBox: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${colors.accentWarm}30`,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accentWarm,
+  },
+  explanationText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkSecondary,
+    lineHeight: 20,
+  },
+
+  btnPrimary: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 17,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    width: '100%',
+  },
+  btnPrimaryText: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 15 },
+  btnSecondary: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 999,
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  btnSecondaryText: { fontFamily: 'InterTight_500Medium', color: colors.inkSecondary, fontSize: 14 },
+
+  loadingText: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 14 },
+  errorText: { fontFamily: 'InterTight_400Regular', color: colors.errorDs, fontSize: 14, textAlign: 'center' },
+  retryBtn: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  retryText: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 14 },
+
   doneEmoji: { fontSize: 64 },
-  doneScore: { fontSize: 48, fontWeight: '900', color: '#1A2B3C' },
-  doneLabel: { fontSize: 18, color: '#9AABB8', marginBottom: 16 },
-  backBtnLarge: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, alignItems: 'center', width: '100%' },
-  backBtnLargeText: { color: '#9AABB8', fontWeight: '700', fontSize: 15 },
+  doneScore: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 52,
+    color: colors.inkPrimary,
+    letterSpacing: -1,
+  },
+  doneLabel: { fontFamily: 'InterTight_400Regular', fontSize: 16, color: colors.inkSecondary },
 });

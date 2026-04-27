@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { colors } from '../../theme/colors';
-import { F } from '../../theme/fonts';
 
 type Props = {
   label: string;
@@ -30,7 +29,7 @@ export default function LinguaField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.inkTertiary}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize ?? 'none'}
@@ -42,20 +41,21 @@ export default function LinguaField({
 const styles = StyleSheet.create({
   wrap: { marginBottom: 16 },
   label: {
-    fontFamily: F.medium,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 12,
+    color: colors.inkTertiary,
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
   input: {
-    fontFamily: F.regular,
+    fontFamily: 'InterTight_400Regular',
     fontSize: 15,
-    color: colors.textPrimary,
+    color: colors.inkPrimary,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgSoft,
   },
 });

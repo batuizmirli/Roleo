@@ -87,12 +87,12 @@ const styles = StyleSheet.create({
   },
   dayLbl: {
     fontSize: 10,
-    fontFamily: 'Poppins_500Medium',
-    color: 'rgba(27, 28, 28, 0.45)',
+    fontFamily: 'InterTight_500Medium',
+    color: 'rgba(155, 163, 174, 0.7)',
     textAlign: 'center',
   },
   dayLblToday: {
-    color: 'rgba(27, 28, 28, 0.85)',
-    fontFamily: 'Poppins_600SemiBold',
+    color: 'rgba(232, 181, 118, 0.9)',
+    fontFamily: 'InterTight_600SemiBold',
   },
 });

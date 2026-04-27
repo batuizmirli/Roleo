@@ -75,8 +75,8 @@ export default function PronunciationScreen({ onBack }: Props) {
   const allItems = useMemo<PronunciationItem[]>(() => {
     if (tab === 'letters') return getLetterItems(nativeCode);
     if (tab === 'numbers') return getNumberItems(nativeCode, numberRange);
-    return getWordItems(nativeCode, wordTopic);
-  }, [tab, nativeCode, numberRange, wordTopic]);
+    return getWordItems(targetCode, nativeCode, wordTopic);
+  }, [tab, targetCode, nativeCode, numberRange, wordTopic]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
@@ -111,6 +111,7 @@ export default function PronunciationScreen({ onBack }: Props) {
 
   useEffect(() => {
     if (tab !== 'words') return;
+    if (targetCode !== 'en') return;
     const candidates = filtered
       .slice(0, 24)
       .map((item) => toDictionaryKey(item.speakText ?? item.text))
@@ -131,7 +132,7 @@ export default function PronunciationScreen({ onBack }: Props) {
           setWordDefinitions((prev) => ({ ...prev, [word]: null }));
         });
     });
-  }, [filtered, tab, wordDefinitions]);
+  }, [filtered, tab, targetCode, wordDefinitions]);
 
   const speak = (text: string) => {
     Speech.stop();
@@ -211,7 +212,7 @@ export default function PronunciationScreen({ onBack }: Props) {
           value={query}
           onChangeText={setQuery}
           placeholder="Kelime ara (anadilin veya hedef dilde)"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.inkTertiary}
           style={styles.searchInput}
           autoCapitalize="none"
           autoCorrect={false}
@@ -252,7 +253,7 @@ export default function PronunciationScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
   scrollView: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingTop: 96, paddingBottom: 24 },
   fixedBackBtn: {
@@ -263,37 +264,37 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderColor: colors.primaryBorder,
+    backgroundColor: colors.bgMid,
+    borderColor: colors.hairlineStrong,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fixedBackText: { fontSize: 20, color: colors.textPrimary },
+  fixedBackText: { fontSize: 20, color: colors.inkPrimary },
   header: { marginBottom: 14, paddingLeft: 52 },
-  title: { color: colors.textPrimary, fontSize: 30, fontWeight: '900', fontFamily: 'Poppins_700Bold' },
-  subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
+  title: { color: colors.inkPrimary, fontSize: 28, fontFamily: 'Fraunces_300Light', letterSpacing: -0.4 },
+  subtitle: { color: colors.inkSecondary, fontSize: 13, marginTop: 4, fontFamily: 'InterTight_400Regular' },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tabBtn: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  tabBtnActive: { backgroundColor: colors.primaryAccentSoft, borderColor: colors.primaryAccent },
-  tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  tabTextActive: { color: colors.primaryAccent },
+  tabBtnActive: { backgroundColor: colors.bgSoft, borderColor: colors.accentWarm },
+  tabText: { color: colors.inkSecondary, fontSize: 13, fontFamily: 'InterTight_500Medium' },
+  tabTextActive: { color: colors.accentWarm },
   searchInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    color: colors.textPrimary,
+    color: colors.inkPrimary,
     fontSize: 14,
     marginBottom: 12,
   },
@@ -308,35 +309,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   subTabBtn: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   subTabBtnActive: {
-    backgroundColor: colors.primaryAccentSoft,
-    borderColor: colors.primaryAccent,
+    backgroundColor: colors.bgSoft,
+    borderColor: colors.accentWarm,
   },
-  subTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  subTabTextActive: { color: colors.primaryAccent },
+  subTabText: { color: colors.inkSecondary, fontSize: 12, fontFamily: 'InterTight_500Medium' },
+  subTabTextActive: { color: colors.accentWarm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   card: {
     width: '47%',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     padding: 14,
     minHeight: 130,
     justifyContent: 'space-between',
   },
-  cardText: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', fontFamily: 'Poppins_700Bold' },
-  cardMeaning: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
-  cardDefinition: { color: colors.textMuted, fontSize: 11, marginTop: 6, lineHeight: 15 },
+  cardText: { color: colors.inkPrimary, fontSize: 22, fontFamily: 'Fraunces_300Light', letterSpacing: -0.3 },
+  cardMeaning: { color: colors.inkSecondary, fontSize: 12, marginTop: 4, fontFamily: 'InterTight_400Regular' },
+  cardDefinition: { color: colors.inkTertiary, fontSize: 11, marginTop: 6, lineHeight: 15 },
   speakerWrap: { marginTop: 10, alignSelf: 'flex-end' },
   speakerIcon: { fontSize: 18 },
   emptyWrap: { marginTop: 24, alignItems: 'center' },
-  emptyText: { color: colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.inkTertiary, fontSize: 13 },
 });

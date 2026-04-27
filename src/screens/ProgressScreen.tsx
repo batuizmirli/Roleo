@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { getProgress, getUnlockState, getLevelFromXp, getLevelProgress, getWeeklyXp, ProgressState, UnlockState, DailyXpEntry } from '../services/progress';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Feather from '@expo/vector-icons/Feather';
+import {
+  getProgress, getUnlockState, getLevelFromXp, getLevelProgress,
+  getWeeklyXp, ProgressState, UnlockState, DailyXpEntry,
+} from '../services/progress';
 import { getDailyLeaderboard, LeaderboardEntry } from '../services/leaderboard';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 
-type Props = {
-  onBack: () => void;
-};
+const { width: SW } = Dimensions.get('window');
 
-const STAGE_LABELS: Record<string, string> = {
-  cafe: '☕ Café',
-  travel: '✈️ Travel',
-  business: '💼 Business',
-  social: '🎉 Social',
-  story: '📖 Story',
-  survival: '🛟 Survival',
+type Props = { onBack: () => void };
+
+const STAGE_META: Record<string, { icon: string; label: string }> = {
+  cafe:     { icon: 'coffee',      label: 'Café' },
+  travel:   { icon: 'navigation',  label: 'Seyahat' },
+  business: { icon: 'briefcase',   label: 'İş' },
+  social:   { icon: 'users',       label: 'Sosyal' },
+  story:    { icon: 'book-open',   label: 'Hikaye' },
+  survival: { icon: 'shield',      label: 'Hayatta Kalma' },
 };
 
 export default function ProgressScreen({ onBack }: Props) {
@@ -26,226 +31,422 @@ export default function ProgressScreen({ onBack }: Props) {
   const [leaderboard, setLeaderboard] = useState<(LeaderboardEntry & { rank: number })[]>([]);
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       const p = await getProgress();
       setProgress(p);
       setUnlockState(getUnlockState(p));
       setWeeklyXp(getWeeklyXp(p.dailyXpLog ?? {}));
       setLeaderboard(await getDailyLeaderboard());
-    };
-    load();
+    })();
   }, []);
 
-  if (!progress || !unlockState) return null;
+  if (!progress || !unlockState) return (
+    <View style={styles.container} />
+  );
 
   const xp = progress.xp;
   const level = getLevelFromXp(xp);
   const levelPct = Math.round(getLevelProgress(xp) * 100);
   const totalCompleted = progress.completedScenarioIds.length;
-  const totalSessions = totalCompleted;
+  const maxWeeklyXp = Math.max(...weeklyXp.map(d => d.xp), 1);
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onBack} style={styles.fixedBackBtn}>
-        <Text style={styles.fixedBackText}>←</Text>
+      {/* Atmosphere */}
+      <View style={styles.glow1} pointerEvents="none" />
+
+      {/* Back */}
+      <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+        <Feather name="arrow-left" size={18} color={colors.inkSecondary} />
       </TouchableOpacity>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📈 Gelişimin</Text>
-      </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>GELİŞİMİN</Text>
+          <Text style={styles.title}>
+            Sahne{'\n'}
+            <Text style={styles.titleItalic}>geçmişin</Text>
+          </Text>
+        </View>
 
-      <View style={styles.overviewCard}>
-        <Text style={styles.overviewLabel}>Genel Durum</Text>
-        <Text style={styles.overviewTitle}>Öğrenme ritmin istikrarlı ilerliyor.</Text>
-        <Text style={styles.overviewText}>Ana ekrandaki yoğun kutuları kaldırdım; detaylı ilerleme artık burada daha sakin bir düzende duruyor.</Text>
-      </View>
-
-      {/* XP & Level */}
-      <View style={styles.xpCard}>
-        <View style={styles.xpRow}>
-          <View>
-            <Text style={styles.xpLabel}>SEVİYE</Text>
-            <Text style={styles.xpLevel}>{level}</Text>
+        {/* XP + Level card */}
+        <View style={styles.xpCard}>
+          <LinearGradient
+            colors={['rgba(40,30,22,0.6)', 'rgba(18,24,34,0.8)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(232,181,118,0.18)', 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={styles.shimmer}
+          />
+          <View style={styles.xpRow}>
+            <View>
+              <Text style={styles.xpEyebrow}>SEVİYE</Text>
+              <Text style={styles.xpLevel}>{level}</Text>
+            </View>
+            <View style={styles.xpRight}>
+              <Text style={styles.xpTotal}>{xp} XP</Text>
+              <Text style={styles.xpNext}>{100 - (xp % 100)} XP sonraki seviye</Text>
+            </View>
           </View>
-          <View style={styles.xpRight}>
-            <Text style={styles.xpTotal}>{xp} XP</Text>
-            <Text style={styles.xpNext}>{100 - (xp % 100)} XP sonraki seviye</Text>
+          {/* Progress bar */}
+          <View style={styles.levelBar}>
+            <View style={[styles.levelBarFill, { width: `${levelPct}%` }]} />
+          </View>
+          <Text style={styles.levelPct}>%{levelPct}</Text>
+        </View>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Feather name="zap" size={18} color={colors.accentWarm} />
+            <Text style={styles.statValue}>{progress.streak}</Text>
+            <Text style={styles.statLabel}>Gün serisi</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Feather name="play-circle" size={18} color={colors.accentWarmSoft} />
+            <Text style={styles.statValue}>{totalCompleted}</Text>
+            <Text style={styles.statLabel}>Tamamlanan</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Feather name="unlock" size={18} color={colors.successDs} />
+            <Text style={styles.statValue}>{unlockState.unlockedStageTypes.length}</Text>
+            <Text style={styles.statLabel}>Açık tip</Text>
           </View>
         </View>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${levelPct}%` }]} />
-        </View>
-        <Text style={styles.progressPct}>%{levelPct}</Text>
-      </View>
 
-      {/* Streak & Sessions */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statEmoji}>🔥</Text>
-          <Text style={styles.statValue}>{progress.streak}</Text>
-          <Text style={styles.statLabel}>Gün serisi</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statEmoji}>🎭</Text>
-          <Text style={styles.statValue}>{totalSessions}</Text>
-          <Text style={styles.statLabel}>Tamamlanan sahne</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statEmoji}>🔓</Text>
-          <Text style={styles.statValue}>{unlockState.unlockedStageTypes.length}</Text>
-          <Text style={styles.statLabel}>Açık stage tipi</Text>
-        </View>
-      </View>
-
-      {/* Weekly XP Chart */}
-      <Text style={styles.sectionTitle}>Haftal\u0131k XP</Text>
-      <View style={styles.chartCard}>
-        <View style={styles.chartRow}>
-          {weeklyXp.map((day, i) => {
-            const maxXp = Math.max(...weeklyXp.map(d => d.xp), 1);
-            const heightPct = Math.max((day.xp / maxXp) * 100, 4);
-            const isToday = i === weeklyXp.length - 1;
-            return (
-              <View key={day.date} style={styles.chartCol}>
-                <Text style={styles.chartXp}>{day.xp > 0 ? day.xp : ''}</Text>
-                <View style={styles.chartBarBg}>
-                  <View style={[styles.chartBar, { height: `${heightPct}%` }, isToday && styles.chartBarToday]} />
+        {/* Weekly chart */}
+        <Text style={styles.sectionTitle}>HAFTALIK XP</Text>
+        <View style={styles.chartCard}>
+          <View style={styles.chartRow}>
+            {weeklyXp.map((day, i) => {
+              const heightPct = Math.max((day.xp / maxWeeklyXp) * 100, 4);
+              const isToday = i === weeklyXp.length - 1;
+              return (
+                <View key={day.date} style={styles.chartCol}>
+                  {day.xp > 0 && (
+                    <Text style={styles.chartXpLabel}>{day.xp}</Text>
+                  )}
+                  <View style={styles.chartBarBg}>
+                    <LinearGradient
+                      colors={isToday
+                        ? [colors.accentWarm, colors.accentWarmSoft]
+                        : [colors.bgSoft, colors.bgSoft]}
+                      style={[styles.chartBar, { height: `${heightPct}%` as any }]}
+                    />
+                  </View>
+                  <Text style={[styles.chartDayLabel, isToday && styles.chartDayLabelToday]}>
+                    {day.label}
+                  </Text>
                 </View>
-                <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>{day.label}</Text>
+              );
+            })}
+          </View>
+          <Text style={styles.chartTotal}>
+            Toplam: {weeklyXp.reduce((s, d) => s + d.xp, 0)} XP
+          </Text>
+        </View>
+
+        {/* Stage breakdown */}
+        <Text style={styles.sectionTitle}>STAGE TİPLERİ</Text>
+        <View style={styles.stageCard}>
+          {Object.entries(STAGE_META).map(([key, meta], i) => {
+            const count = (unlockState.stageCounts as any)[key] ?? 0;
+            const isUnlocked = unlockState.unlockedStageTypes.includes(key as any);
+            return (
+              <View
+                key={key}
+                style={[
+                  styles.stageRow,
+                  i < Object.keys(STAGE_META).length - 1 && styles.stageRowBorder,
+                  !isUnlocked && styles.stageRowLocked,
+                ]}
+              >
+                <View style={styles.stageLeft}>
+                  <Feather name={meta.icon as any} size={13} color={isUnlocked ? colors.inkSecondary : colors.inkTertiary} />
+                  <Text style={styles.stageLabel}>{meta.label}</Text>
+                </View>
+                {!isUnlocked ? (
+                  <View style={styles.stageLockBadge}>
+                    <Feather name="lock" size={10} color={colors.inkTertiary} />
+                    <Text style={styles.stageLockText}>Kilitli</Text>
+                  </View>
+                ) : count > 0 ? (
+                  <Text style={styles.stageDone}>{count} tamamlandı</Text>
+                ) : (
+                  <Text style={styles.stageEmpty}>Henüz başlanmadı</Text>
+                )}
               </View>
             );
           })}
         </View>
-        <Text style={styles.chartTotal}>Toplam: {weeklyXp.reduce((s, d) => s + d.xp, 0)} XP</Text>
-      </View>
 
-      {leaderboard.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Günlük Arena</Text>
-          <View style={styles.lbCard}>
-            <Text style={styles.lbHint}>Bugünkü sahne skorlarına göre sıra (yerel).</Text>
-            {leaderboard.slice(0, 6).map(row => (
-              <View key={row.id} style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}>
-                <Text style={styles.lbRank}>#{row.rank}</Text>
-                <Text style={[styles.lbName, row.isSelf && styles.lbNameSelf]} numberOfLines={1}>
-                  {row.name}{row.isSelf ? ' (sen)' : ''}
-                </Text>
-                <Text style={styles.lbScore}>{row.score}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
+        {/* Leaderboard */}
+        {leaderboard.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>GÜNLÜK ARENA</Text>
+            <View style={styles.lbCard}>
+              <Text style={styles.lbHint}>Bugünkü sahne skorları</Text>
+              {leaderboard.slice(0, 6).map(row => (
+                <View
+                  key={row.id}
+                  style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}
+                >
+                  <Text style={styles.lbRank}>#{row.rank}</Text>
+                  <Text
+                    style={[styles.lbName, row.isSelf && styles.lbNameSelf]}
+                    numberOfLines={1}
+                  >
+                    {row.name}{row.isSelf ? ' (sen)' : ''}
+                  </Text>
+                  <Text style={styles.lbScore}>{row.score}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
 
-      {/* Stage Breakdown */}
-      <Text style={styles.sectionTitle}>Stage Tipleri</Text>
-      {Object.entries(STAGE_LABELS).map(([key, label]) => {
-        const count = unlockState.stageCounts[key as keyof typeof unlockState.stageCounts] ?? 0;
-        const isUnlocked = unlockState.unlockedStageTypes.includes(key as any);
-        return (
-          <View key={key} style={[styles.stageRow, !isUnlocked && styles.stageRowLocked]}>
-            <Text style={styles.stageLabel}>{label}</Text>
-            <View style={styles.stageRight}>
-              {!isUnlocked
-                ? <Text style={styles.stageLocked}>🔒 Kilitli</Text>
-                : count > 0
-                ? <Text style={styles.stageDone}>✓ {count} tamamlandı</Text>
-                : <Text style={styles.stageEmpty}>Henüz başlanmadı</Text>
-              }
+        {/* Next goal */}
+        {!!unlockState.nextGoal && (
+          <View style={styles.goalCard}>
+            <View style={styles.goalLeft}>
+              <Feather name="target" size={13} color={colors.accentWarm} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.goalEyebrow}>SIRADAKI HEDEF</Text>
+              <Text style={styles.goalText}>{unlockState.nextGoal}</Text>
             </View>
           </View>
-        );
-      })}
+        )}
 
-      {/* Next Goal */}
-      {!!unlockState.nextGoal && (
-        <View style={styles.goalCard}>
-          <Text style={styles.goalLabel}>SIRADAKI HEDEF</Text>
-          <Text style={styles.goalText}>{unlockState.nextGoal}</Text>
-        </View>
-      )}
-
-      <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  scroll: { paddingHorizontal: spacing.xl, paddingTop: 96, paddingBottom: spacing.xxxl },
-  overviewCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  overviewLabel: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 8 },
-  overviewTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, marginBottom: 8 },
-  overviewText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
-  chartCard: { backgroundColor: colors.primaryCard, borderRadius: 20, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.primaryBorder },
-  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, gap: spacing.xs },
-  chartCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
-  chartXp: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.bold },
-  chartBarBg: { width: '100%', height: 80, backgroundColor: colors.surface, borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
-  chartBar: { width: '100%', backgroundColor: colors.primaryAccent, borderRadius: 6, minHeight: 4 },
-  chartBarToday: { backgroundColor: colors.secondaryAccent },
-  chartLabel: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.semibold },
-  chartLabelToday: { color: colors.primaryAccent, fontWeight: typography.weight.bold },
-  chartTotal: { fontSize: typography.size.xs, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm },
-  fixedBackBtn: {
+  container: { flex: 1, backgroundColor: colors.bgDeep },
+
+  glow1: {
     position: 'absolute',
-    top: 52,
-    left: spacing.xl,
+    width: SW * 0.8,
+    height: SW * 0.8,
+    borderRadius: SW * 0.4,
+    backgroundColor: 'rgba(232,181,118,0.05)',
+    top: -SW * 0.15,
+    right: -SW * 0.2,
+  },
+
+  backBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 36,
+    left: 20,
     zIndex: 100,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.bgMid,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
   },
-  fixedBackText: { fontSize: 20, color: colors.textPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28, paddingLeft: 52 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
-  xpCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  xpLabel: { fontSize: 10, fontWeight: '900', color: colors.primaryAccent, letterSpacing: 1.5 },
-  xpLevel: { fontSize: 48, fontWeight: '900', color: colors.textPrimary, lineHeight: 54 },
+
+  scrollView: { flex: 1 },
+  scroll: { paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 108 : 88, paddingBottom: 40 },
+
+  header: { marginBottom: 28 },
+  eyebrow: { ...typography.eyebrow, color: colors.accentWarm, fontSize: 10, marginBottom: 10 },
+  title: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 34,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
+    lineHeight: 42,
+  },
+  titleItalic: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.accentWarm,
+  },
+
+  // XP card
+  xpCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.18)',
+    overflow: 'hidden',
+    padding: 22,
+    marginBottom: 14,
+    backgroundColor: 'rgba(28,20,14,0.7)',
+  },
+  shimmer: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 1,
+  },
+  xpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  xpEyebrow: { ...typography.eyebrow, fontSize: 9, color: colors.accentWarmSoft, marginBottom: 4 },
+  xpLevel: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 52,
+    color: colors.inkPrimary,
+    lineHeight: 58,
+    letterSpacing: -1,
+  },
   xpRight: { alignItems: 'flex-end' },
-  xpTotal: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
-  xpNext: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-  progressBar: { height: 8, borderRadius: 999, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
-  progressFill: { height: 8, borderRadius: 999, backgroundColor: colors.primaryAccent },
-  progressPct: { fontSize: 11, color: colors.textMuted, marginTop: 6, textAlign: 'right' },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
-  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  statEmoji: { fontSize: 22, marginBottom: 6 },
-  statValue: { fontSize: 24, fontWeight: '900', color: colors.textPrimary },
-  statLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: colors.textSecondary, marginBottom: 12, letterSpacing: 0.5 },
-  stageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E8EDF2' },
-  stageRowLocked: { opacity: 0.45 },
-  stageLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  stageRight: {},
-  stageDone: { fontSize: 13, color: colors.secondaryAccent, fontWeight: '700' },
-  stageEmpty: { fontSize: 13, color: colors.textMuted },
-  stageLocked: { fontSize: 13, color: colors.textMuted },
-  goalCard: { marginTop: 24, backgroundColor: colors.primaryAccentSoft, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E8CBB5' },
-  goalLabel: { fontSize: 10, fontWeight: '900', color: colors.primaryAccent, letterSpacing: 1.5, marginBottom: 8 },
-  goalText: { fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
-  lbCard: {
-    backgroundColor: colors.primaryCard,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
+  xpTotal: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 24,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
   },
-  lbHint: { fontSize: 12, color: colors.textSecondary, marginBottom: 10, lineHeight: 18 },
-  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.primaryBorder },
-  lbRowSelf: { backgroundColor: colors.surface, marginHorizontal: -6, paddingHorizontal: 8, borderRadius: 10, borderBottomWidth: 0 },
-  lbRank: { width: 34, fontSize: 12, fontWeight: '800', color: colors.textMuted },
-  lbName: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  lbNameSelf: { color: colors.secondaryAccent },
-  lbScore: { fontSize: 13, fontWeight: '900', color: colors.primaryAccent },
+  xpNext: { ...typography.body, fontSize: 12, color: colors.inkTertiary, marginTop: 4 },
+  levelBar: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.hairlineStrong,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  levelBarFill: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.accentWarm,
+  },
+  levelPct: { ...typography.body, fontSize: 11, color: colors.inkTertiary, textAlign: 'right' },
+
+  // Stats row
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    gap: 6,
+  },
+  statValue: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 26,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
+  },
+  statLabel: { ...typography.body, fontSize: 10, color: colors.inkTertiary, textAlign: 'center' },
+
+  sectionTitle: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkTertiary,
+    marginBottom: 12,
+  },
+
+  // Chart
+  chartCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 100, gap: 4, marginBottom: 8 },
+  chartCol: { flex: 1, alignItems: 'center', gap: 4 },
+  chartXpLabel: { ...typography.body, fontSize: 9, color: colors.inkTertiary },
+  chartBarBg: {
+    width: '100%',
+    height: 72,
+    backgroundColor: colors.bgSoft,
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  chartBar: { width: '100%', borderRadius: 4, minHeight: 3 },
+  chartDayLabel: { ...typography.body, fontSize: 9, color: colors.inkTertiary },
+  chartDayLabelToday: { color: colors.accentWarm, fontFamily: 'InterTight_500Medium' },
+  chartTotal: { ...typography.body, fontSize: 11, color: colors.inkTertiary, textAlign: 'center' },
+
+  // Stage breakdown
+  stageCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    marginBottom: 28,
+    overflow: 'hidden',
+  },
+  stageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  stageRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  stageRowLocked: { opacity: 0.4 },
+  stageLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stageLabel: { ...typography.bodyMedium, fontSize: 14, color: colors.inkPrimary },
+  stageLockBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  stageLockText: { ...typography.body, fontSize: 11, color: colors.inkTertiary },
+  stageDone: { ...typography.body, fontSize: 12, color: colors.successDs },
+  stageEmpty: { ...typography.body, fontSize: 12, color: colors.inkTertiary },
+
+  // Leaderboard
+  lbCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: 16,
+    marginBottom: 28,
+  },
+  lbHint: { ...typography.body, fontSize: 11, color: colors.inkTertiary, marginBottom: 12 },
+  lbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
+  },
+  lbRowSelf: { backgroundColor: colors.bgSoft, marginHorizontal: -4, paddingHorizontal: 4, borderRadius: 8, borderBottomWidth: 0 },
+  lbRank: { width: 30, ...typography.body, fontSize: 12, color: colors.inkTertiary },
+  lbName: { flex: 1, ...typography.bodyMedium, fontSize: 13, color: colors.inkPrimary },
+  lbNameSelf: { color: colors.accentWarm },
+  lbScore: { ...typography.bodyMedium, fontSize: 13, color: colors.accentWarm },
+
+  // Goal card
+  goalCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.2)',
+    padding: 16,
+    marginBottom: 8,
+  },
+  goalLeft: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: `${colors.accentWarm}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalEyebrow: { ...typography.eyebrow, fontSize: 9, color: colors.accentWarmSoft, marginBottom: 4 },
+  goalText: { ...typography.body, fontSize: 13, color: colors.inkSecondary, lineHeight: 19 },
 });

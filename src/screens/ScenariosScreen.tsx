@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ImageBackground } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  RefreshControl, Dimensions, Platform, ImageBackground,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile, Scenario } from '../types';
 import { getDailyScenarios, getScenarioWithVariant } from '../data/scenarios';
@@ -7,13 +12,29 @@ import { tryParseJson } from '../services/json';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { getProgress, getUnlockState } from '../services/progress';
 import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
+import { useAppTranslation } from '../i18n';
+
+const { width: SW } = Dimensions.get('window');
 
 type Props = {
   onScenarioSelect: (scenario: Scenario) => void;
   onBack: () => void;
 };
 
+const STAGE_META: Record<string, { icon: string; labelKey: string }> = {
+  cafe:     { icon: 'coffee', labelKey: 'scenarios.stage.cafe' },
+  social:   { icon: 'users',  labelKey: 'scenarios.stage.social' },
+  story:    { icon: 'book-open', labelKey: 'scenarios.stage.story' },
+  travel:   { icon: 'navigation', labelKey: 'scenarios.stage.travel' },
+  business: { icon: 'briefcase', labelKey: 'scenarios.stage.business' },
+  survival: { icon: 'shield', labelKey: 'scenarios.stage.survival' },
+};
+
+const STAGE_ORDER = ['cafe', 'social', 'story', 'travel', 'business', 'survival'];
+
 export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
+  const t = useAppTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,175 +45,400 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
 
   const load = async () => {
     const data = await AsyncStorage.getItem('userProfile');
-    if (data) {
-      const p = tryParseJson<UserProfile>(data);
-      if (!p) {
-        await AsyncStorage.removeItem('userProfile');
-        return;
-      }
-      setProfile(p);
-      setScenarios(getDailyScenarios(p.language.code));
-
-      const progress = await getProgress();
-      const unlockState = getUnlockState(progress);
-      setUnlockedTypes(unlockState.unlockedStageTypes);
-      setNextGoal(unlockState.nextGoal);
-      setCompletedIds(progress.completedScenarioIds);
-      setPlayCounts(progress.scenarioPlayCounts ?? {});
-    }
+    if (!data) return;
+    const p = tryParseJson<UserProfile>(data);
+    if (!p) { await AsyncStorage.removeItem('userProfile'); return; }
+    setProfile(p);
+    setScenarios(getDailyScenarios(p.language.code));
+    const progress = await getProgress();
+    const unlockState = getUnlockState(progress);
+    setUnlockedTypes(unlockState.unlockedStageTypes);
+    setNextGoal(unlockState.nextGoal);
+    setCompletedIds(progress.completedScenarioIds);
+    setPlayCounts(progress.scenarioPlayCounts ?? {});
   };
 
   useEffect(() => { load(); }, []);
 
-  const diffColor = (d: string) => d === 'beginner' ? colors.success : d === 'intermediate' ? colors.warning : colors.danger;
-  const diffLabel = (d: string) => d === 'beginner' ? 'Başlangıç' : d === 'intermediate' ? 'Orta' : 'İleri';
-
-  // Unlock chronology: cafe/social/story always open → travel → business → survival
-  const STAGE_ORDER = ['cafe', 'social', 'story', 'travel', 'business', 'survival'];
-  const allGroups = [
-    { key: 'cafe',     title: '☕ Café Stage',     items: scenarios.filter(s => (s.stageType ?? 'social') === 'cafe') },
-    { key: 'social',   title: '🎉 Social Stage',   items: scenarios.filter(s => (s.stageType ?? 'social') === 'social') },
-    { key: 'story',    title: '📖 Story Stage',    items: scenarios.filter(s => (s.stageType ?? 'social') === 'story') },
-    { key: 'travel',   title: '✈️ Travel Stage',   items: scenarios.filter(s => (s.stageType ?? 'social') === 'travel') },
-    { key: 'business', title: '💼 Business Stage', items: scenarios.filter(s => (s.stageType ?? 'social') === 'business') },
-    { key: 'survival', title: '🛟 Survival Stage', items: scenarios.filter(s => (s.stageType ?? 'social') === 'survival') },
-  ].filter(group => group.items.length > 0);
+  const allGroups = STAGE_ORDER.map(key => ({
+    key,
+    items: scenarios.filter(s => (s.stageType ?? 'social') === key),
+  })).filter(g => g.items.length > 0);
 
   const unlockedGroups = allGroups.filter(g => unlockedTypes.includes(g.key));
-  const lockedGroups = allGroups
-    .filter(g => !unlockedTypes.includes(g.key))
-    .sort((a, b) => STAGE_ORDER.indexOf(a.key) - STAGE_ORDER.indexOf(b.key));
+  const lockedGroups = allGroups.filter(g => !unlockedTypes.includes(g.key));
   const stageGroups = [...unlockedGroups, ...lockedGroups];
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onBack} style={styles.fixedBackBtn}>
-        <Text style={styles.fixedBackText}>←</Text>
+      {/* Atmosphere */}
+      <View style={styles.glow1} pointerEvents="none" />
+
+      {/* Back button */}
+      <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+        <Feather name="arrow-left" size={18} color={colors.inkSecondary} />
       </TouchableOpacity>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.primaryAccent} />}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
+            tintColor={colors.accentWarm}
+          />
+        }
       >
-      <View style={styles.header}>
-        <Text style={styles.title}>🎭 Sahneler</Text>
-      </View>
-      <Text style={styles.subtitle}>{profile?.language.flag} {profile?.language.name} · Gerçek hayat simülasyonları</Text>
-
-      {!!nextGoal && <Text style={styles.nextGoal}>🔓 Açılacak sonraki: {nextGoal}</Text>}
-
-      {stageGroups.map((group, gIndex) => {
-        const isUnlocked = unlockedTypes.includes(group.key);
-        return (
-        <View key={group.title} style={styles.groupWrap}>
-          <Text style={styles.groupTitle}>{group.title}</Text>
-          {!isUnlocked && (
-            <View style={styles.lockedCard}>
-              <Text style={styles.lockedTitle}>🔒 Bu stage henüz kilitli</Text>
-              <Text style={styles.lockedDesc}>{nextGoal || 'Önce önceki stage görevlerini tamamla.'}</Text>
-            </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>{t('scenarios.eyebrow')}</Text>
+          <Text style={styles.title}>
+            {t('scenarios.title')}
+          </Text>
+          {!!profile?.language?.name && (
+            <Text style={styles.subtitle}>{t('scenarios.count', { language: profile.language.name, count: scenarios.length })}</Text>
           )}
-
-          {isUnlocked && group.items.map((scenario, index) => {
-            const isDone = completedIds.includes(scenario.id);
-            const playCount = playCounts[scenario.id] ?? 0;
-            const variant = getScenarioWithVariant(scenario, playCount, profile?.identity);
-            const hasBg = !!scenario.backgroundImage;
-            return (
-            <AnimatedPressable key={scenario.id} style={[styles.card, isDone && styles.cardDone]} onPress={() => onScenarioSelect(variant)} delay={gIndex * 120 + index * 50}>
-              {hasBg ? (
-                <ImageBackground
-                  source={{ uri: scenario.backgroundImage }}
-                  style={styles.cardBgImage}
-                  imageStyle={styles.cardBgImageStyle}
-                  resizeMode="cover"
-                >
-                  <View style={styles.cardBgOverlay} />
-                </ImageBackground>
-              ) : null}
-              <View style={styles.cardTop}>
-                <Text style={[styles.emoji, hasBg && styles.emojiOnBg]}>{scenario.emoji}</Text>
-                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                  {isDone && <Text style={[styles.doneTag, hasBg && styles.doneTagOnBg]}>✓ Tamamlandı</Text>}
-                  <View style={[styles.badge, { backgroundColor: hasBg ? 'rgba(255,255,255,0.2)' : diffColor(scenario.difficulty) + '22' }]}>
-                    <Text style={[styles.badgeText, { color: hasBg ? '#fff' : diffColor(scenario.difficulty) }]}>{diffLabel(scenario.difficulty)}</Text>
-                  </View>
-                </View>
-              </View>
-              <Text style={[styles.cardTitle, hasBg && styles.textOnBg]}>{scenario.title}</Text>
-              <Text style={[styles.cardLocation, hasBg && styles.locationOnBg]}>📍 {scenario.location}</Text>
-              {!!scenario.mission && <Text style={[styles.missionText, hasBg && styles.missionOnBg]}>🎯 {scenario.mission}</Text>}
-              {scenario.vocabHints && (
-                <Text style={[styles.vocabPreview, hasBg && styles.vocabOnBg]}>💬 {scenario.vocabHints.slice(0, 3).map(v => v.word).join(' • ')}</Text>
-              )}
-              <View style={[styles.cardFooter, hasBg && styles.cardFooterOnBg]}>
-                <Text style={[styles.startText, hasBg && styles.startTextOnBg]}>{isDone ? 'Tekrar oyna →' : 'Sahneye gir →'}</Text>
-                <Text style={[styles.rewardText, hasBg && styles.rewardOnBg]}>+{scenario.xpReward ?? 20} XP</Text>
-              </View>
-            </AnimatedPressable>
-            );
-          })}
         </View>
-      )})}
-      <View style={{ height: 40 }} />
+
+        {/* Next unlock hint */}
+        {!!nextGoal && (
+          <View style={styles.unlockHint}>
+            <Feather name="lock" size={11} color={colors.accentWarmSoft} />
+            <Text style={styles.unlockHintText}>{nextGoal}</Text>
+          </View>
+        )}
+
+        {/* Stage groups */}
+        {stageGroups.map((group) => {
+          const isUnlocked = unlockedTypes.includes(group.key);
+          const meta = STAGE_META[group.key] ?? { icon: 'circle', labelKey: group.key };
+          return (
+            <View key={group.key} style={styles.groupWrap}>
+              {/* Group header */}
+              <View style={styles.groupHeader}>
+                <Feather name={meta.icon as any} size={12} color={isUnlocked ? colors.accentWarmSoft : colors.inkTertiary} />
+                <Text style={[styles.groupTitle, !isUnlocked && styles.groupTitleLocked]}>
+                  {t(meta.labelKey).toUpperCase()}
+                </Text>
+                {!isUnlocked && (
+                  <View style={styles.lockBadge}>
+                    <Feather name="lock" size={9} color={colors.inkTertiary} />
+                  </View>
+                )}
+              </View>
+
+              {!isUnlocked ? (
+                <View style={styles.lockedCard}>
+                  <Text style={styles.lockedText}>
+                    {nextGoal || t('scenarios.locked')}
+                  </Text>
+                </View>
+              ) : (
+                group.items.map((scenario, index) => {
+                  const isDone = completedIds.includes(scenario.id);
+                  const playCount = playCounts[scenario.id] ?? 0;
+                  const variant = getScenarioWithVariant(scenario, playCount, profile?.identity);
+                  return (
+                    <AnimatedPressable
+                      key={scenario.id}
+                      style={[styles.card, isDone && styles.cardDone]}
+                      onPress={() => onScenarioSelect(variant)}
+                      delay={index * 40}
+                    >
+                      {/* Photo header */}
+                      {!!scenario.backgroundImage && (
+                        <ImageBackground
+                          source={{ uri: scenario.backgroundImage }}
+                          style={styles.cardPhoto}
+                          resizeMode="cover"
+                          imageStyle={{ borderRadius: 0 }}
+                        >
+                          <LinearGradient
+                            colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.72)']}
+                            style={StyleSheet.absoluteFill}
+                          />
+                          {/* Badges over photo */}
+                          <View style={styles.cardPhotoOverlay}>
+                            <Text style={styles.cardEmoji}>{scenario.emoji}</Text>
+                            <View style={styles.cardBadgeRow}>
+                              {isDone && (
+                                <View style={styles.doneBadge}>
+                                  <Feather name="check" size={10} color={colors.successDs} />
+                                  <Text style={styles.doneBadgeText}>{t('scenarios.completed')}</Text>
+                                </View>
+                              )}
+                              <View style={styles.diffBadge}>
+                                <Text style={[styles.diffBadgeText, { color: diffColor(scenario.difficulty) }]}>
+                                  {diffLabel(scenario.difficulty)}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </ImageBackground>
+                      )}
+
+                      {/* Text content */}
+                      <View style={styles.cardBody}>
+                        <Text style={styles.cardTitle}>{scenario.title}</Text>
+                        <View style={styles.cardLocationRow}>
+                          <Feather name="map-pin" size={10} color={colors.inkTertiary} />
+                          <Text style={styles.cardLocation}>{scenario.location}</Text>
+                        </View>
+                        {!!scenario.mission && (
+                          <Text style={styles.cardMission} numberOfLines={2}>{scenario.mission}</Text>
+                        )}
+                        <View style={styles.cardFooter}>
+                          <Text style={styles.cardCta}>
+                            {isDone ? 'Tekrar oyna' : 'Sahneye gir'} →
+                          </Text>
+                          <View style={styles.xpBadge}>
+                            <Text style={styles.xpBadgeText}>+{scenario.xpReward ?? 20} XP</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </AnimatedPressable>
+                  );
+                })
+              )}
+            </View>
+          );
+        })}
+
+        <View style={{ height: 60 }} />
       </ScrollView>
     </View>
   );
 }
 
+const diffColor = (d: string) =>
+  d === 'beginner' ? colors.successDs : d === 'intermediate' ? colors.accentWarm : colors.errorDs;
+const diffLabel = (d: string) =>
+  d === 'beginner' ? 'Başlangıç' : d === 'intermediate' ? 'Orta' : 'İleri';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingTop: 96, paddingBottom: 40 },
-  fixedBackBtn: {
+  container: { flex: 1, backgroundColor: colors.bgDeep },
+
+  glow1: {
     position: 'absolute',
-    top: 52,
+    width: SW * 0.8,
+    height: SW * 0.8,
+    borderRadius: SW * 0.4,
+    backgroundColor: 'rgba(232,181,118,0.05)',
+    top: -SW * 0.2,
+    right: -SW * 0.2,
+  },
+
+  backBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 36,
     left: 20,
     zIndex: 100,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.bgMid,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
   },
-  fixedBackText: { fontSize: 20, color: colors.textPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8, paddingLeft: 52 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, fontFamily: 'Poppins_700Bold' },
-  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
-  nextGoal: { fontSize: 12, color: colors.primaryAccent, marginBottom: 10 },
-  groupWrap: { marginBottom: 18 },
-  groupTitle: { fontSize: 11, fontWeight: '800', color: colors.textMuted, marginBottom: 8, letterSpacing: 1.2, textTransform: 'uppercase' },
-  lockedCard: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.primaryBorder, borderRadius: 14, padding: 14, marginBottom: 10, opacity: 0.85 },
-  lockedTitle: { color: colors.textSecondary, fontWeight: '800', fontSize: 13 },
-  lockedDesc: { color: colors.textMuted, fontSize: 12, marginTop: 5 },
-  card: { overflow: 'hidden', backgroundColor: colors.surface, borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: colors.primaryBorder, shadowColor: '#2F241B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 },
-  cardDone: { borderColor: colors.secondaryBorder, backgroundColor: colors.secondaryCard },
-  cardBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  cardBgImageStyle: { borderRadius: 18 },
-  cardBgOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5,5,5,0.65)', borderRadius: 18 },
-  doneTag: { fontSize: 11, fontWeight: '800', color: colors.primaryAccent },
-  doneTagOnBg: { color: '#FFFDF8' },
-  textOnBg: { color: '#F5EDD8' },
-  locationOnBg: { color: 'rgba(245,237,216,0.6)' },
-  missionOnBg: { color: '#FFF1DD' },
-  vocabOnBg: { color: 'rgba(245,237,216,0.5)' },
-  emojiOnBg: {},
-  cardFooterOnBg: { borderTopColor: 'rgba(245,237,216,0.12)' },
-  startTextOnBg: { color: '#FFF1DD' },
-  rewardOnBg: { color: '#FFF1DD' },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  emoji: { fontSize: 32 },
-  badge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 6, fontFamily: 'Poppins_700Bold' },
-  cardLocation: { fontSize: 13, color: colors.textSecondary, marginBottom: 10 },
-  missionText: { fontSize: 12, color: colors.primaryAccent, marginBottom: 8 },
-  vocabPreview: { fontSize: 12, color: colors.textMuted, marginBottom: 14 },
-  cardFooter: { borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  startText: { fontSize: 14, fontWeight: '700', color: colors.primaryAccent },
-  rewardText: { fontSize: 12, fontWeight: '800', color: colors.secondaryAccent },
+
+  scrollView: { flex: 1 },
+  scroll: { paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 108 : 88, paddingBottom: 40 },
+
+  header: { marginBottom: 24 },
+  eyebrow: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    fontSize: 10,
+    marginBottom: 12,
+  },
+  title: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 32,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
+    lineHeight: 40,
+    marginBottom: 8,
+  },
+  titleItalic: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.accentWarm,
+  },
+  subtitle: {
+    ...typography.body,
+    fontSize: 13,
+    color: colors.inkTertiary,
+  },
+
+  unlockHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.bgMid,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 20,
+  },
+  unlockHintText: {
+    ...typography.body,
+    fontSize: 12,
+    color: colors.inkSecondary,
+    flex: 1,
+  },
+
+  groupWrap: { marginBottom: 28 },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 12,
+  },
+  groupTitle: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkSecondary,
+    letterSpacing: 2,
+  },
+  groupTitleLocked: { color: colors.inkTertiary },
+  lockBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.bgSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  lockedCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: 16,
+    opacity: 0.6,
+  },
+  lockedText: {
+    ...typography.body,
+    fontSize: 13,
+    color: colors.inkTertiary,
+    lineHeight: 19,
+  },
+
+  card: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden',
+  },
+  cardDone: { borderColor: colors.hairlineStrong },
+
+  cardPhoto: {
+    width: '100%',
+    height: 130,
+    justifyContent: 'flex-end',
+  },
+  cardPhotoOverlay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    padding: 12,
+  },
+  cardBody: {
+    padding: 14,
+    paddingTop: 12,
+  },
+  cardEmoji: { fontSize: 26 },
+  cardBadgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+
+  doneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${colors.successDs}18`,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  doneBadgeText: {
+    ...typography.body,
+    fontSize: 10,
+    color: colors.successDs,
+  },
+
+  diffBadge: {
+    backgroundColor: colors.bgSoft,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  diffBadgeText: {
+    ...typography.bodyMedium,
+    fontSize: 10,
+  },
+
+  cardTitle: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 18,
+    color: colors.inkPrimary,
+    letterSpacing: -0.2,
+    lineHeight: 25,
+    marginBottom: 6,
+  },
+
+  cardLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  cardLocation: {
+    ...typography.body,
+    fontSize: 12,
+    color: colors.inkTertiary,
+  },
+
+  cardMission: {
+    ...typography.body,
+    fontSize: 12,
+    color: colors.inkSecondary,
+    lineHeight: 18,
+    marginBottom: 10,
+    fontStyle: 'italic',
+  },
+
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    marginTop: 4,
+  },
+  cardCta: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.accentWarm,
+  },
+  xpBadge: {
+    backgroundColor: `${colors.accentWarm}14`,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  xpBadgeText: {
+    ...typography.bodyMedium,
+    fontSize: 11,
+    color: colors.accentWarm,
+  },
 });

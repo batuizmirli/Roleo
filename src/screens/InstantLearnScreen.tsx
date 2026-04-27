@@ -104,7 +104,7 @@ MİNİ SAHNE:
           <TextInput
             style={styles.input}
             placeholder="Örn. golazo ne demek?"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.inkTertiary}
             multiline
             value={query}
             onChangeText={setQuery}
@@ -123,7 +123,7 @@ MİNİ SAHNE:
           onPress={handleLearn}
           disabled={!query.trim() || loading}
         >
-          {loading ? <ActivityIndicator color={colors.textOnAccent} /> : <Text style={styles.buttonText}>Açıkla + mini sahne kur</Text>}
+          {loading ? <ActivityIndicator color={colors.bgDeep} /> : <Text style={styles.buttonText}>Açıkla + mini sahne kur</Text>}
         </TouchableOpacity>
 
         {answer ? (
@@ -143,27 +143,27 @@ MİNİ SAHNE:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
   backBtn: { alignSelf: 'flex-start', marginBottom: 16 },
-  backText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-  hero: { backgroundColor: colors.surface, borderRadius: 22, padding: spacing.lg, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg },
-  kicker: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
-  title: { color: colors.textPrimary, fontSize: 28, fontWeight: '900' },
-  subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 8 },
-  card: { backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.primaryBorder },
-  cardLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  input: { minHeight: 104, color: colors.textPrimary, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  backText: { color: colors.inkSecondary, fontSize: 15, fontFamily: 'InterTight_600SemiBold' },
+  hero: { backgroundColor: colors.bgMid, borderRadius: 22, padding: spacing.lg, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: spacing.lg },
+  kicker: { color: colors.accentWarm, fontSize: typography.size.xs, fontFamily: 'InterTight_600SemiBold', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
+  title: { color: colors.inkPrimary, fontSize: 28, fontFamily: 'InterTight_600SemiBold' },
+  subtitle: { color: colors.inkSecondary, fontSize: 15, lineHeight: 22, marginTop: 8 },
+  card: { backgroundColor: colors.bgMid, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.hairlineStrong },
+  cardLabel: { color: colors.inkPrimary, fontSize: 15, fontFamily: 'InterTight_600SemiBold', marginBottom: 10 },
+  input: { minHeight: 104, color: colors.inkPrimary, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   chipsWrap: { gap: 8, marginTop: 12 },
-  chip: { backgroundColor: colors.primaryAccentSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.primaryBorder },
-  chipText: { color: colors.terracottaDark, fontSize: 12, lineHeight: 18 },
-  button: { backgroundColor: colors.primaryAccent, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 18 },
+  chip: { backgroundColor: colors.bgSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.hairlineStrong },
+  chipText: { color: colors.accentWarm, fontSize: 12, lineHeight: 18 },
+  button: { backgroundColor: colors.accentWarm, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 18 },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.textOnAccent, fontSize: 16, fontWeight: '800' },
-  answerCard: { marginTop: 18, backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  answerLabel: { color: colors.primaryAccent, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
-  answerText: { color: colors.textPrimary, fontSize: 14, lineHeight: 22 },
-  emptyCard: { marginTop: 14, backgroundColor: colors.warningSoft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.primaryBorder },
-  emptyTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800', marginBottom: 4 },
-  emptyText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  buttonText: { color: colors.bgDeep, fontSize: 16, fontFamily: 'InterTight_600SemiBold' },
+  answerCard: { marginTop: 18, backgroundColor: colors.bgMid, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
+  answerLabel: { color: colors.accentWarm, fontSize: 11, fontFamily: 'InterTight_600SemiBold', letterSpacing: 1, marginBottom: 8 },
+  answerText: { color: colors.inkPrimary, fontSize: 14, lineHeight: 22 },
+  emptyCard: { marginTop: 14, backgroundColor: colors.bgSoft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.hairlineStrong },
+  emptyTitle: { color: colors.inkPrimary, fontSize: 14, fontFamily: 'InterTight_600SemiBold', marginBottom: 4 },
+  emptyText: { color: colors.inkSecondary, fontSize: 13, lineHeight: 19 },
 });

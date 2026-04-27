@@ -1,27 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import Feather from '@expo/vector-icons/Feather';
 import { getProgress, getWeeklyXp } from '../services/progress';
 import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
+import { useAppTranslation } from '../i18n';
 
-type RoutineTile = {
-  id: string;
-  label: string;
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
-  fill: number;
-  muted: boolean;
-  onPress: () => void;
-  caption?: string;
-};
-
-type ToolRow = {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
-  onPress: () => void;
-};
+const { width: SW } = Dimensions.get('window');
 
 type Props = {
   onOpenVocab?: () => void;
@@ -32,13 +19,22 @@ type Props = {
   onOpenStories?: () => void;
 };
 
-const surface = '#FCF9F8';
-const primary = '#884C32';
-const terracotta = '#B06D50';
-const onSurface = '#1B1C1C';
-const onSurfaceVariant = '#53433E';
-const outlineVariant = 'rgba(216, 194, 186, 0.35)';
-const white = '#FFFFFF';
+type PrepTile = {
+  id: string;
+  label: string;
+  icon: string;
+  caption: string;
+  fill: number;
+  onPress: () => void;
+};
+
+type ToolCard = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  onPress: () => void;
+};
 
 export default function LearnHubScreen({
   onOpenVocab,
@@ -49,118 +45,126 @@ export default function LearnHubScreen({
   onOpenStories,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const t = useAppTranslation();
   const [weeklyTotal, setWeeklyTotal] = useState(0);
   const [playedToday, setPlayedToday] = useState(false);
   const [xp, setXp] = useState(0);
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       const progress = await getProgress();
       const todayStr = new Date().toISOString().slice(0, 10);
       setPlayedToday(progress.lastPlayedDate === todayStr);
       const weekly = getWeeklyXp(progress.dailyXpLog ?? {});
       setWeeklyTotal(weekly.reduce((s, d) => s + d.xp, 0));
       setXp(progress.xp);
-    };
-    void load();
+    })();
   }, []);
 
-  const prepCards: RoutineTile[] = [
+  const prepTiles: PrepTile[] = [
     {
       id: 'kelime',
-      label: 'Kelime',
-      icon: 'menu-book',
+      label: t('learn.vocab'),
+      icon: 'book-open',
       fill: playedToday ? 1 : 0.35,
-      muted: false,
-      caption: 'Bugünkü sahne için kısa kelime kartları',
+      caption: t('learn.vocabCaption'),
       onPress: () => onOpenVocab?.(),
     },
     {
       id: 'telaffuz',
-      label: 'Telaffuz',
+      label: t('learn.pronunciation'),
       icon: 'mic',
       fill: Math.min(1, 0.45 + (weeklyTotal > 20 ? 0.25 : 0)),
-      muted: false,
-      caption: 'Söylemeden önce sesini hazırla',
+      caption: t('learn.pronunciationCaption'),
       onPress: () => onOpenPronunciation?.(),
     },
     {
       id: 'dinleme',
-      label: 'Dinleme',
+      label: t('learn.listening'),
       icon: 'headphones',
       fill: Math.min(1, 0.55 + (xp > 80 ? 0.3 : 0)),
-      muted: false,
-      caption: 'Kelimeleri dinle ve tekrar et',
+      caption: t('learn.listeningCaption'),
       onPress: () => onOpenPronunciation?.(),
     },
   ];
 
-  const rhythmDoneLabel = playedToday
-    ? 'Bugünkü koşuya bağlandı'
-    : 'Günlük koşuda otomatik gelir';
-
-  const toolCards: ToolRow[] = [
-    { id: 'grammar', title: 'Sahne Kalıpları', subtitle: 'Gerçek anda kullanacağın kısa yapılar', icon: 'translate', onPress: () => onOpenGrammar?.() },
-    { id: 'phrase', title: 'Sahne İfadeleri', subtitle: 'Gerçek anda işine yarayacak cümleler', icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
-    { id: 'instant', title: 'Kısa prova', subtitle: 'Küçük bir konuşma anını dene', icon: 'chat', onPress: () => onOpenInstantLearn?.() },
-    { id: 'stories', title: 'Kısa Bağlamlar', subtitle: 'Sahneye girmeden ifade tekrar et', icon: 'auto-stories', onPress: () => onOpenStories?.() },
+  const toolCards: ToolCard[] = [
+    { id: 'grammar', title: t('learn.patterns'), subtitle: t('learn.patternsSub'), icon: 'globe', onPress: () => onOpenGrammar?.() },
+    { id: 'phrase', title: t('learn.phrases'), subtitle: t('learn.phrasesSub'), icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
+    { id: 'instant', title: t('learn.instant'), subtitle: t('learn.instantSub'), icon: 'message-circle', onPress: () => onOpenInstantLearn?.() },
+    { id: 'stories', title: t('learn.stories'), subtitle: t('learn.storiesSub'), icon: 'layers', onPress: () => onOpenStories?.() },
   ];
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
+  const rhythmLabel = playedToday ? t('learn.rhythmPlayed') : t('learn.rhythmAuto');
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safeTop} edges={['top']}>
-        <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>Öğren</Text>
-        </View>
-      </SafeAreaView>
+      {/* Atmosphere */}
+      <View style={styles.glow} pointerEvents="none" />
+
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.eyebrow}>{t('learn.eyebrow')}</Text>
+        <Text style={styles.screenTitle}>{t('learn.title')}</Text>
+        <Text style={styles.subtitle}>{t('learn.subtitle')}</Text>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Gerçek hayatta söylemeden önce kısa prova destekleri.</Text>
-
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Sahneye Hazırlık</Text>
-          <Text style={styles.sectionMeta}>{rhythmDoneLabel}</Text>
+        {/* Prep tiles */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>{t('learn.sectionPrep')}</Text>
+          <Text style={styles.sectionMeta}>{rhythmLabel}</Text>
         </View>
-        <View style={styles.rhythmGrid}>
-          {prepCards.map(tile => (
+
+        <View style={styles.prepGrid}>
+          {prepTiles.map(tile => (
             <TouchableOpacity
               key={tile.id}
-              style={[styles.rhythmCard, tile.muted && styles.rhythmCardMuted]}
+              style={styles.prepCard}
               onPress={tile.onPress}
-              activeOpacity={0.88}
+              activeOpacity={0.8}
             >
-              <View style={[styles.rhythmIconCircle, tile.muted && styles.rhythmIconCircleMuted]}>
-                <MaterialIcons name={tile.icon} size={22} color={tile.muted ? '#85736C' : primary} />
+              <LinearGradient
+                colors={['rgba(40,30,22,0.5)', 'rgba(18,24,34,0.7)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.prepIconCircle}>
+                <Feather name={tile.icon as any} size={18} color={colors.accentWarm} />
               </View>
-              <View style={styles.rhythmTextBlock}>
-                <Text style={styles.rhythmLabel}>{tile.label}</Text>
-                {tile.caption ? (
-                  <Text style={styles.rhythmCaption} numberOfLines={2}>
-                    {tile.caption}
-                  </Text>
-                ) : null}
-              </View>
-              <View style={styles.rhythmTrack}>
-                <View style={[styles.rhythmFill, { width: `${Math.round(tile.fill * 100)}%` }]} />
+              <Text style={styles.prepLabel}>{tile.label}</Text>
+              <Text style={styles.prepCaption} numberOfLines={2}>{tile.caption}</Text>
+              {/* Fill bar */}
+              <View style={styles.prepTrack}>
+                <LinearGradient
+                  colors={[colors.accentWarmSoft, colors.accentWarm]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[styles.prepFill, { width: `${Math.round(tile.fill * 100)}%` as any }]}
+                />
               </View>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, styles.toolSectionTitle]}>Dil Araçları</Text>
+        {/* Tool cards */}
+        <Text style={[styles.sectionTitle, { marginTop: 8, marginBottom: 12 }]}>Dil Araçları</Text>
         <View style={styles.toolGrid}>
-          {toolCards.map(row => (
-            <TouchableOpacity key={row.id} style={styles.toolCard} onPress={row.onPress} activeOpacity={0.88}>
+          {toolCards.map(card => (
+            <TouchableOpacity
+              key={card.id}
+              style={styles.toolCard}
+              onPress={card.onPress}
+              activeOpacity={0.8}
+            >
               <View style={styles.toolIconWrap}>
-                <MaterialIcons name={row.icon} size={20} color={primary} />
+                <Feather name={card.icon as any} size={18} color={colors.accentWarmSoft} />
               </View>
-              <Text style={styles.toolTitle}>{row.title}</Text>
-              <Text style={styles.toolSubtitle}>{row.subtitle}</Text>
+              <Text style={styles.toolTitle}>{card.title}</Text>
+              <Text style={styles.toolSubtitle} numberOfLines={2}>{card.subtitle}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -170,147 +174,142 @@ export default function LearnHubScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surface },
-  safeTop: { backgroundColor: '#FCF9F7' },
+  root: { flex: 1, backgroundColor: colors.bgDeep },
+
+  glow: {
+    position: 'absolute',
+    width: SW * 0.8,
+    height: SW * 0.8,
+    borderRadius: SW * 0.4,
+    backgroundColor: 'rgba(232,181,118,0.05)',
+    top: -SW * 0.2,
+    right: -SW * 0.15,
+  },
+
   topBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(51,51,51,0.06)',
-    backgroundColor: '#FCF9F7',
+    paddingHorizontal: 22,
+    paddingBottom: 20,
   },
-  screenTitle: {
-    fontSize: 22,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
-  },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
-    marginBottom: 18,
-    lineHeight: 19,
-  },
-  scroll: { flex: 1 },
-  scrollInner: { paddingHorizontal: 20, paddingTop: 16 },
-  sectionHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+  eyebrow: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    fontSize: 10,
     marginBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
+  screenTitle: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 30,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
+    lineHeight: 37,
+    marginBottom: 8,
   },
-  toolSectionTitle: { marginBottom: 12, marginTop: 2 },
-  sectionMeta: {
-    fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    textAlign: 'right',
-    flexShrink: 1,
+  screenTitleItalic: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.accentWarm,
   },
-  rhythmGrid: {
+  subtitle: {
+    ...typography.body,
+    fontSize: 13,
+    color: colors.inkTertiary,
+    lineHeight: 19,
+  },
+
+  scroll: { flex: 1 },
+  scrollInner: { paddingHorizontal: 20, paddingTop: 4 },
+
+  sectionRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 22,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  rhythmCard: {
-    width: '48%',
-    minHeight: 134,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+  sectionTitle: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkSecondary,
+  },
+  sectionMeta: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.accentWarmSoft,
+  },
+
+  // Prep tiles
+  prepGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  prepCard: {
+    width: '30.5%',
+    minHeight: 140,
+    backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: outlineVariant,
-    padding: 10,
-    alignItems: 'center',
-    shadowColor: '#333',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
+    borderColor: 'rgba(232,181,118,0.15)',
+    padding: 12,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
   },
-  rhythmCardMuted: { opacity: 0.62 },
-  rhythmIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(165, 100, 72, 0.1)',
+  prepIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${colors.accentWarm}14`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  rhythmIconCircleMuted: { backgroundColor: '#F0EDED' },
-  rhythmTextBlock: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    marginBottom: 8,
-    gap: 4,
+  prepLabel: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkPrimary,
+    marginBottom: 4,
   },
-  rhythmLabel: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurfaceVariant,
-  },
-  rhythmCaption: {
+  prepCaption: {
+    ...typography.body,
     fontSize: 10,
+    color: colors.inkTertiary,
     lineHeight: 14,
-    fontFamily: 'Poppins_500Medium',
-    color: '#7A6E68',
-    textAlign: 'center',
-    paddingHorizontal: 2,
-    alignSelf: 'stretch',
+    flex: 1,
   },
-  rhythmTrack: {
-    width: '100%',
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: colors.creamMuted,
+  prepTrack: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.hairlineStrong,
     overflow: 'hidden',
+    marginTop: 8,
   },
-  rhythmFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: primary,
-  },
-  toolGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
+  prepFill: { height: 2, borderRadius: 1 },
+
+  // Tool cards
+  toolGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   toolCard: {
     width: '48%',
-    minHeight: 132,
-    backgroundColor: white,
+    minHeight: 120,
+    backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: outlineVariant,
-    padding: 12,
+    borderColor: colors.hairline,
+    padding: 14,
     justifyContent: 'space-between',
   },
   toolIconWrap: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(165, 100, 72, 0.08)',
+    backgroundColor: `${colors.accentWarm}10`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   toolTitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkPrimary,
+    marginBottom: 4,
   },
   toolSubtitle: {
+    ...typography.body,
     fontSize: 11,
-    lineHeight: 15,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
-    marginTop: 4,
+    color: colors.inkTertiary,
+    lineHeight: 16,
   },
 });

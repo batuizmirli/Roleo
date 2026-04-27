@@ -7,6 +7,7 @@ import { tryParseJson } from '../services/json';
 import { colors } from '../theme/colors';
 import { ALL_PRACTICE_TARGETS, type PracticeTarget } from '../data/practiceGoals';
 import PracticeFocusGoalCard from '../components/PracticeFocusGoalCard';
+import { createTranslator, getUiLanguageFromProfile } from '../i18n';
 
 const NATIVE_LANGUAGES: Language[] = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
@@ -24,15 +25,17 @@ type Phase = 'native' | 'focus';
 type Props = {
   onComplete: () => void;
   onReset: () => void;
+  onSkip?: () => void;
 };
 
-export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
+export default function StartupLanguageScreen({ onComplete, onReset, onSkip }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [selected, setSelected] = useState<Language | null>(null);
   const [phase, setPhase] = useState<Phase>('native');
   const [practiceTarget, setPracticeTarget] = useState<PracticeTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const t = createTranslator(selected?.code ?? getUiLanguageFromProfile(profile));
 
   useEffect(() => {
     const load = async () => {
@@ -67,7 +70,7 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   const saveAndFinish = async () => {
     if (!profile || !selected || saving) return;
     if (!practiceTarget) {
-      Alert.alert('Bir hedef seç', 'Bugünün odağını listeden seçerek devam edebilirsin.');
+      Alert.alert(t('startup.selectGoalTitle'), t('startup.selectGoalMsg'));
       return;
     }
     setSaving(true);
@@ -87,18 +90,23 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={colors.primaryAccent} />
+        <ActivityIndicator size="large" color={colors.accentWarm} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {onSkip && (
+        <TouchableOpacity style={styles.skipBtn} onPress={onSkip} activeOpacity={0.7}>
+          <Text style={styles.skipText}>{t('common.skipHome')}</Text>
+        </TouchableOpacity>
+      )}
       {phase === 'native' ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.headerBlock}>
-            <Text style={styles.title}>Ana dilin hangisi?</Text>
-            <Text style={styles.subtitle}>Deneyimi sana göre kurmak için anadilini seç.</Text>
+            <Text style={styles.title}>{t('startup.nativeTitle')}</Text>
+            <Text style={styles.subtitle}>{t('startup.nativeSubtitle')}</Text>
           </View>
 
           <View style={styles.grid}>
@@ -126,7 +134,7 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContentFocus} showsVerticalScrollIndicator={false}>
           <PracticeFocusGoalCard
             variant="startup"
-            title="Bugünün odağı"
+            title={t('startup.focusTitle')}
             selected={practiceTarget}
             onSelect={setPracticeTarget}
           />
@@ -142,7 +150,7 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
             disabled={saving}
             activeOpacity={0.88}
           >
-            <Text style={styles.secondaryBtnText}>Geri</Text>
+            <Text style={styles.secondaryBtnText}>{t('common.back')}</Text>
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity
@@ -156,7 +164,7 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
           }
           activeOpacity={0.9}
         >
-          <Text style={styles.buttonText}>{saving ? 'Kaydediliyor...' : 'Devam Et'}</Text>
+          <Text style={styles.buttonText}>{saving ? `${t('startup.save')}...` : (phase === 'focus' ? t('startup.save') : t('startup.next'))}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -164,8 +172,10 @@ export default function StartupLanguageScreen({ onComplete, onReset }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FCF9F8' },
-  loadingWrap: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
+  skipBtn: { alignSelf: 'flex-end', paddingHorizontal: 20, paddingVertical: 12 },
+  skipText: { fontSize: 13, color: '#9BA3AE', fontFamily: 'InterTight_400Regular' },
+  loadingWrap: { flex: 1, backgroundColor: colors.bgDeep, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
@@ -191,17 +201,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     lineHeight: 42,
-    color: '#1B1C1C',
+    color: colors.inkPrimary,
     marginBottom: 8,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Fraunces_300Light',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#53433E',
+    color: colors.inkSecondary,
     textAlign: 'center',
-    fontFamily: 'Poppins_500Medium',
+    fontFamily: 'InterTight_500Medium',
     maxWidth: 320,
   },
   grid: {
@@ -216,13 +226,13 @@ const styles = StyleSheet.create({
     width: '48.3%',
     minHeight: 106,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgMid,
     borderWidth: 1,
-    borderColor: 'rgba(216,194,186,0.35)',
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#333333',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -230,33 +240,33 @@ const styles = StyleSheet.create({
   },
   cardActive: {
     borderWidth: 2,
-    borderColor: '#884C32',
-    backgroundColor: '#FFFBF8',
+    borderColor: colors.accentWarm,
+    backgroundColor: colors.bgSoft,
   },
   flagWrap: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgMid,
     borderWidth: 3,
-    borderColor: '#FCF9F8',
+    borderColor: colors.bgDeep,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#333333',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
   },
   flagWrapActive: {
-    borderColor: '#F3E2D7',
+    borderColor: colors.accentWarm,
   },
   flag: { fontSize: 28 },
   name: {
     fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'InterTight_600SemiBold',
   },
-  nameActive: { color: '#1B1C1C' },
-  nameInactive: { color: '#53433E' },
+  nameActive: { color: colors.inkPrimary },
+  nameInactive: { color: colors.inkSecondary },
   bottomSpacer: {
     height: 120,
     width: '100%',
@@ -269,7 +279,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     paddingTop: 16,
-    backgroundColor: 'rgba(252, 249, 248, 0.97)',
+    backgroundColor: colors.bgDeep,
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
@@ -279,16 +289,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: 'rgba(136, 76, 50, 0.35)',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.bgMid,
   },
   secondaryBtnText: {
-    color: '#884C32',
+    color: colors.accentWarm,
     fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'InterTight_600SemiBold',
   },
   button: {
-    backgroundColor: '#884C32',
+    backgroundColor: colors.inkPrimary,
     borderRadius: 999,
     paddingVertical: 16,
     alignItems: 'center',
@@ -301,9 +311,9 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.bgDeep,
     fontSize: 14,
     letterSpacing: 0.3,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'InterTight_600SemiBold',
   },
 });

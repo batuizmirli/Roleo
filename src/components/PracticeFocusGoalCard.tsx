@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { PracticeTarget } from '../data/practiceGoals';
 import PracticeFocusPicker from './PracticeFocusPicker';
+import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 
 type Variant = 'onboarding' | 'startup';
@@ -53,9 +54,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgMid,
     borderWidth: 1,
-    borderColor: 'rgba(216,194,186,0.45)',
+    borderColor: colors.hairlineStrong,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
@@ -64,17 +65,17 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.lingua.heading3,
-    color: '#1B1C1C',
+    color: colors.inkPrimary,
     marginBottom: 8,
   },
   sub: {
     ...typography.lingua.description,
-    color: '#53433E',
+    color: colors.inkSecondary,
     marginBottom: 14,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(136, 76, 50, 0.15)',
+    backgroundColor: colors.hairline,
     marginBottom: 10,
   },
 });

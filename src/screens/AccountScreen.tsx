@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { F } from '../theme/fonts';
@@ -17,6 +17,7 @@ import { UserProfile, Language } from '../types';
 import { tryParseJson } from '../services/json';
 import { SUPPORTED_LANGUAGES } from '../data/scenarios';
 import EditProfileModal from '../components/EditProfileModal';
+import { useAppTranslation } from '../i18n';
 
 type Props = {
   onBack: () => void;
@@ -31,6 +32,7 @@ function shortId(profile: UserProfile): string {
 }
 
 export default function AccountScreen({ onBack, onOpenScenarios, onOpenProgress, onRevisitIntro }: Props) {
+  const t = useAppTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -50,56 +52,56 @@ export default function AccountScreen({ onBack, onOpenScenarios, onOpenProgress,
     setProfile(next);
   };
 
-  const display = profile?.displayName?.trim() || profile?.identity?.goal?.slice(0, 28) || 'Öğrenci';
+  const display = profile?.displayName?.trim() || profile?.identity?.goal?.slice(0, 28) || t('account.student');
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} hitSlop={12} accessibilityLabel="Geri">
-          <MaterialIcons name="arrow-back" size={24} color={colors.textPrimary} />
+        <TouchableOpacity onPress={onBack} hitSlop={12} accessibilityLabel={t('common.back')}>
+          <Feather name="arrow-left" size={24} color={colors.inkPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hesap</Text>
+        <Text style={styles.headerTitle}>{t('account.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.profileBlock}>
           <View style={styles.bigAvatar}>
-            <MaterialIcons name="person" size={44} color={colors.textMuted} />
+            <Feather name="user" size={44} color={colors.inkTertiary} />
           </View>
           <Text style={styles.name}>{display}</Text>
           <Text style={styles.idLine}>ID: {profile ? shortId(profile) : '—'}</Text>
         </View>
 
         <LinearGradient
-          colors={[colors.primaryAccent, colors.primaryAccentPressed]}
+          colors={[colors.accentWarm, colors.accentWarmSoft]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.promo}
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.promoTitle}>Roleo Plus</Text>
-            <Text style={styles.promoSub}>Ek pratik modları ve öncelikli güncellemeler yakında.</Text>
+            <Text style={styles.promoSub}>{t('account.plusSub')}</Text>
           </View>
-          <MaterialIcons name="emoji-events" size={28} color={colors.textOnAccent} />
+          <Feather name="award" size={28} color={colors.bgDeep} />
         </LinearGradient>
 
-        <Text style={styles.sectionLabel}>Öğrenme</Text>
+        <Text style={styles.sectionLabel}>{t('account.learning')}</Text>
         <View style={styles.card}>
-          <Row icon="forum" title="Sahneler" onPress={onOpenScenarios} />
-          <Row icon="trending-up" title="İlerleme" onPress={onOpenProgress} />
+          <Row icon="message-circle" title={t('account.scenes')} onPress={onOpenScenarios} />
+          <Row icon="trending-up" title={t('account.progress')} onPress={onOpenProgress} />
         </View>
 
-        <Text style={styles.sectionLabel}>Hesap</Text>
+        <Text style={styles.sectionLabel}>{t('account.account')}</Text>
         <View style={styles.card}>
-          <Row icon="edit" title="Profili düzenle" onPress={() => setEditOpen(true)} />
-          <Row icon="language" title="Öğrenme dili" subtitle={profile?.language.name} onPress={() => setLangOpen(true)} />
+          <Row icon="edit" title={t('account.editProfile')} onPress={() => setEditOpen(true)} />
+          <Row icon="globe" title={t('account.learningLanguage')} subtitle={profile?.language.name} onPress={() => setLangOpen(true)} />
         </View>
 
-        <Text style={styles.sectionLabel}>Ayarlar</Text>
+        <Text style={styles.sectionLabel}>{t('account.settings')}</Text>
         <View style={styles.card}>
-          <Row icon="slideshow" title="Tanıtımı tekrar izle" onPress={onRevisitIntro} />
-          <Row icon="help-outline" title="Yardım merkezi" onPress={() => {}} />
+          <Row icon="play" title={t('account.revisitIntro')} onPress={onRevisitIntro} />
+          <Row icon="help-circle" title={t('account.help')} onPress={() => {}} />
         </View>
       </ScrollView>
 
@@ -117,7 +119,7 @@ export default function AccountScreen({ onBack, onOpenScenarios, onOpenProgress,
         <View style={styles.langModalRoot}>
           <TouchableOpacity style={styles.langBackdrop} activeOpacity={1} onPress={() => setLangOpen(false)} />
           <View style={styles.langSheet}>
-            <Text style={styles.langTitle}>Öğrenme dili</Text>
+            <Text style={styles.langTitle}>{t('account.learningLanguage')}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {SUPPORTED_LANGUAGES.map((lang: Language) => (
                 <TouchableOpacity
@@ -132,7 +134,7 @@ export default function AccountScreen({ onBack, onOpenScenarios, onOpenProgress,
                   <Text style={styles.langFlag}>{lang.flag}</Text>
                   <Text style={styles.langName}>{lang.name}</Text>
                   {profile?.language.code === lang.code ? (
-                    <MaterialIcons name="check" size={20} color={colors.primaryAccent} />
+                    <Feather name="check" size={20} color={colors.accentWarm} />
                   ) : null}
                 </TouchableOpacity>
               ))}
@@ -150,7 +152,7 @@ function Row({
   subtitle,
   onPress,
 }: {
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  icon: string;
   title: string;
   subtitle?: string;
   onPress: () => void;
@@ -158,19 +160,19 @@ function Row({
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.88}>
       <View style={styles.rowIcon}>
-        <MaterialIcons name={icon} size={20} color={colors.primaryAccent} />
+        <Feather name={icon as any} size={20} color={colors.accentWarm} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{title}</Text>
         {subtitle ? <Text style={styles.rowSub}>{subtitle}</Text> : null}
       </View>
-      <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
+      <Feather name="chevron-right" size={22} color={colors.inkTertiary} />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.cream },
+  root: { flex: 1, backgroundColor: colors.bgDeep },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,23 +180,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.primaryBorder,
+    borderBottomColor: colors.hairlineStrong,
   },
-  headerTitle: { fontFamily: F.bold, fontSize: 20, color: colors.textPrimary },
+  headerTitle: { fontFamily: F.bold, fontSize: 20, color: colors.inkPrimary },
   scroll: { padding: 20, paddingBottom: 40 },
   profileBlock: { alignItems: 'center', marginBottom: 20 },
   bigAvatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontFamily: F.bold, fontSize: 20, color: colors.textPrimary, marginTop: 12 },
-  idLine: { fontFamily: F.regular, fontSize: 13, color: colors.textMuted, marginTop: 4 },
+  name: { fontFamily: F.bold, fontSize: 20, color: colors.inkPrimary, marginTop: 12 },
+  idLine: { fontFamily: F.regular, fontSize: 13, color: colors.inkTertiary, marginTop: 4 },
   promo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,20 +205,20 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     gap: 12,
   },
-  promoTitle: { fontFamily: F.bold, fontSize: 16, color: colors.textOnAccent },
+  promoTitle: { fontFamily: F.bold, fontSize: 16, color: colors.bgDeep },
   promoSub: { fontFamily: F.regular, fontSize: 13, color: 'rgba(255,253,248,0.88)', marginTop: 4, maxWidth: '88%' },
   sectionLabel: {
     fontFamily: F.semibold,
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.inkTertiary,
     marginBottom: 8,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.hairlineStrong,
     marginBottom: 20,
     overflow: 'hidden',
   },
@@ -226,38 +228,38 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderBottomColor: colors.hairline,
   },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: colors.primaryAccentSoft,
+    backgroundColor: colors.bgSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  rowTitle: { fontFamily: F.medium, fontSize: 15, color: colors.textPrimary },
-  rowSub: { fontFamily: F.regular, fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  rowTitle: { fontFamily: F.medium, fontSize: 15, color: colors.inkPrimary },
+  rowSub: { fontFamily: F.regular, fontSize: 12, color: colors.inkTertiary, marginTop: 2 },
   langModalRoot: { flex: 1, justifyContent: 'flex-end' },
   langBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
   langSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgMid,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     padding: 20,
     maxHeight: '72%',
   },
-  langTitle: { fontFamily: F.bold, fontSize: 18, marginBottom: 12, color: colors.textPrimary, textAlign: 'center' },
+  langTitle: { fontFamily: F.bold, fontSize: 18, marginBottom: 12, color: colors.inkPrimary, textAlign: 'center' },
   langRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.bgMid,
   },
-  langRowActive: { borderWidth: 1.5, borderColor: colors.primaryAccent },
+  langRowActive: { borderWidth: 1.5, borderColor: colors.accentWarm },
   langFlag: { fontSize: 22, marginRight: 12 },
-  langName: { flex: 1, fontFamily: F.medium, fontSize: 16, color: colors.textPrimary },
+  langName: { flex: 1, fontFamily: F.medium, fontSize: 16, color: colors.inkPrimary },
 });

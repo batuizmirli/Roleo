@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
+import { useAppTranslation } from '../i18n';
 
 export type MainTabId = 'discover' | 'learn' | 'practice' | 'profile';
 
@@ -10,89 +13,88 @@ type Props = {
   onSelect: (tab: MainTabId) => void;
 };
 
-const terracotta = '#B06D50';
+const TABS: { id: MainTabId; icon: string; labelKey: string }[] = [
+  { id: 'discover', icon: 'compass',      labelKey: 'tabs.discover' },
+  { id: 'learn',    icon: 'book-open',    labelKey: 'tabs.learn' },
+  { id: 'practice', icon: 'mic',          labelKey: 'tabs.practice' },
+  { id: 'profile',  icon: 'user',         labelKey: 'tabs.profile' },
+];
 
 export default function BottomTabBar({ active, onSelect }: Props) {
   const insets = useSafeAreaInsets();
-
-  const Item = ({
-    tab,
-    icon,
-    label,
-  }: {
-    tab: MainTabId;
-    icon: React.ComponentProps<typeof MaterialIcons>['name'];
-    label: string;
-  }) => {
-    const isActive = active === tab;
-    return (
-      <TouchableOpacity style={styles.navItem} onPress={() => onSelect(tab)} activeOpacity={0.88}>
-        <MaterialIcons name={icon} size={24} color={isActive ? terracotta : '#333'} style={isActive ? undefined : { opacity: 0.45 }} />
-        <Text style={isActive ? styles.navLabelActive : styles.navLabel}>{label}</Text>
-        {isActive ? <View style={styles.navDot} /> : <View style={{ height: 4 }} />}
-      </TouchableOpacity>
-    );
-  };
+  const t = useAppTranslation();
 
   return (
-    <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <View style={styles.navInner}>
-        <Item tab="discover" icon="explore" label="Keşfet" />
-        <Item tab="learn" icon="school" label="Öğren" />
-        <Item tab="practice" icon="record-voice-over" label="Pratik" />
-        <Item tab="profile" icon="person-outline" label="Profil" />
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <View style={styles.inner}>
+        {TABS.map(tab => {
+          const isActive = active === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={styles.item}
+              onPress={() => onSelect(tab.id)}
+              activeOpacity={0.7}
+            >
+              <Feather
+                name={tab.icon as any}
+                size={22}
+                color={isActive ? colors.accentWarm : colors.inkTertiary}
+              />
+              <Text style={[styles.label, isActive && styles.labelActive]}>
+                {t(tab.labelKey)}
+              </Text>
+              {isActive && <View style={styles.dot} />}
+              {!isActive && <View style={{ height: 4 }} />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomNav: {
+  bar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FCF9F7',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(51,51,51,0.06)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.bgMid,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairlineStrong,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingTop: 10,
-    shadowColor: '#333',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 16,
   },
-  navInner: {
+  inner: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
     paddingHorizontal: 8,
   },
-  navItem: { alignItems: 'center', minWidth: 72 },
-  navLabel: {
-    marginTop: 4,
-    fontSize: 10,
-    fontFamily: 'Poppins_500Medium',
-    color: '#333',
-    opacity: 0.5,
-    letterSpacing: 0.6,
+  item: { alignItems: 'center', minWidth: 72 },
+  label: {
+    marginTop: 5,
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.inkTertiary,
     textTransform: 'uppercase',
+    letterSpacing: 1.2,
   },
-  navLabelActive: {
-    marginTop: 4,
-    fontSize: 10,
-    fontFamily: 'Poppins_500Medium',
-    color: terracotta,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+  labelActive: {
+    color: colors.accentWarm,
   },
-  navDot: {
+  dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: terracotta,
+    backgroundColor: colors.accentWarm,
     marginTop: 4,
   },
 });

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { colors } from '../../theme/colors';
-import { F } from '../../theme/fonts';
 
 type Props = {
   label: string;
@@ -20,26 +19,27 @@ export default function LinguaPrimaryButton({ label, onPress, disabled, loading,
       disabled={disabled || loading}
       activeOpacity={0.88}
     >
-      {loading ? <ActivityIndicator color={colors.textOnAccent} /> : <Text style={[styles.text, labelStyle]}>{label}</Text>}
+      {loading
+        ? <ActivityIndicator color={colors.bgDeep} />
+        : <Text style={[styles.text, labelStyle]}>{label}</Text>}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    backgroundColor: colors.primaryAccent,
-    borderRadius: 14,
-    paddingVertical: 16,
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 17,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
   },
-  btnDisabled: { opacity: 0.45 },
+  btnDisabled: { opacity: 0.4 },
   text: {
-    color: colors.textOnAccent,
-    fontFamily: F.semibold,
-    fontSize: 16,
-    letterSpacing: 0.2,
+    color: colors.bgDeep,
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 15,
   },
 });

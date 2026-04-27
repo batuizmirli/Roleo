@@ -1,16 +1,6 @@
 import React, { useRef } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
 
 type Props = {
   title: string;
@@ -44,12 +34,7 @@ export default function ActionCard({
   const isInactive = disabled || loading;
 
   const animateTo = (toValue: number) => {
-    Animated.spring(scale, {
-      toValue,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 4,
-    }).start();
+    Animated.spring(scale, { toValue, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
   };
 
   return (
@@ -79,25 +64,15 @@ export default function ActionCard({
         ]}
       >
         <View style={styles.topRow}>
-          <Text style={[styles.emoji, isPrimary ? styles.primaryEmoji : styles.secondaryEmoji]}>
-            {emoji}
-          </Text>
-
-          {loading ? (
-            <ActivityIndicator
-              size="small"
-              color={isPrimary ? colors.primaryAccent : colors.secondaryAccent}
-            />
-          ) : (
-            <Text style={[styles.chevron, isPrimary ? styles.primaryEmoji : styles.secondaryEmoji]}>
-              ›
-            </Text>
-          )}
+          <Text style={styles.emoji}>{emoji}</Text>
+          {loading
+            ? <ActivityIndicator size="small" color={colors.accentWarm} />
+            : <Text style={styles.chevron}>›</Text>
+          }
         </View>
 
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, isPrimary && styles.titlePrimary]}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
-
         {statusText ? <Text style={styles.statusText}>{statusText}</Text> : null}
       </Pressable>
     </Animated.View>
@@ -105,86 +80,61 @@ export default function ActionCard({
 }
 
 const sharedShadow = Platform.select({
-  ios: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.24,
-    shadowRadius: 18,
-  },
-  android: {
-    elevation: 5,
-  },
+  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 16 },
+  android: { elevation: 4 },
   default: {},
 });
 
 const styles = StyleSheet.create({
   cardShell: {
     borderRadius: 20,
-    marginBottom: spacing.md,
+    marginBottom: 12,
     ...sharedShadow,
   },
-  primaryShell: {
-    shadowColor: colors.primaryAccent,
-  },
-  secondaryShell: {
-    shadowColor: '#000',
-  },
-  inactiveShell: {
-    opacity: 0.7,
-  },
+  primaryShell: { shadowColor: colors.accentWarm },
+  secondaryShell: { shadowColor: '#000' },
+  inactiveShell: { opacity: 0.6 },
+
   card: {
     borderRadius: 20,
-    padding: spacing.lg,
+    padding: 20,
     borderWidth: 1,
   },
   primaryCard: {
-    backgroundColor: colors.primaryCard,
-    borderColor: colors.primaryBorder,
-    paddingVertical: spacing.xl,
+    backgroundColor: colors.bgMid,
+    borderColor: `${colors.accentWarm}40`,
+    paddingVertical: 22,
   },
   secondaryCard: {
-    backgroundColor: colors.secondaryCard,
-    borderColor: colors.secondaryBorder,
+    backgroundColor: colors.bgMid,
+    borderColor: colors.hairlineStrong,
   },
-  inactiveCard: {
-    borderStyle: 'dashed',
-  },
-  pressed: {
-    opacity: 0.96,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  emoji: {
-    fontSize: 26,
-  },
-  primaryEmoji: {
-    color: colors.primaryAccent,
-  },
-  secondaryEmoji: {
-    color: colors.secondaryAccent,
-  },
-  chevron: {
-    fontSize: 26,
-    fontWeight: typography.weight.bold,
-  },
+  inactiveCard: { borderStyle: 'dashed' },
+  pressed: { opacity: 0.92 },
+
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  emoji: { fontSize: 26 },
+  chevron: { fontSize: 26, color: colors.inkTertiary, fontFamily: 'InterTight_400Regular' },
+
   title: {
-    color: colors.textPrimary,
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.black,
-    marginTop: spacing.sm,
+    fontFamily: 'Fraunces_300Light',
+    color: colors.inkPrimary,
+    fontSize: 20,
+    letterSpacing: -0.3,
+    marginTop: 12,
   },
+  titlePrimary: { color: colors.accentWarm },
   description: {
-    color: colors.textSecondary,
-    fontSize: typography.size.sm,
-    marginTop: spacing.xs,
-    lineHeight: 20,
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkSecondary,
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 19,
   },
   statusText: {
-    color: colors.textMuted,
-    fontSize: typography.size.xs,
-    marginTop: spacing.sm,
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkTertiary,
+    fontSize: 12,
+    marginTop: 8,
   },
 });

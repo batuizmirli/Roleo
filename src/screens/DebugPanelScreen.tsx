@@ -117,28 +117,28 @@ export default function DebugPanelScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA', paddingHorizontal: 16, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: '#0A0E14', paddingHorizontal: 16, paddingTop: 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  back: { color: '#1B9C5A', fontSize: 16, fontWeight: '700' },
-  title: { color: '#1A2B3C', fontSize: 18, fontWeight: '900' },
-  clearBtn: { color: '#F87171', fontSize: 14, fontWeight: '700' },
-  stat: { color: '#6B7B8D', fontSize: 14, marginBottom: 16 },
+  back: { color: '#7FB28E', fontSize: 16, fontFamily: 'InterTight_500Medium' },
+  title: { color: '#E8EAED', fontSize: 18, fontFamily: 'InterTight_600SemiBold' },
+  clearBtn: { color: '#C97A6A', fontSize: 14, fontFamily: 'InterTight_500Medium' },
+  stat: { color: '#9BA3AE', fontSize: 14, marginBottom: 16, fontFamily: 'InterTight_400Regular' },
 
-  sectionTitle: { color: '#1A2B3C', fontSize: 16, fontWeight: '800', marginTop: 20, marginBottom: 10 },
+  sectionTitle: { color: '#E8EAED', fontSize: 14, fontFamily: 'InterTight_600SemiBold', letterSpacing: 1.5, marginTop: 20, marginBottom: 10 },
 
-  funnelRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 10, padding: 12, marginBottom: 6 },
-  funnelName: { color: '#CCC', flex: 1, fontSize: 13 },
-  funnelCount: { color: '#1A2B3C', fontWeight: '800', fontSize: 15, marginRight: 12 },
-  funnelConv: { fontWeight: '800', fontSize: 13, width: 42, textAlign: 'right' },
+  funnelRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#121822', borderRadius: 10, padding: 12, marginBottom: 6 },
+  funnelName: { color: '#5B6573', flex: 1, fontSize: 13, fontFamily: 'InterTight_400Regular' },
+  funnelCount: { color: '#E8EAED', fontFamily: 'InterTight_600SemiBold', fontSize: 15, marginRight: 12 },
+  funnelConv: { fontFamily: 'InterTight_600SemiBold', fontSize: 13, width: 42, textAlign: 'right', color: '#E8B576' },
 
-  dropRow: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 12, marginBottom: 6 },
-  dropDetected: { borderWidth: 1, borderColor: '#F87171' },
-  dropLabel: { color: '#1A2B3C', fontWeight: '700', fontSize: 13 },
-  dropDesc: { color: '#9AABB8', fontSize: 12, marginTop: 4 },
+  dropRow: { backgroundColor: '#121822', borderRadius: 10, padding: 12, marginBottom: 6 },
+  dropDetected: { borderWidth: 1, borderColor: '#C97A6A' },
+  dropLabel: { color: '#E8EAED', fontFamily: 'InterTight_500Medium', fontSize: 13 },
+  dropDesc: { color: '#9BA3AE', fontSize: 12, marginTop: 4, fontFamily: 'InterTight_400Regular' },
 
-  eventRow: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, marginBottom: 4 },
+  eventRow: { backgroundColor: '#121822', borderRadius: 10, padding: 10, marginBottom: 4 },
   eventHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  eventName: { color: '#1B9C5A', fontWeight: '700', fontSize: 13 },
-  eventTime: { color: '#9AABB8', fontSize: 11 },
-  eventPayload: { color: '#9AABB8', fontSize: 11, marginTop: 4 },
+  eventName: { color: '#7FB28E', fontFamily: 'InterTight_500Medium', fontSize: 13 },
+  eventTime: { color: '#5B6573', fontSize: 11, fontFamily: 'InterTight_400Regular' },
+  eventPayload: { color: '#5B6573', fontSize: 11, marginTop: 4, fontFamily: 'InterTight_400Regular' },
 });

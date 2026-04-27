@@ -61,22 +61,59 @@ const THINKERS = [
 ];
 
 const buildOfflineQuoteSet = (targetLangName: string): QuoteSet => {
-  const isSpanish = /spanish|ispanyol/i.test(targetLangName);
+  const l = targetLangName.toLowerCase();
+  const contentByLang: Record<string, Quote[]> = {
+    es: [
+      { original: 'Perdón, ¿me puede ayudar?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Kafe sahnesi' },
+      { original: 'Estoy aprendiendo, ¿puede repetir?', translation: 'Öğreniyorum, tekrar edebilir misiniz?', author: 'Sokak sahnesi' },
+      { original: 'Quisiera pedir algo sencillo.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Restoran sahnesi' },
+      { original: 'No estoy seguro, pero puedo intentarlo.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+    ],
+    fr: [
+      { original: 'Excusez-moi, vous pouvez m’aider ?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Sokak sahnesi' },
+      { original: 'J’apprends encore, vous pouvez répéter ?', translation: 'Hâlâ öğreniyorum, tekrar edebilir misiniz?', author: 'Servis sahnesi' },
+      { original: 'Je voudrais quelque chose de simple.', translation: 'Basit bir şey rica ederim.', author: 'Kafe sahnesi' },
+      { original: 'Je ne suis pas sûr, mais je peux essayer.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+    ],
+    de: [
+      { original: 'Entschuldigung, können Sie mir helfen?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Sokak sahnesi' },
+      { original: 'Ich lerne noch, können Sie das wiederholen?', translation: 'Hâlâ öğreniyorum, tekrar edebilir misiniz?', author: 'Servis sahnesi' },
+      { original: 'Ich möchte etwas Einfaches bestellen.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Kafe sahnesi' },
+      { original: 'Ich bin nicht sicher, aber ich kann es versuchen.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+    ],
+    it: [
+      { original: 'Mi scusi, può aiutarmi?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Sokak sahnesi' },
+      { original: 'Sto ancora imparando, può ripetere?', translation: 'Hâlâ öğreniyorum, tekrar edebilir misiniz?', author: 'Servis sahnesi' },
+      { original: 'Vorrei ordinare qualcosa di semplice.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Kafe sahnesi' },
+      { original: 'Non sono sicuro, ma posso provare.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+    ],
+    pt: [
+      { original: 'Com licença, você pode me ajudar?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Sokak sahnesi' },
+      { original: 'Ainda estou aprendendo, pode repetir?', translation: 'Hâlâ öğreniyorum, tekrar edebilir misiniz?', author: 'Servis sahnesi' },
+      { original: 'Eu gostaria de pedir algo simples.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Kafe sahnesi' },
+      { original: 'Não tenho certeza, mas posso tentar.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
+    ],
+    en: [
+      { original: 'Sorry, could you help me for a second?', translation: 'Affedersiniz, bana bir saniye yardım edebilir misiniz?', author: 'Street scene' },
+      { original: 'I am still learning. Could you repeat that?', translation: 'Hâlâ öğreniyorum. Tekrar edebilir misiniz?', author: 'Service scene' },
+      { original: 'Could I get something simple to start?', translation: 'Başlamak için basit bir şey alabilir miyim?', author: 'Cafe scene' },
+      { original: 'I am not sure, but I can try.', translation: 'Emin değilim ama deneyebilirim.', author: 'Everyday scene' },
+    ],
+  };
+  const langKey = /spanish|ispanyol|español/.test(l)
+    ? 'es'
+    : /french|fransız|français/.test(l)
+    ? 'fr'
+    : /german|alman|deutsch/.test(l)
+    ? 'de'
+    : /italian|italyan|italiano/.test(l)
+    ? 'it'
+    : /portuguese|portekiz|português|portugues/.test(l)
+    ? 'pt'
+    : 'en';
   return {
     title: 'Çevrimdışı kısa bağlamlar',
-    content: isSpanish
-      ? [
-          { original: 'Perdón, ¿me puede ayudar?', translation: 'Affedersiniz, bana yardım edebilir misiniz?', author: 'Kafe sahnesi' },
-          { original: 'Estoy aprendiendo, ¿puede repetir?', translation: 'Öğreniyorum, tekrar edebilir misiniz?', author: 'Sokak sahnesi' },
-          { original: 'Quisiera pedir algo sencillo.', translation: 'Basit bir şey sipariş etmek istiyorum.', author: 'Restoran sahnesi' },
-          { original: 'No estoy seguro, pero puedo intentarlo.', translation: 'Emin değilim ama deneyebilirim.', author: 'Günlük konuşma' },
-        ]
-      : [
-          { original: 'Sorry, could you help me for a second?', translation: 'Affedersiniz, bana bir saniye yardım edebilir misiniz?', author: 'Street scene' },
-          { original: 'I am still learning. Could you repeat that?', translation: 'Hâlâ öğreniyorum. Tekrar edebilir misiniz?', author: 'Service scene' },
-          { original: 'Could I get something simple to start?', translation: 'Başlamak için basit bir şey alabilir miyim?', author: 'Cafe scene' },
-          { original: 'I am not sure, but I can try.', translation: 'Emin değilim ama deneyebilirim.', author: 'Everyday scene' },
-        ],
+    content: contentByLang[langKey],
   };
 };
 
@@ -250,7 +287,7 @@ Rules:
       <TouchableOpacity onPress={onBack} style={styles.topBack}>
         <Text style={styles.topBackText}>{'\u2190 Geri'}</Text>
       </TouchableOpacity>
-      <ActivityIndicator size="large" color={colors.primaryAccent} />
+      <ActivityIndicator size="large" color={colors.accentWarm} />
       <Text style={styles.loadingText}>{'S\u00F6zler haz\u0131rlan\u0131yor...'}</Text>
     </View>
   );
@@ -375,53 +412,53 @@ Rules:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  fullCenter: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  fullCenter: { flex: 1, backgroundColor: colors.bgDeep, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   topBack: { position: 'absolute', top: 60, left: 24 },
-  topBackText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
+  topBackText: { fontSize: 15, color: colors.inkSecondary, fontFamily: 'InterTight_600SemiBold' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  backText: { fontSize: 20, color: colors.textPrimary },
-  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
-  noticeBox: { backgroundColor: colors.warningSoft, borderRadius: 14, borderWidth: 1, borderColor: colors.primaryBorder, padding: 12, marginBottom: 12 },
-  noticeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.bgMid, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.hairlineStrong },
+  backText: { fontSize: 20, color: colors.inkPrimary },
+  title: { fontSize: 22, fontFamily: 'InterTight_600SemiBold', color: colors.inkPrimary },
+  noticeBox: { backgroundColor: colors.bgSoft, borderRadius: 14, borderWidth: 1, borderColor: colors.hairlineStrong, padding: 12, marginBottom: 12 },
+  noticeText: { color: colors.inkSecondary, fontSize: 13, lineHeight: 18 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.primaryBorder },
-  tabBtnActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
-  tabText: { color: colors.textSecondary, fontWeight: '700' },
-  tabTextActive: { color: colors.primaryAccent },
-  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 10 },
-  progressBar: { height: 6, borderRadius: 3, backgroundColor: colors.surface, marginBottom: 14, overflow: 'hidden' },
-  progressFill: { height: 6, backgroundColor: colors.primaryAccent },
-  storyCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1.5, borderColor: colors.primaryBorder },
-  storyTitle: { fontSize: 20, fontWeight: '800', color: colors.primaryAccent, marginBottom: 8 },
-  divider: { height: 1, backgroundColor: colors.divider, marginBottom: 12 },
-  sentenceRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divider, gap: 4 },
-  sentence: { fontSize: 16, color: colors.textPrimary, lineHeight: 24, fontStyle: 'italic' },
-  authorText: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  translation: { fontSize: 14, color: colors.primaryAccent, lineHeight: 20, marginTop: 4 },
-  gameCard: { backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.primaryBorder },
-  gameTitle: { fontSize: 18, color: colors.primaryAccent, fontWeight: '800', marginBottom: 10 },
-  gameProgress: { color: colors.textSecondary, marginBottom: 8, fontSize: 13 },
-  gamePrompt: { color: colors.textSecondary, marginBottom: 10, fontSize: 14 },
-  quoteBox: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 12 },
-  quoteText: { color: colors.textPrimary, fontSize: 16, lineHeight: 22, fontStyle: 'italic' },
-  quoteAuthor: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
-  optionBtn: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.primaryBorder },
+  tabBtn: { backgroundColor: colors.bgMid, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.hairlineStrong },
+  tabBtnActive: { borderColor: colors.accentWarm, backgroundColor: colors.bgSoft },
+  tabText: { color: colors.inkSecondary, fontFamily: 'InterTight_600SemiBold' },
+  tabTextActive: { color: colors.accentWarm },
+  subtitle: { fontSize: 14, color: colors.inkSecondary, marginBottom: 10 },
+  progressBar: { height: 6, borderRadius: 3, backgroundColor: colors.bgMid, marginBottom: 14, overflow: 'hidden' },
+  progressFill: { height: 6, backgroundColor: colors.accentWarm },
+  storyCard: { backgroundColor: colors.bgMid, borderRadius: 20, padding: 20, borderWidth: 1.5, borderColor: colors.hairlineStrong },
+  storyTitle: { fontSize: 20, fontFamily: 'InterTight_600SemiBold', color: colors.accentWarm, marginBottom: 8 },
+  divider: { height: 1, backgroundColor: colors.hairline, marginBottom: 12 },
+  sentenceRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.hairline, gap: 4 },
+  sentence: { fontSize: 16, color: colors.inkPrimary, lineHeight: 24, fontStyle: 'italic' },
+  authorText: { fontSize: 13, color: colors.inkTertiary, marginTop: 2 },
+  translation: { fontSize: 14, color: colors.accentWarm, lineHeight: 20, marginTop: 4 },
+  gameCard: { backgroundColor: colors.bgMid, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.hairlineStrong },
+  gameTitle: { fontSize: 18, color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', marginBottom: 10 },
+  gameProgress: { color: colors.inkSecondary, marginBottom: 8, fontSize: 13 },
+  gamePrompt: { color: colors.inkSecondary, marginBottom: 10, fontSize: 14 },
+  quoteBox: { backgroundColor: colors.bgMid, borderRadius: 12, padding: 12, marginBottom: 12 },
+  quoteText: { color: colors.inkPrimary, fontSize: 16, lineHeight: 22, fontStyle: 'italic' },
+  quoteAuthor: { color: colors.inkTertiary, fontSize: 13, marginTop: 6 },
+  optionBtn: { backgroundColor: colors.bgMid, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.hairlineStrong },
   optionCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
-  optionWrong: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+  optionWrong: { borderColor: colors.errorDs, backgroundColor: 'rgba(201,122,106,0.15)' },
   optionDim: { opacity: 0.45 },
-  optionText: { color: colors.textPrimary, fontSize: 14 },
-  nextBtn: { marginTop: 10, backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  nextBtnText: { color: colors.textOnAccent, fontWeight: '800' },
-  xpEarned: { color: colors.primaryAccent, fontWeight: '800', textAlign: 'center', marginBottom: 8, fontSize: 14 },
+  optionText: { color: colors.inkPrimary, fontSize: 14 },
+  nextBtn: { marginTop: 10, backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  nextBtnText: { color: colors.bgDeep, fontFamily: 'InterTight_600SemiBold' },
+  xpEarned: { color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', textAlign: 'center', marginBottom: 8, fontSize: 14 },
   doneEmoji: { fontSize: 56, textAlign: 'center', marginBottom: 6 },
-  doneText: { color: colors.textPrimary, fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 },
-  loadingText: { color: colors.textSecondary, fontSize: 14 },
-  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: colors.textOnAccent, fontWeight: '700' },
-  refreshBtn: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginTop: 14 },
-  refreshText: { color: colors.primaryAccent, fontWeight: '700', fontSize: 15 },
+  doneText: { color: colors.inkPrimary, fontSize: 24, fontFamily: 'InterTight_600SemiBold', textAlign: 'center', marginBottom: 8 },
+  loadingText: { color: colors.inkSecondary, fontSize: 14 },
+  errorText: { color: colors.errorDs, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  retryText: { color: colors.bgDeep, fontFamily: 'InterTight_600SemiBold' },
+  refreshBtn: { backgroundColor: colors.bgMid, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.hairlineStrong, marginTop: 14 },
+  refreshText: { color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', fontSize: 15 },
 });

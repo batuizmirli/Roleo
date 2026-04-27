@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 type VocabWord = { word: string; meaning: string; example: string; exampleMeaning: string; };
 type Props = { onBack: () => void; scenarioId?: string; scenarioTitle?: string; stageType?: string; };
@@ -169,39 +170,32 @@ Return ONLY valid JSON array:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
-  scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: colors.bgDeep },
+  scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 20, color: '#1A2B3C' },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A2B3C' },
-  subtitle: { fontSize: 14, color: '#9AABB8', marginBottom: 28 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.bgMid, borderWidth: 1, borderColor: colors.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
+  backText: { fontSize: 18, color: colors.inkSecondary },
+  title: { fontFamily: 'Fraunces_300Light', fontSize: 22, color: colors.inkPrimary, letterSpacing: -0.3 },
+  subtitle: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkTertiary, marginBottom: 24, lineHeight: 19 },
   center: { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  loadingText: { color: '#9AABB8', fontSize: 14 },
-  cardWrap: { minHeight: 160, marginBottom: 14, position: 'relative' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, borderWidth: 1.5, borderColor: '#E8EDF2', minHeight: 160 },
-  cardFace: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backfaceVisibility: 'hidden',
-  },
-  cardBackFace: {
-    justifyContent: 'center',
-  },
+  loadingText: { fontFamily: 'InterTight_400Regular', color: colors.inkTertiary, fontSize: 13 },
+  cardWrap: { minHeight: 160, marginBottom: 12, position: 'relative' },
+  card: { backgroundColor: colors.bgMid, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.hairlineStrong, minHeight: 160 },
+  cardFace: { position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden' },
+  cardBackFace: { justifyContent: 'center' },
   front: { alignItems: 'center', justifyContent: 'center', gap: 12 },
-  wordNum: { fontSize: 11, color: '#F5B800', fontWeight: '700', letterSpacing: 1 },
-  word: { fontSize: 32, fontWeight: '900', color: '#1A2B3C', textAlign: 'center' },
-  tapHint: { fontSize: 12, color: '#B0BEC5' },
+  wordNum: { fontFamily: 'InterTight_500Medium', fontSize: 10, color: colors.accentWarmSoft, letterSpacing: 2 },
+  word: { fontFamily: 'Fraunces_300Light', fontSize: 34, color: colors.inkPrimary, textAlign: 'center', letterSpacing: -0.5 },
+  tapHint: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary },
   back: { gap: 10 },
-  meaning: { fontSize: 22, fontWeight: '800', color: '#F5B800' },
-  divider: { height: 1, backgroundColor: '#E8EDF2' },
-  example: { fontSize: 15, color: '#DDD', fontStyle: 'italic', lineHeight: 22 },
-  exampleMeaning: { fontSize: 13, color: '#9AABB8', lineHeight: 20 },
+  meaning: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 24, color: colors.accentWarm, letterSpacing: -0.3 },
+  divider: { height: 1, backgroundColor: colors.hairline },
+  example: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: colors.inkSecondary, fontStyle: 'italic', lineHeight: 21 },
+  exampleMeaning: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.inkTertiary, lineHeight: 18 },
   errorBox: { alignItems: 'center', padding: 24, gap: 12 },
-  errorText: { color: '#1B9C5A', fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: '#1B9C5A', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#1A2B3C', fontWeight: '700' },
-  refreshBtn: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2', marginTop: 8 },
-  refreshText: { color: '#F5B800', fontWeight: '700', fontSize: 15 },
+  errorText: { fontFamily: 'InterTight_400Regular', color: colors.errorDs, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.inkPrimary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 12 },
+  retryText: { fontFamily: 'InterTight_600SemiBold', color: colors.bgDeep, fontSize: 14 },
+  refreshBtn: { backgroundColor: colors.bgMid, borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.hairlineStrong, marginTop: 8 },
+  refreshText: { fontFamily: 'InterTight_500Medium', color: colors.accentWarm, fontSize: 14 },
 });

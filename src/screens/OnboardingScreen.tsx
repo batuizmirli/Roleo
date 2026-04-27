@@ -14,6 +14,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, UserGoal, UserProfile, UserLevel } from '../types';
 import { colors } from '../theme/colors';
@@ -73,7 +75,25 @@ type Step =
   | 'emotion';
 const STEPS: Step[] = ['welcome', 'level', 'native', 'practiceFocus', 'language', 'goal', 'dailyGoal', 'dream', 'context', 'emotion'];
 
-const ACCENT = colors.primaryAccent;
+const ACCENT = colors.accentWarm;
+
+// ─── Dream step — Turkish language names ──────────────────────────────────
+const LANG_TR_NAMES: Record<string, string> = {
+  es: 'İspanyolca',
+  fr: 'Fransızca',
+  de: 'Almanca',
+  it: 'İtalyanca',
+  pt: 'Portekizce',
+  en: 'İngilizce',
+};
+
+// ─── Dream step — sahne-odaklı suggestion chip'leri (CLAUDE.md A10) ────────
+const DREAM_SUGGESTIONS = [
+  'Bir kafede sipariş vermek',
+  'İş toplantısında konuşmak',
+  'Şarkı sözlerini anlamak',
+  'Maç yorumunu çözmek',
+] as const;
 
 type StepTheme = {
   image: any;
@@ -309,7 +329,7 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
     welcome: { label: 'Başla', handler: () => transition('level') },
     native: { label: 'Devam Et', handler: handleNativeContinue },
     practiceFocus: { label: 'Devam Et', handler: handlePracticeFocusContinue },
-    dream: { label: 'Devam Et', handler: handleDreamContinue },
+    // 'dream' step CTA is handled by DreamStepScreen
     context: { label: 'Devam Et', handler: handleContextContinue },
     emotion: { label: "Roleo'ya Başla", handler: handleEmotionContinue },
   };
@@ -321,6 +341,17 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* ── Dream step renders its own full-screen editorial layout ── */}
+      {step === 'dream' ? (
+        <DreamStepScreen
+          value={dreamText}
+          onChange={setDreamText}
+          onContinue={handleDreamContinue}
+          onBack={handleBack}
+          selectedLanguage={selectedLanguage}
+        />
+      ) : (
+        <>
       {/* ── Bugünün odağı: foto filtresi yok, ortada mavi gradient ── */}
       {step === 'practiceFocus' ? (
         <LinearGradient
@@ -427,16 +458,6 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
             <DailyGoalStep selectedMinutes={dailyGoalMinutes} onSelect={handleDailyGoalPick} accent={theme.accent} />
           )}
 
-          {step === 'dream' && (
-            <TextStep
-              value={dreamText}
-              onChange={setDreamText}
-              hint={`e.g. "Ordering coffee in Barcelona without freezing."`}
-              placeholder="Describe the moment you want to rehearse..."
-              accent={theme.accent}
-            />
-          )}
-
           {step === 'context' && (
             <TextStep
               value={contextText}
@@ -460,13 +481,12 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
         </Animated.View>
       </ScrollView>
 
-      {/* ── Fixed bottom CTA (dream / context / emotion steps) ── */}
+      {/* ── Fixed bottom CTA (welcome / native / practiceFocus / context / emotion steps) ── */}
       {footerCta && (
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
               styles.ctaBtn,
-              { backgroundColor: theme.accent },
               (step === 'native' && !selectedNative) || (step === 'practiceFocus' && !practiceTarget)
                 ? { opacity: 0.45 }
                 : null,
@@ -481,29 +501,482 @@ export default function OnboardingScreen({ onComplete, onTryQuickScene, startAft
           </TouchableOpacity>
         </View>
       )}
+        </>
+      )}
 
     </KeyboardAvoidingView>
   );
 }
 
+// ─── DreamStepScreen — Editorial "A" variant ──────────────────────────────
+
+type DreamStepScreenProps = {
+  value: string;
+  onChange: (t: string) => void;
+  onContinue: () => void;
+  onBack: () => void;
+  selectedLanguage: Language | null;
+};
+
+function DreamStepScreen({
+  value,
+  onChange,
+  onContinue,
+  onBack,
+  selectedLanguage,
+}: DreamStepScreenProps) {
+  const langName = selectedLanguage
+    ? (LANG_TR_NAMES[selectedLanguage.code] ?? selectedLanguage.name)
+    : 'İspanyolca';
+
+  // ── Stagger entrance — RN Animated (Reanimated yerine) ──
+  const eyebrowAv  = useRef(new Animated.Value(0)).current;
+  const titleAv    = useRef(new Animated.Value(0)).current;
+  const subtitleAv = useRef(new Animated.Value(0)).current;
+  const inputAv    = useRef(new Animated.Value(0)).current;
+  const chipsAv    = useRef(new Animated.Value(0)).current;
+  const ctaAv      = useRef(new Animated.Value(0)).current;
+  // Progress bar slide: translateX(-100% → 0), mockup cubic-bezier(0.65,0,0.35,1)
+  const barFillAv  = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const E = Easing.bezier(0.25, 0.1, 0.25, 1);
+    const Emech = Easing.bezier(0.65, 0, 0.35, 1);
+    const stagger = (av: Animated.Value, delay: number, duration: number) =>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(av, { toValue: 1, duration, easing: E, useNativeDriver: true }),
+      ]);
+    Animated.parallel([
+      // Progress bar slides in immediately
+      Animated.timing(barFillAv, { toValue: 1, duration: 1400, easing: Emech, useNativeDriver: true }),
+      stagger(eyebrowAv,  200, 700),
+      stagger(titleAv,    400, 800),
+      stagger(subtitleAv, 600, 800),
+      stagger(inputAv,    800, 800),
+      stagger(chipsAv,   1000, 800),
+      stagger(ctaAv,     1200, 800),
+    ]).start();
+  }, []);
+
+  // ── Animated styles ──
+  const eyebrowAnimStyle = {
+    opacity: eyebrowAv,
+    transform: [{ translateY: eyebrowAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+  const titleAnimStyle = {
+    opacity: titleAv,
+    transform: [{ translateY: titleAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+  const subtitleAnimStyle = {
+    opacity: subtitleAv,
+    transform: [{ translateY: subtitleAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+  const inputAnimStyle = {
+    opacity: inputAv,
+    transform: [{ translateY: inputAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+  const chipsAnimStyle = {
+    opacity: chipsAv,
+    transform: [{ translateY: chipsAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+  const ctaAnimStyle = {
+    opacity: ctaAv,
+    transform: [{ translateY: ctaAv.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+
+  const charCount = value.length;
+
+  return (
+    <View style={dreamStyles.root}>
+      {/* ── Atmospheric layers ── */}
+      {/* Warm glow — top right (hayal) */}
+      <View style={dreamStyles.glowWarm} />
+      {/* Cool glow — bottom left (mevcut hal) */}
+      <View style={dreamStyles.glowCool} />
+      {/* Grain overlay (4% — film feel; requires grain asset for full effect) */}
+      <View style={dreamStyles.grainOverlay} />
+
+      {/* ── Progress row ── */}
+      <View style={dreamStyles.progressRow}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={dreamStyles.backBtn}
+        >
+          <Text style={dreamStyles.backArrowText}>←</Text>
+        </TouchableOpacity>
+        <View style={dreamStyles.progressBars}>
+          {/* 4 segment bars — represent identity phase (dream / context / emotion + completion) */}
+          {([0, 1, 2, 3] as const).map(i => (
+            <View key={i} style={dreamStyles.progressBarTrack}>
+              {i === 0 && (
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      transform: [{
+                        translateX: barFillAv.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-200, 0],
+                        }),
+                      }],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[colors.accentWarmSoft, colors.accentWarm]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+              )}
+            </View>
+          ))}
+        </View>
+        <Text style={dreamStyles.stepLabel}>01 / 04</Text>
+      </View>
+
+      {/* ── Scrollable content ── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={dreamStyles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Eyebrow */}
+        <Animated.View style={eyebrowAnimStyle}>
+          <Text style={dreamStyles.eyebrow}>İLK ADIM</Text>
+        </Animated.View>
+
+        {/* Title — dynamic language name in italic accent */}
+        <Animated.View style={titleAnimStyle}>
+          <Text style={dreamStyles.title}>
+            {'Bir gün '}
+            <Text style={dreamStyles.titleAccent}>{langName}</Text>
+            {' konuştuğunda\nnerede olmak istersin?'}
+          </Text>
+        </Animated.View>
+
+        {/* Subtitle */}
+        <Animated.View style={subtitleAnimStyle}>
+          <Text style={dreamStyles.subtitle}>
+            Hayalini yaz. Bir cümle, bir sahne, bir an. Roleo bütün öğrenme yolculuğunu bu cevap üzerine kuracak.
+          </Text>
+        </Animated.View>
+
+        {/* Input card — frosted glass */}
+        <Animated.View style={inputAnimStyle}>
+          <BlurView intensity={20} tint="dark" style={dreamStyles.inputCard}>
+            {/* Gradient tint over blur */}
+            <LinearGradient
+              colors={['rgba(26,34,48,0.6)', 'rgba(18,24,34,0.4)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* Top shimmer line */}
+            <LinearGradient
+              colors={['transparent', 'rgba(232,181,118,0.25)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={dreamStyles.inputTopLine}
+            />
+            <TextInput
+              style={dreamStyles.textInput}
+              placeholder="Mesela — Barcelona'da bir kafede oturuyorum, garsona kahvemi İspanyolca söylüyorum…"
+              placeholderTextColor={colors.inkTertiary}
+              multiline
+              numberOfLines={4}
+              value={value}
+              onChangeText={onChange}
+              selectionColor={colors.accentWarm}
+              textAlignVertical="top"
+            />
+            {/* Meta row */}
+            <View style={dreamStyles.inputMeta}>
+              <View style={dreamStyles.inputHint}>
+                <Text style={dreamStyles.inputHintIcon}>✦</Text>
+                <Text style={dreamStyles.inputHintText}>Ne kadar somut, o kadar iyi</Text>
+              </View>
+              <Text style={dreamStyles.charCount}>{charCount} / 280</Text>
+            </View>
+          </BlurView>
+        </Animated.View>
+
+        {/* Suggestion chips */}
+        <Animated.View style={chipsAnimStyle}>
+          <Text style={dreamStyles.suggestionsLabel}>Başlangıç için</Text>
+          <View style={dreamStyles.chipRow}>
+            {DREAM_SUGGESTIONS.map(chip => (
+              <TouchableOpacity
+                key={chip}
+                style={dreamStyles.chip}
+                onPress={() => onChange(chip)}
+                activeOpacity={0.7}
+              >
+                <Text style={dreamStyles.chipText}>{chip}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      {/* ── Footer CTA ── */}
+      <Animated.View style={[dreamStyles.footer, ctaAnimStyle]}>
+        <TouchableOpacity
+          style={dreamStyles.ctaButton}
+          onPress={onContinue}
+          activeOpacity={0.85}
+        >
+          <Text style={dreamStyles.ctaButtonText}>Devam et</Text>
+          <Text style={dreamStyles.ctaArrow}>→</Text>
+        </TouchableOpacity>
+        <Text style={dreamStyles.footerMeta}>
+          Henüz emin değilsen — birkaç kelime yeterli
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+// ─── Dream step styles ─────────────────────────────────────────────────────
+const dreamStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bgDeep,
+  },
+  // Glow blobs — CSS filter:blur approximation via shadow on iOS
+  glowWarm: {
+    position: 'absolute',
+    width: 380,
+    height: 380,
+    borderRadius: 190,
+    backgroundColor: 'rgba(232, 181, 118, 0.10)',
+    top: -120,
+    right: -100,
+    shadowColor: '#E8B576',
+    shadowOpacity: 0.22,
+    shadowRadius: 80,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  glowCool: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(95, 124, 168, 0.10)',
+    bottom: -80,
+    left: -80,
+    shadowColor: '#5F7CA8',
+    shadowOpacity: 0.18,
+    shadowRadius: 80,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  // Grain overlay — subtle film texture (4% opacity; add a grain PNG asset for full effect)
+  grainOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.04,
+    // backgroundColor as placeholder; replace with grain Image asset for full effect
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 62 : 40,
+    paddingHorizontal: 28,
+    marginBottom: 40,
+  },
+  backBtn: {
+    marginRight: 14,
+  },
+  backArrowText: {
+    color: colors.inkTertiary,
+    fontSize: 20,
+    fontFamily: 'InterTight_400Regular',
+  },
+  progressBars: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  progressBarTrack: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.hairlineStrong,
+    borderRadius: 1,
+    overflow: 'hidden',
+  },
+  stepLabel: {
+    marginLeft: 14,
+    fontSize: 11,
+    color: colors.inkTertiary,
+    letterSpacing: 1.5,
+    fontFamily: 'InterTight_500Medium',
+  },
+  scrollContent: {
+    paddingHorizontal: 28,
+    paddingBottom: 32,
+  },
+  eyebrow: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 2.8,
+    textTransform: 'uppercase',
+    color: colors.accentWarm,
+    marginBottom: 22,
+  },
+  title: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 36,
+    lineHeight: 43,
+    letterSpacing: -0.7,
+    color: colors.inkPrimary,
+    marginBottom: 14,
+  },
+  titleAccent: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 36,
+    lineHeight: 43,
+    letterSpacing: -0.7,
+    color: colors.accentWarm,
+  },
+  subtitle: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.inkSecondary,
+    marginBottom: 28,
+  },
+  inputCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    padding: 20,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  inputTopLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    opacity: 0.6,
+  },
+  textInput: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 17,
+    lineHeight: 26,
+    color: colors.inkPrimary,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    backgroundColor: 'transparent',
+  },
+  inputMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  inputHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inputHintIcon: {
+    fontSize: 11,
+    color: colors.accentWarmSoft,
+  },
+  inputHintText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+  },
+  charCount: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+  },
+  suggestionsLabel: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.inkTertiary,
+    marginBottom: 12,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  chipText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12.5,
+    color: colors.inkSecondary,
+  },
+  footer: {
+    paddingHorizontal: 28,
+    paddingBottom: Platform.OS === 'ios' ? 48 : 32,
+    paddingTop: 16,
+  },
+  ctaButton: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 17,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  ctaButtonText: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.bgDeep,
+  },
+  ctaArrow: {
+    fontSize: 15,
+    color: colors.bgDeep,
+    fontFamily: 'InterTight_600SemiBold',
+  },
+  footerMeta: {
+    textAlign: 'center',
+    marginTop: 14,
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+    letterSpacing: 0.5,
+  },
+});
+
 // ─── Sub-components ────────────────────────────────────────────────────────
 
 function WelcomeVisual({ accent }: { accent: string }) {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-      <View
-        style={{
-          width: 76,
-          height: 76,
-          borderRadius: 20,
-          backgroundColor: `${accent}28`,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: `${accent}55`,
-        }}
-      >
-        <Text style={{ fontSize: 36 }}>🎭</Text>
+    <View style={{ paddingVertical: 12, gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flex: 1, height: 2, backgroundColor: `${accent}40`, borderRadius: 1 }} />
+        <View style={{ flex: 2, height: 2, backgroundColor: accent, borderRadius: 1 }} />
+        <View style={{ flex: 1, height: 2, backgroundColor: `${accent}40`, borderRadius: 1 }} />
       </View>
     </View>
   );
@@ -687,16 +1160,16 @@ function TextStep({ value, onChange, hint, placeholder, accent }: {
   return (
     <View style={[subStyles.inputBox, { borderColor: `${accent}40` }]}>
       <Text style={subStyles.hintText}>{hint}</Text>
-      <View style={[subStyles.divider, { backgroundColor: `${accent}30` }]} />
+      <View style={[subStyles.divider, { backgroundColor: colors.hairline }]} />
       <TextInput
         style={subStyles.textInput}
         placeholder={placeholder}
-        placeholderTextColor="rgba(255,255,255,0.25)"
+        placeholderTextColor={colors.inkTertiary}
         multiline
         numberOfLines={4}
         value={value}
         onChangeText={onChange}
-        selectionColor={accent}
+        selectionColor={colors.accentWarm}
       />
     </View>
   );
@@ -706,20 +1179,20 @@ function TextStep({ value, onChange, hint, placeholder, accent }: {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#050508',
+    backgroundColor: colors.bgDeep,
   },
   progressTrack: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    height: 2,
+    backgroundColor: colors.hairlineStrong,
     zIndex: 10,
   },
   progressFill: {
-    height: 3,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
   },
   scroll: {
     flex: 1,
@@ -737,41 +1210,47 @@ const styles = StyleSheet.create({
     marginBottom: 36,
   },
   backArrow: {
-    fontSize: 26,
-    fontWeight: '300',
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 22,
     lineHeight: 30,
+    color: colors.inkTertiary,
     width: 32,
   },
   logoText: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 20,
     letterSpacing: -0.3,
-    fontFamily: 'Poppins_700Bold',
+    color: colors.accentWarm,
   },
   stepCounter: {
-    color: 'rgba(255,255,255,0.30)',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: colors.inkTertiary,
     width: 42,
     textAlign: 'right',
   },
   eyebrow: {
-    ...typography.lingua.caption,
-    color: 'rgba(255,255,255,0.72)',
-    letterSpacing: 2,
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 2.8,
     textTransform: 'uppercase',
+    color: colors.accentWarm,
     marginBottom: 10,
   },
   headline: {
-    ...typography.lingua.heading2,
-    color: '#FFFFFF',
-    letterSpacing: -0.4,
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 30,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+    color: colors.inkPrimary,
     marginBottom: 10,
   },
   subtitle: {
-    ...typography.lingua.description,
-    color: 'rgba(255,255,255,0.58)',
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.inkSecondary,
     marginBottom: 28,
     maxWidth: 320,
   },
@@ -782,37 +1261,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   ctaBtn: {
-    borderRadius: 18,
-    paddingVertical: 18,
+    borderRadius: 999,
+    paddingVertical: 17,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    backgroundColor: colors.inkPrimary,
   },
   ctaText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.bgDeep,
   },
   quickTryBtn: {
     marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 16,
+    backgroundColor: colors.bgSoft,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   quickTryTitle: {
-    color: '#FFFFFF',
+    fontFamily: 'InterTight_600SemiBold',
+    color: colors.inkPrimary,
     fontSize: 14,
-    fontFamily: 'Poppins_700Bold',
     marginBottom: 4,
   },
   quickTrySub: {
-    color: 'rgba(255,255,255,0.78)',
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkSecondary,
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'Poppins_500Medium',
   },
 });
 
@@ -825,10 +1305,10 @@ const subStyles = StyleSheet.create({
   },
   langCard: {
     width: (SCREEN_W - 58) / 2,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.hairlineStrong,
     paddingVertical: 16,
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -837,12 +1317,13 @@ const subStyles = StyleSheet.create({
     position: 'relative',
   },
   flag: {
-    fontSize: 22,
+    fontSize: 0,
+    width: 0,
   },
   langName: {
-    color: 'rgba(255,255,255,0.80)',
+    fontFamily: 'InterTight_500Medium',
+    color: colors.inkSecondary,
     fontSize: 14,
-    fontWeight: '600',
     flex: 1,
   },
   activeDot: {
@@ -862,38 +1343,38 @@ const subStyles = StyleSheet.create({
   },
   langBigCard: {
     width: (SCREEN_W - 60) / 2,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     paddingVertical: 24,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
   },
   bigFlag: {
-    fontSize: 40,
-    marginBottom: 10,
+    fontSize: 0,
+    height: 0,
   },
   bigLangName: {
-    color: 'rgba(255,255,255,0.80)',
+    fontFamily: 'InterTight_500Medium',
+    color: colors.inkSecondary,
     fontSize: 15,
-    fontWeight: '700',
   },
   checkBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkMark: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'InterTight_600SemiBold',
+    color: colors.bgDeep,
+    fontSize: 11,
   },
 
   // Goal list
@@ -909,41 +1390,42 @@ const subStyles = StyleSheet.create({
   dailyChip: {
     width: (SCREEN_W - 60) / 2,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.bgMid,
     paddingVertical: 18,
     alignItems: 'center',
   },
   dailyChipTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Fraunces_300Light',
+    color: colors.inkPrimary,
+    fontSize: 26,
+    letterSpacing: -0.5,
   },
   dailyChipSub: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 12,
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkTertiary,
+    fontSize: 11,
     marginTop: 4,
-    fontFamily: 'Poppins_500Medium',
+    letterSpacing: 0.5,
   },
   langPill: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 14,
     marginBottom: 8,
   },
   langPillText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 12,
   },
   goalRow: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: colors.bgMid,
     borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     paddingVertical: 16,
     paddingHorizontal: 18,
     flexDirection: 'row',
@@ -951,60 +1433,62 @@ const subStyles = StyleSheet.create({
     gap: 16,
   },
   goalEmoji: {
-    fontSize: 26,
+    fontSize: 22,
   },
   goalTextWrap: {
     flex: 1,
   },
   goalLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'InterTight_500Medium',
+    color: colors.inkPrimary,
+    fontSize: 15,
     marginBottom: 2,
-    fontFamily: 'Poppins_600SemiBold',
   },
   goalDesc: {
-    color: 'rgba(255,255,255,0.40)',
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkTertiary,
     fontSize: 12,
-    fontWeight: '400',
+    lineHeight: 18,
   },
   goalCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.20)',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   goalCheck: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'InterTight_600SemiBold',
+    color: colors.bgDeep,
+    fontSize: 11,
   },
 
   inputBox: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     padding: 20,
   },
   hintText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 20,
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.inkTertiary,
+    fontSize: 14,
+    lineHeight: 21,
     marginBottom: 14,
   },
   divider: {
     height: 1,
     marginBottom: 14,
+    backgroundColor: colors.hairline,
   },
   textInput: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 26,
-    fontWeight: '400',
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkPrimary,
+    fontSize: 15,
+    lineHeight: 24,
     textAlignVertical: 'top',
     minHeight: 110,
   },

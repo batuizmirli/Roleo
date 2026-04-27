@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { awardActivityXP } from '../services/progress';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { buildTrueFakeSet, getTrueFakeMaxCount, SentenceItem, TRUE_FAKE_CONFIG, TrueFakeDifficulty } from '../data/trueOrFake';
-import { ModuleResult } from '../types';
+import { ModuleResult, UserProfile } from '../types';
+import { tryParseJson } from '../services/json';
+import { useAppTranslation } from '../i18n';
 
 type Props = {
   onBack: () => void;
@@ -22,9 +25,11 @@ const comboBadge = (combo: number) => {
 };
 
 export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitle, onComplete }: Props) {
+  const t = useAppTranslation();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [difficulty, setDifficulty] = useState<TrueFakeDifficulty>('easy');
   const [questionCount, setQuestionCount] = useState(runMode ? 6 : TRUE_FAKE_CONFIG.easy.count);
+  const [langCode, setLangCode] = useState('en');
   const [items, setItems] = useState<SentenceItem[]>([]);
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -45,6 +50,14 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   const config = TRUE_FAKE_CONFIG[difficulty];
   const current = items[index];
 
+  useEffect(() => {
+    AsyncStorage.getItem('userProfile').then(raw => {
+      if (!raw) return;
+      const p = tryParseJson<UserProfile>(raw);
+      if (p?.language?.code) setLangCode(p.language.code);
+    });
+  }, []);
+
   const resetQuestion = () => {
     setSelected(null);
     setFeedback(null);
@@ -53,7 +66,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   };
 
   const startGame = (d: TrueFakeDifficulty) => {
-    const set = buildTrueFakeSet(d, questionCount);
+    const set = buildTrueFakeSet(d, langCode, questionCount);
     setDifficulty(d);
     setItems(set);
     setIndex(0);
@@ -173,7 +186,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{runMode ? '2/2 · Ton Isınması' : '✅ True or Fake'}</Text>
+          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
         </View>
 
         <View style={styles.card}>
@@ -186,7 +199,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
 
           {runMode ? (
             <View style={styles.runWhyBox}>
-              <Text style={styles.runWhyTitle}>Neden şimdi?</Text>
+              <Text style={styles.runWhyTitle}>{t('mini.whyNow')}</Text>
               <Text style={styles.runWhyText}>Ana sahnede amaç çeviri yapmak değil; baskı altında kulağa doğal gelen cevabı seçmek.</Text>
             </View>
           ) : (
@@ -207,7 +220,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
                 ))}
               </View>
 
-              <Text style={styles.countLabel}>Soru Sayısı</Text>
+              <Text style={styles.countLabel}>{t('mini.questionCount')}</Text>
               <View style={styles.countRow}>
                 <TouchableOpacity
                   style={styles.countBtn}
@@ -218,12 +231,12 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
                 <Text style={styles.countValue}>{questionCount}</Text>
                 <TouchableOpacity
                   style={styles.countBtn}
-                  onPress={() => setQuestionCount(v => Math.min(getTrueFakeMaxCount(difficulty), v + 2))}
+                  onPress={() => setQuestionCount(v => Math.min(getTrueFakeMaxCount(difficulty, langCode), v + 2))}
                 >
                   <Text style={styles.countBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.countMeta}>Min 6 · Max {getTrueFakeMaxCount(difficulty)}</Text>
+              <Text style={styles.countMeta}>Min 6 · Max {getTrueFakeMaxCount(difficulty, langCode)}</Text>
             </>
           )}
 
@@ -233,7 +246,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           </View>
 
           <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
-            <Text style={styles.startBtnText}>{runMode ? 'Ton ısınmasını başlat →' : 'Başla →'}</Text>
+            <Text style={styles.startBtnText}>{runMode ? t('mini.toneStart') : t('mini.start')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -256,7 +269,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{runMode ? '2/2 · Ton Isınması' : '✅ True or Fake'}</Text>
+          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
         </View>
 
         <View style={styles.resultCard}>
@@ -264,7 +277,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           <Text style={styles.resultTitle}>{runMode ? 'Sahne için hazırsın' : 'Run bitti'}</Text>
           <Text style={styles.resultScore}>{score} puan</Text>
           <Text style={styles.resultMeta}>Max combo: {maxCombo} {comboBadge(maxCombo)}</Text>
-          <Text style={styles.resultMeta}>Doğruluk: %{accuracy}</Text>
+          <Text style={styles.resultMeta}>{t('mini.accuracy', { value: accuracy })}</Text>
 
           {mistakes.length > 0 && (
             <View style={styles.mistakeBox}>
@@ -279,7 +292,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
-              <Text style={styles.startBtnText}>Tekrar Oyna</Text>
+              <Text style={styles.startBtnText}>{t('mini.playAgain')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -295,7 +308,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{runMode ? '2/2 · Ton Isınması' : '✅ True or Fake'}</Text>
+        <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
         <Text style={styles.scoreMini}>{score}</Text>
       </View>
 
@@ -335,7 +348,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
         <View style={[styles.feedbackBox, feedback.correct ? styles.feedbackGood : styles.feedbackBad]}>
           <Text style={styles.feedbackMain}>{feedback.text}</Text>
           {!feedback.correct && (
-            <Text style={styles.feedbackCorrection}>Doğrusu: {feedback.correction}</Text>
+            <Text style={styles.feedbackCorrection}>{t('mini.corrected', { text: feedback.correction })}</Text>
           )}
           <Text style={styles.feedbackExplain}>{feedback.explanation}</Text>
           {!feedback.correct && awaitingManualNext && (
@@ -350,67 +363,67 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, paddingTop: 56, paddingHorizontal: spacing.xl },
+  container: { flex: 1, backgroundColor: colors.bgDeep, paddingTop: 56, paddingHorizontal: spacing.xl },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  backText: { color: colors.textPrimary, fontSize: 20 },
-  title: { color: colors.textPrimary, fontSize: typography.size.lg, fontWeight: typography.weight.black, marginLeft: spacing.md, flex: 1 },
-  scoreMini: { color: colors.primaryAccent, fontWeight: typography.weight.bold },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.bgMid, alignItems: 'center', justifyContent: 'center' },
+  backText: { color: colors.inkPrimary, fontSize: 20 },
+  title: { color: colors.inkPrimary, fontSize: typography.size.lg, fontWeight: typography.weight.black, marginLeft: spacing.md, flex: 1 },
+  scoreMini: { color: colors.accentWarm, fontWeight: typography.weight.bold },
 
-  card: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.divider },
-  cardTitle: { color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginBottom: spacing.sm },
-  cardSub: { color: colors.textSecondary, fontSize: typography.size.sm, marginBottom: spacing.lg },
+  card: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline },
+  cardTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginBottom: spacing.sm },
+  cardSub: { color: colors.inkSecondary, fontSize: typography.size.sm, marginBottom: spacing.lg },
   diffRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  diffBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.surfaceAlt, borderRadius: 12, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.divider },
-  diffBtnActive: { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccentSoft },
-  diffText: { color: colors.textPrimary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
-  diffTextActive: { color: colors.primaryAccent },
-  diffMeta: { color: colors.textMuted, fontSize: typography.size.xs, marginTop: 2 },
-  countLabel: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, marginBottom: spacing.xs },
+  diffBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.bgSoft, borderRadius: 12, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.hairline },
+  diffBtnActive: { borderColor: colors.accentWarm, backgroundColor: colors.bgSoft },
+  diffText: { color: colors.inkPrimary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
+  diffTextActive: { color: colors.accentWarm },
+  diffMeta: { color: colors.inkTertiary, fontSize: typography.size.xs, marginTop: 2 },
+  countLabel: { color: colors.inkSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, marginBottom: spacing.xs },
   countRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md, marginBottom: spacing.xs },
-  countBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.divider, alignItems: 'center', justifyContent: 'center' },
-  countBtnText: { color: colors.textPrimary, fontSize: 24, fontWeight: typography.weight.bold, lineHeight: 24 },
-  countValue: { minWidth: 52, textAlign: 'center', color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
-  countMeta: { color: colors.textMuted, fontSize: typography.size.xs, textAlign: 'center', marginBottom: spacing.lg },
-  setupHintRow: { backgroundColor: colors.surfaceAlt, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg, gap: 3 },
-  setupHintStrong: { color: colors.textPrimary, fontSize: typography.size.sm, fontWeight: typography.weight.black },
-  setupHintText: { color: colors.textSecondary, fontSize: typography.size.xs, fontWeight: typography.weight.semibold },
-  runWhyBox: { backgroundColor: colors.warningSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: spacing.lg },
-  runWhyTitle: { color: colors.primaryAccent, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
-  runWhyText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
-  startBtn: { backgroundColor: colors.primaryAccent, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
-  startBtnText: { color: colors.textOnAccent, fontWeight: typography.weight.black, fontSize: typography.size.md },
+  countBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
+  countBtnText: { color: colors.inkPrimary, fontSize: 24, fontWeight: typography.weight.bold, lineHeight: 24 },
+  countValue: { minWidth: 52, textAlign: 'center', color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
+  countMeta: { color: colors.inkTertiary, fontSize: typography.size.xs, textAlign: 'center', marginBottom: spacing.lg },
+  setupHintRow: { backgroundColor: colors.bgSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: spacing.lg, gap: 3 },
+  setupHintStrong: { color: colors.inkPrimary, fontSize: typography.size.sm, fontWeight: typography.weight.black },
+  setupHintText: { color: colors.inkSecondary, fontSize: typography.size.xs, fontWeight: typography.weight.semibold },
+  runWhyBox: { backgroundColor: colors.bgSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: spacing.lg },
+  runWhyTitle: { color: colors.accentWarm, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
+  runWhyText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
+  startBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
+  startBtnText: { color: colors.bgDeep, fontWeight: typography.weight.black, fontSize: typography.size.md },
 
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  topStat: { color: colors.textSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
-  timerBg: { height: 8, borderRadius: 99, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.md },
-  timerFill: { height: 8, borderRadius: 99, backgroundColor: colors.warning },
+  topStat: { color: colors.inkSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
+  timerBg: { height: 8, borderRadius: 99, backgroundColor: colors.bgMid, overflow: 'hidden', marginBottom: spacing.md },
+  timerFill: { height: 8, borderRadius: 99, backgroundColor: colors.accentWarm },
 
-  sentenceCard: { minHeight: 170, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.divider, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
-  sentenceText: { color: colors.textPrimary, fontSize: 28, fontWeight: typography.weight.black, textAlign: 'center', lineHeight: 38 },
+  sentenceCard: { minHeight: 170, backgroundColor: colors.bgMid, borderRadius: 18, borderWidth: 1, borderColor: colors.hairline, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
+  sentenceText: { color: colors.inkPrimary, fontSize: 28, fontWeight: typography.weight.black, textAlign: 'center', lineHeight: 38 },
 
   buttonsRow: { flexDirection: 'row', gap: spacing.sm },
   pickBtn: { flex: 1, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1 },
   realBtn: { backgroundColor: colors.successSoft, borderColor: colors.success },
-  fakeBtn: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
-  pickText: { color: colors.textPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
+  fakeBtn: { backgroundColor: 'rgba(201,122,106,0.15)', borderColor: colors.errorDs },
+  pickText: { color: colors.inkPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
   pickDim: { opacity: 0.45 },
 
   feedbackBox: { marginTop: spacing.md, borderRadius: 12, padding: spacing.md, borderWidth: 1 },
   feedbackGood: { backgroundColor: colors.successSoft, borderColor: colors.success },
-  feedbackBad: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
-  feedbackMain: { color: colors.textPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
-  feedbackCorrection: { color: colors.warning, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginTop: spacing.xs },
-  feedbackExplain: { color: colors.textSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
-  nextBtn: { marginTop: spacing.sm, backgroundColor: colors.primaryAccent, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  nextBtnText: { color: colors.textOnAccent, fontWeight: typography.weight.black, fontSize: typography.size.sm },
+  feedbackBad: { backgroundColor: 'rgba(201,122,106,0.15)', borderColor: colors.errorDs },
+  feedbackMain: { color: colors.inkPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
+  feedbackCorrection: { color: colors.accentWarm, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginTop: spacing.xs },
+  feedbackExplain: { color: colors.inkSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
+  nextBtn: { marginTop: spacing.sm, backgroundColor: colors.accentWarm, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  nextBtnText: { color: colors.bgDeep, fontWeight: typography.weight.black, fontSize: typography.size.sm },
 
-  resultCard: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.divider, alignItems: 'center' },
+  resultCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline, alignItems: 'center' },
   resultEmoji: { fontSize: 54 },
-  resultTitle: { color: colors.textPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginTop: spacing.sm },
-  resultScore: { color: colors.primaryAccent, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },
-  resultMeta: { color: colors.textSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
-  mistakeBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.divider },
-  mistakeTitle: { color: colors.warning, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginBottom: spacing.xs },
-  mistakeText: { color: colors.textSecondary, fontSize: typography.size.sm, lineHeight: 20 },
+  resultTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginTop: spacing.sm },
+  resultScore: { color: colors.accentWarm, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },
+  resultMeta: { color: colors.inkSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
+  mistakeBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.bgSoft, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.hairline },
+  mistakeTitle: { color: colors.accentWarm, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginBottom: spacing.xs },
+  mistakeText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20 },
 });

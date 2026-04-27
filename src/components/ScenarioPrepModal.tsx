@@ -5,6 +5,7 @@ import {
 import { Scenario, UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson } from '../services/json';
+import { colors } from '../theme/colors';
 
 type PrepQuestion = {
   type: 'fill_blank' | 'error_detect' | 'auto_complete';
@@ -96,30 +97,26 @@ Return ONLY valid JSON array:
 
   const prepBonus = score >= 3 ? 10 : score >= 2 ? 7 : 4;
   const accuracy = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-  const confidence = accuracy >= 80
-    ? { label: 'Yüksek', color: '#8B5E45' }
-    : accuracy >= 50
-    ? { label: 'Orta', color: '#B07A5C' }
-    : { label: 'Düşük', color: '#E05C5C' };
-
+  const confidence = accuracy >= 80 ? 'Yüksek' : accuracy >= 50 ? 'Orta' : 'Düşük';
   const currentQ = questions[qIndex];
 
   const typeLabel = (type: PrepQuestion['type']) => {
-    if (type === 'fill_blank') return 'Boşluğu Doldur';
-    if (type === 'error_detect') return 'Hatayı Bul';
-    return 'Tamamla';
+    if (type === 'fill_blank') return 'BOŞLUĞU DOLDUR';
+    if (type === 'error_detect') return 'HATAYI BUL';
+    return 'TAMAMLA';
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleSkip}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
+          <View style={styles.handle} />
 
           {phase === 'choice' && (
             <>
               <Text style={styles.emoji}>{scenario.emoji}</Text>
               <Text style={styles.title}>{scenario.title}</Text>
-              <Text style={styles.location}>📍 {scenario.location}</Text>
+              <Text style={styles.location}>{scenario.location}</Text>
 
               {playCount > 0 && (
                 <View style={styles.returnBadge}>
@@ -132,10 +129,8 @@ Return ONLY valid JSON array:
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.prepBtn} onPress={startPrep}>
-                <View>
-                  <Text style={styles.prepBtnTitle}>30 sn sahne hazırlığı</Text>
-                  <Text style={styles.prepBtnSub}>3 pratik soru · sahnedeki cevabını hazırla · +10 XP</Text>
-                </View>
+                <Text style={styles.prepBtnTitle}>30 sn sahne hazırlığı</Text>
+                <Text style={styles.prepBtnSub}>3 pratik soru · +10 XP</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.backBtn} onPress={handleSkip}>
@@ -146,7 +141,7 @@ Return ONLY valid JSON array:
 
           {phase === 'loading' && (
             <View style={styles.center}>
-              <ActivityIndicator color="#E8A840" size="large" />
+              <ActivityIndicator color={colors.accentWarm} size="large" />
               <Text style={styles.loadingText}>Isınma soruları hazırlanıyor...</Text>
             </View>
           )}
@@ -157,15 +152,12 @@ Return ONLY valid JSON array:
                 <Text style={styles.typeLabel}>{typeLabel(currentQ.type)}</Text>
                 <Text style={styles.quizProgress}>{qIndex + 1} / {questions.length}</Text>
               </View>
-
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${((qIndex + 1) / questions.length) * 100}%` }]} />
+                <View style={[styles.progressFill, { width: `${((qIndex + 1) / questions.length) * 100}%` as any }]} />
               </View>
-
               <View style={styles.questionBox}>
                 <Text style={styles.questionText}>{currentQ.prompt}</Text>
               </View>
-
               <View style={styles.options}>
                 {currentQ.options.map((opt, idx) => {
                   const isCorrect = selected !== null && idx === currentQ.correct;
@@ -185,16 +177,14 @@ Return ONLY valid JSON array:
                   );
                 })}
               </View>
-
               {selected !== null && (
                 <View style={styles.tipBox}>
                   <Text style={styles.tipText}>💡 {currentQ.tip}</Text>
                 </View>
               )}
-
               {selected !== null && (
-                <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-                  <Text style={styles.nextBtnText}>
+                <TouchableOpacity style={styles.primaryBtn} onPress={handleNext}>
+                  <Text style={styles.primaryBtnText}>
                     {qIndex + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}
                   </Text>
                 </TouchableOpacity>
@@ -205,34 +195,30 @@ Return ONLY valid JSON array:
           {phase === 'result' && (
             <>
               <Text style={styles.resultTitle}>Isınma tamamlandı 🔥</Text>
-
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{accuracy}%</Text>
                   <Text style={styles.statLabel}>Doğruluk</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statValue, { color: confidence.color }]}>{confidence.label}</Text>
+                  <Text style={[styles.statValue, { color: colors.accentWarm }]}>{confidence}</Text>
                   <Text style={styles.statLabel}>Hazırlık</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statValue, { color: '#F5B800' }]}>+{prepBonus}</Text>
+                  <Text style={[styles.statValue, { color: colors.accentWarm }]}>+{prepBonus}</Text>
                   <Text style={styles.statLabel}>XP bonus</Text>
                 </View>
               </View>
-
               {!!lastTip && (
-                <View style={styles.finalTipBox}>
-                  <Text style={styles.finalTipText}>💡 {lastTip}</Text>
+                <View style={styles.tipBox}>
+                  <Text style={styles.tipText}>💡 {lastTip}</Text>
                 </View>
               )}
-
               <TouchableOpacity style={styles.primaryBtn} onPress={() => { reset(); onEnter(prepBonus); }}>
                 <Text style={styles.primaryBtnText}>Sahneye Gir →</Text>
               </TouchableOpacity>
             </>
           )}
-
         </View>
       </View>
     </Modal>
@@ -240,55 +226,210 @@ Return ONLY valid JSON array:
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.bgMid,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    padding: 28,
+    padding: 24,
     paddingBottom: 48,
     borderTopWidth: 1,
-    borderColor: '#E8EDF2',
+    borderColor: colors.hairlineStrong,
     minHeight: 300,
   },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.hairlineStrong,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+
   emoji: { fontSize: 36, textAlign: 'center', marginBottom: 8 },
-  title: { fontSize: 20, fontWeight: '900', color: '#1A2B3C', textAlign: 'center', fontFamily: 'Poppins_700Bold' },
-  location: { fontSize: 13, color: '#6B7B8D', textAlign: 'center', marginTop: 4, marginBottom: 20 },
-  returnBadge: { backgroundColor: '#F4ECE5', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#D5C4B8' },
-  returnText: { color: '#8B5E45', fontSize: 12, fontWeight: '700' },
-  primaryBtn: { backgroundColor: '#A66A4C', borderRadius: 16, padding: 17, alignItems: 'center', marginBottom: 10, shadowColor: '#A66A4C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
-  primaryBtnText: { color: '#FFFDF8', fontSize: 16, fontWeight: '800' },
-  prepBtn: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: '#E8EDF2' },
-  prepBtnTitle: { color: '#1A2B3C', fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  prepBtnSub: { color: '#8B5E45', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 3 },
+  title: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 22,
+    color: colors.inkPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    marginBottom: 4,
+  },
+  location: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkTertiary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  returnBadge: {
+    backgroundColor: `${colors.accentWarm}18`,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${colors.accentWarm}30`,
+  },
+  returnText: {
+    fontFamily: 'InterTight_500Medium',
+    color: colors.accentWarmSoft,
+    fontSize: 12,
+  },
+
+  primaryBtn: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 17,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryBtnText: {
+    fontFamily: 'InterTight_600SemiBold',
+    color: colors.bgDeep,
+    fontSize: 15,
+  },
+  prepBtn: {
+    backgroundColor: colors.bgSoft,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    alignItems: 'center',
+    gap: 4,
+  },
+  prepBtnTitle: {
+    fontFamily: 'InterTight_600SemiBold',
+    color: colors.inkPrimary,
+    fontSize: 14,
+  },
+  prepBtnSub: {
+    fontFamily: 'InterTight_400Regular',
+    color: colors.accentWarmSoft,
+    fontSize: 12,
+  },
   backBtn: { padding: 12, alignItems: 'center' },
-  backBtnText: { color: '#6B7B8D', fontSize: 14 },
+  backBtnText: {
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkTertiary,
+    fontSize: 14,
+  },
+
   center: { alignItems: 'center', paddingVertical: 48, gap: 16 },
-  loadingText: { color: '#6B7B8D', fontSize: 14 },
+  loadingText: {
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkSecondary,
+    fontSize: 14,
+  },
+
   quizTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  typeLabel: { fontSize: 11, fontWeight: '900', color: '#8B5E45', letterSpacing: 1 },
-  quizProgress: { fontSize: 13, color: '#6B7B8D', fontWeight: '700' },
-  progressBar: { height: 3, backgroundColor: '#E8EDF2', borderRadius: 2, marginBottom: 20, overflow: 'hidden' },
-  progressFill: { height: 3, backgroundColor: '#A66A4C', borderRadius: 2 },
-  questionBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#E8EDF2' },
-  questionText: { color: '#1A2B3C', fontSize: 17, fontWeight: '700', lineHeight: 26, textAlign: 'center' },
+  typeLabel: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    color: colors.accentWarm,
+    letterSpacing: 2,
+  },
+  quizProgress: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 13,
+    color: colors.inkTertiary,
+  },
+  progressBar: {
+    height: 2,
+    backgroundColor: colors.hairlineStrong,
+    borderRadius: 1,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  progressFill: { height: 2, backgroundColor: colors.accentWarm, borderRadius: 1 },
+
+  questionBox: {
+    backgroundColor: colors.bgSoft,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  questionText: {
+    fontFamily: 'Fraunces_300Light',
+    color: colors.inkPrimary,
+    fontSize: 17,
+    lineHeight: 26,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+
   options: { gap: 8, marginBottom: 12 },
-  option: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: '#E8EDF2' },
-  optionCorrect: { borderColor: '#A66A4C', backgroundColor: '#F4ECE5' },
-  optionWrong: { borderColor: '#E05C5C', backgroundColor: '#FDECEC' },
+  option: {
+    backgroundColor: colors.bgSoft,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  optionCorrect: { borderColor: colors.successDs, backgroundColor: `${colors.successDs}15` },
+  optionWrong: { borderColor: colors.errorDs, backgroundColor: `${colors.errorDs}15` },
   optionDim: { opacity: 0.3 },
-  optionText: { color: '#1A2B3C', fontSize: 15, flex: 1 },
-  tick: { color: '#8B5E45', fontWeight: '900', fontSize: 16 },
-  cross: { color: '#E05C5C', fontWeight: '900', fontSize: 16 },
-  tipBox: { backgroundColor: '#F4ECE5', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#D5C4B8' },
-  tipText: { color: '#8B5E45', fontSize: 13, lineHeight: 20 },
-  nextBtn: { backgroundColor: '#A66A4C', borderRadius: 14, padding: 16, alignItems: 'center' },
-  nextBtnText: { color: '#FFFDF8', fontSize: 15, fontWeight: '800' },
-  resultTitle: { fontSize: 20, fontWeight: '900', color: '#1A2B3C', textAlign: 'center', marginBottom: 24, fontFamily: 'Poppins_700Bold' },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  statBox: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E8EDF2' },
-  statValue: { fontSize: 22, fontWeight: '900', color: '#1A2B3C' },
-  statLabel: { fontSize: 11, color: '#6B7B8D', marginTop: 4 },
-  finalTipBox: { backgroundColor: '#F4ECE5', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#D5C4B8' },
-  finalTipText: { color: '#8B5E45', fontSize: 13, lineHeight: 20 },
+  optionText: {
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkPrimary,
+    fontSize: 14,
+    flex: 1,
+  },
+  tick: { color: colors.successDs, fontSize: 16, fontFamily: 'InterTight_600SemiBold' },
+  cross: { color: colors.errorDs, fontSize: 16, fontFamily: 'InterTight_600SemiBold' },
+
+  tipBox: {
+    backgroundColor: `${colors.accentWarm}12`,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: `${colors.accentWarm}25`,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accentWarm,
+  },
+  tipText: {
+    fontFamily: 'InterTight_400Regular',
+    color: colors.inkSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+
+  resultTitle: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 22,
+    color: colors.inkPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    marginBottom: 20,
+  },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statBox: {
+    flex: 1,
+    backgroundColor: colors.bgSoft,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  statValue: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 22,
+    color: colors.inkPrimary,
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+    marginTop: 4,
+  },
 });

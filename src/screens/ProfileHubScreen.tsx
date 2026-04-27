@@ -1,91 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WeeklyActivityChart from '../components/WeeklyActivityChart';
 import { getProgress, getLevelFromXp, getLevelProgress, getWeeklyXp, type DailyXpEntry, type ProgressState } from '../services/progress';
 import { UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
+import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
+
+const { width: SW } = Dimensions.get('window');
 
 type Props = {
   onOpenAccount: () => void;
   onOpenProgress: () => void;
 };
 
-const surface = '#FCF9F8';
-const primary = '#884C32';
-const terracotta = '#B06D50';
-const onSurface = '#1B1C1C';
-const onSurfaceVariant = '#53433E';
-const outlineVariant = 'rgba(216, 194, 186, 0.35)';
-const white = '#FFFFFF';
-
 type BadgeModel = {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  icon: string;
   unlocked: boolean;
   progress: number;
 };
 
-const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
+const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
 const buildBadges = (progress: ProgressState, level: number): BadgeModel[] => {
   const completed = progress.completedScenarioIds.length;
   const savedPhraseCount = progress.learningMemory?.savedPhrases?.length ?? 0;
   const cleanMemory = (progress.learningMemory?.repeatedWeaknesses?.length ?? 0) === 0 && completed > 0;
-
   return [
-    {
-      id: 'first-run',
-      title: 'İlk Prova',
-      description: 'İlk gerçek hayat sahneni tamamla.',
-      icon: 'flag',
-      unlocked: completed >= 1,
-      progress: clampProgress(completed / 1),
-    },
-    {
-      id: 'streak-3',
-      title: 'Prova Serisi',
-      description: '3 günlük prova ritmi yakala.',
-      icon: 'local-fire-department',
-      unlocked: progress.streak >= 3,
-      progress: clampProgress(progress.streak / 3),
-    },
-    {
-      id: 'natural-reply',
-      title: 'Doğal Cevap',
-      description: 'Akışı bozmadan temiz cevaplar biriktir.',
-      icon: 'verified',
-      unlocked: cleanMemory || savedPhraseCount >= 2,
-      progress: clampProgress(Math.max(savedPhraseCount / 2, cleanMemory ? 1 : 0)),
-    },
-    {
-      id: 'streak-7',
-      title: '7 Günlük Seri',
-      description: 'Bir hafta boyunca Roleo’ya dön.',
-      icon: 'military-tech',
-      unlocked: progress.streak >= 7,
-      progress: clampProgress(progress.streak / 7),
-    },
-    {
-      id: 'scene-master',
-      title: 'Sahne Ustası',
-      description: '10 sahne provasını tamamla.',
-      icon: 'theater-comedy',
-      unlocked: completed >= 10,
-      progress: clampProgress(completed / 10),
-    },
-    {
-      id: 'level-5',
-      title: 'Seviye 5',
-      description: 'XP biriktirip beşinci seviyeye ulaş.',
-      icon: 'emoji-events',
-      unlocked: level >= 5,
-      progress: clampProgress(level / 5),
-    },
+    { id: 'first-run',    title: 'İlk Prova',      description: 'İlk gerçek hayat sahneni tamamla.',       icon: 'flag',      unlocked: completed >= 1,         progress: clamp(completed / 1) },
+    { id: 'streak-3',     title: 'Prova Serisi',   description: '3 günlük prova ritmi yakala.',             icon: 'zap',       unlocked: progress.streak >= 3,   progress: clamp(progress.streak / 3) },
+    { id: 'natural',      title: 'Doğal Cevap',    description: 'Akışı bozmadan temiz cevaplar biriktir.', icon: 'check-circle', unlocked: cleanMemory || savedPhraseCount >= 2, progress: clamp(Math.max(savedPhraseCount / 2, cleanMemory ? 1 : 0)) },
+    { id: 'streak-7',     title: '7 Günlük Seri',  description: "Bir hafta boyunca Roleo'ya dön.",         icon: 'award',     unlocked: progress.streak >= 7,   progress: clamp(progress.streak / 7) },
+    { id: 'scene-master', title: 'Sahne Ustası',   description: '10 sahne provasını tamamla.',             icon: 'mic',       unlocked: completed >= 10,        progress: clamp(completed / 10) },
+    { id: 'level-5',      title: 'Seviye 5',       description: 'XP biriktirip beşinci seviyeye ulaş.',    icon: 'star',      unlocked: level >= 5,             progress: clamp(level / 5) },
   ];
 };
 
@@ -96,14 +50,13 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       const profileRaw = await AsyncStorage.getItem('userProfile');
       setProfile(profileRaw ? tryParseJson<UserProfile>(profileRaw) : null);
       const p = await getProgress();
       setProgress(p);
       setWeeklyXpSeries(getWeeklyXp(p.dailyXpLog ?? {}));
-    };
-    void load();
+    })();
   }, []);
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
@@ -111,7 +64,7 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
   if (!progress) {
     return (
       <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontFamily: 'Poppins_500Medium', color: onSurfaceVariant }}>Yükleniyor…</Text>
+        <Text style={{ ...typography.body, color: colors.inkTertiary }}>Yükleniyor…</Text>
       </View>
     );
   }
@@ -122,7 +75,7 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
   const streak = progress.streak;
   const memory = progress.learningMemory;
   const levelPct = Math.round(getLevelProgress(xp) * 100);
-  const weeklyTotal = weeklyXpSeries.reduce((sum, day) => sum + day.xp, 0);
+  const weeklyTotal = weeklyXpSeries.reduce((s, d) => s + d.xp, 0);
   const badges = buildBadges(progress, level);
   const unlockedCount = badges.filter(b => b.unlocked).length;
   const savedPhrase = memory?.savedPhrases?.[memory.savedPhrases.length - 1];
@@ -136,124 +89,141 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safeTop} edges={['top']}>
-        <View style={styles.topBar}>
-          <View style={styles.headerIdentity}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{avatarInitial}</Text>
-            </View>
-            <View>
-              <Text style={styles.brandText}>Roleo</Text>
-              <Text style={styles.screenTitle}>Profil</Text>
-            </View>
+      <View style={styles.glow} pointerEvents="none" />
+
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.topLeft}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitial}>{avatarInitial}</Text>
           </View>
-          <TouchableOpacity onPress={onOpenAccount} style={styles.iconBtn} accessibilityLabel="Hesap">
-            <MaterialIcons name="settings" size={22} color={terracotta} />
-          </TouchableOpacity>
+          <View>
+            <Text style={styles.eyebrow}>PROFİL</Text>
+            <Text style={styles.screenTitle}>
+              Prova{' '}
+              <Text style={styles.screenTitleItalic}>geçmişin</Text>
+            </Text>
+          </View>
         </View>
-      </SafeAreaView>
+        <TouchableOpacity style={styles.iconBtn} onPress={onOpenAccount} activeOpacity={0.8}>
+          <Feather name="settings" size={18} color={colors.inkSecondary} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.heroEyebrow}>Gelişim ve rozetler</Text>
-        <Text style={styles.heroTitle}>Prova geçmişin burada güçlenir.</Text>
-
-        <View style={styles.summaryBento}>
+        {/* Stats bento */}
+        <View style={styles.bento}>
+          {/* Streak card */}
           <View style={styles.streakCard}>
-            <View style={styles.streakIconWrap}>
-              <MaterialIcons name="local-fire-department" size={42} color={primary} />
-            </View>
+            <LinearGradient
+              colors={['rgba(232,181,118,0.08)', 'rgba(232,181,118,0.02)']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Feather name="zap" size={28} color={colors.accentWarm} />
             <Text style={styles.streakValue}>{streak}</Text>
             <Text style={styles.streakLabel}>Günlük seri</Text>
-            <Text style={styles.streakHint}>Bugün kısa bir sahne daha oynayarak ritmi koru.</Text>
           </View>
 
-          <View style={styles.sideStats}>
+          {/* Side tiles */}
+          <View style={styles.sideTiles}>
             <View style={styles.statTile}>
-              <Text style={styles.statMiniLabel}>XP / Seviye</Text>
-              <Text style={styles.statMiniValue}>{xp}</Text>
-              <Text style={styles.statMiniSub}>Seviye {level} · %{levelPct}</Text>
+              <Text style={styles.tileLabel}>XP</Text>
+              <Text style={styles.tileValue}>{xp}</Text>
+              <Text style={styles.tileSub}>Sev. {level}</Text>
               <View style={styles.levelTrack}>
-                <View style={[styles.levelFill, { width: `${levelPct}%` }]} />
+                <LinearGradient
+                  colors={[colors.accentWarmSoft, colors.accentWarm]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[styles.levelFill, { width: `${levelPct}%` as any }]}
+                />
               </View>
             </View>
             <View style={styles.statTile}>
-              <Text style={styles.statMiniLabel}>Sahne provası</Text>
-              <Text style={styles.statMiniValue}>{completed}</Text>
-              <Text style={styles.statMiniSub}>Tamamlanan gerçek an</Text>
+              <Text style={styles.tileLabel}>SAHNE</Text>
+              <Text style={styles.tileValue}>{completed}</Text>
+              <Text style={styles.tileSub}>Tamamlanan</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.chartPanel}>
-          <View style={styles.chartTitleRow}>
+        {/* Weekly chart */}
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
             <View>
-              <Text style={styles.chartPanelTitle}>Haftalık ilerleme</Text>
-              <Text style={styles.chartPanelSub}>Bu hafta kazandığın XP akışı</Text>
+              <Text style={styles.chartTitle}>Haftalık İlerleme</Text>
+              <Text style={styles.chartSub}>Bu hafta kazandığın XP</Text>
             </View>
-            <View style={styles.chartWeekPill}>
-              <Text style={styles.chartWeekPillText}>{weeklyTotal} XP</Text>
+            <View style={styles.weekPill}>
+              <Text style={styles.weekPillText}>{weeklyTotal} XP</Text>
             </View>
           </View>
           <WeeklyActivityChart
             series={weeklyXpSeries.length ? weeklyXpSeries : getWeeklyXp({})}
-            accent={terracotta}
-            barMuted="rgba(136, 76, 50, 0.35)"
-            barEmpty="rgba(136, 76, 50, 0.12)"
+            accent={colors.accentWarm}
+            barMuted={`${colors.accentWarm}50`}
+            barEmpty={`${colors.accentWarm}18`}
           />
         </View>
 
-        <View style={styles.badgeSectionHead}>
+        {/* Badges */}
+        <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Rozetler</Text>
-          <Text style={styles.badgeCount}>{unlockedCount} / {badges.length} açık</Text>
+          <Text style={styles.badgeCount}>{unlockedCount} / {badges.length}</Text>
         </View>
         <View style={styles.badgeGrid}>
           {badges.map(badge => (
             <View key={badge.id} style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
               <View style={[styles.badgeIconCircle, badge.unlocked ? styles.badgeIconUnlocked : styles.badgeIconLocked]}>
-                <MaterialIcons name={badge.unlocked ? badge.icon : 'lock'} size={26} color={badge.unlocked ? primary : '#9B8B82'} />
+                <Feather
+                  name={badge.unlocked ? (badge.icon as any) : 'lock'}
+                  size={22}
+                  color={badge.unlocked ? colors.accentWarm : colors.inkTertiary}
+                />
               </View>
-              <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTextLocked]}>{badge.title}</Text>
+              <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTitleLocked]}>{badge.title}</Text>
               <Text style={styles.badgeDesc} numberOfLines={2}>{badge.description}</Text>
               {!badge.unlocked && (
-                <View style={styles.badgeProgressTrack}>
-                  <View style={[styles.badgeProgressFill, { width: `${Math.round(badge.progress * 100)}%` }]} />
+                <View style={styles.badgeTrack}>
+                  <View style={[styles.badgeFill, { width: `${Math.round(badge.progress * 100)}%` as any }]} />
                 </View>
               )}
             </View>
           ))}
         </View>
 
+        {/* Memory card */}
         <View style={styles.memoryCard}>
-          <View style={styles.memoryTopRow}>
-            <View style={styles.memoryIconWrap}>
-              <MaterialIcons name="psychology" size={22} color={primary} />
+          <View style={styles.memoryRow}>
+            <View style={styles.memoryIcon}>
+              <Feather name="cpu" size={16} color={colors.accentWarmSoft} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.memoryLabel}>Prova Hafızası</Text>
+              <Text style={styles.memoryLabel}>PROVA HAFIZASI</Text>
               <Text style={styles.memoryText}>{memoryLine}</Text>
             </View>
           </View>
           {!!savedPhrase && (
-            <View style={styles.savedPhrasePill}>
-              <Text style={styles.savedPhraseLabel}>Son işe yarayan ifade</Text>
-              <Text style={styles.savedPhraseText}>{savedPhrase}</Text>
+            <View style={styles.phrasePill}>
+              <Text style={styles.phraseLabel}>Son işe yarayan ifade</Text>
+              <Text style={styles.phraseText}>{savedPhrase}</Text>
             </View>
           )}
         </View>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={onOpenAccount} activeOpacity={0.88}>
-          <MaterialIcons name="person-outline" size={22} color={primary} />
-          <Text style={styles.actionBtnText}>Hesap</Text>
-          <MaterialIcons name="chevron-right" size={22} color={terracotta} style={{ marginLeft: 'auto' }} />
+        {/* Action rows */}
+        <TouchableOpacity style={styles.actionRow} onPress={onOpenProgress} activeOpacity={0.8}>
+          <Feather name="bar-chart-2" size={18} color={colors.accentWarmSoft} />
+          <Text style={styles.actionText}>Detaylı ilerleme</Text>
+          <Feather name="chevron-right" size={16} color={colors.inkTertiary} style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionBtn} onPress={onOpenProgress} activeOpacity={0.88}>
-          <MaterialIcons name="insights" size={22} color={primary} />
-          <Text style={styles.actionBtnText}>Detaylı ilerleme</Text>
-          <MaterialIcons name="chevron-right" size={22} color={terracotta} style={{ marginLeft: 'auto' }} />
+        <TouchableOpacity style={styles.actionRow} onPress={onOpenAccount} activeOpacity={0.8}>
+          <Feather name="user" size={18} color={colors.accentWarmSoft} />
+          <Text style={styles.actionText}>Hesap ayarları</Text>
+          <Feather name="chevron-right" size={16} color={colors.inkTertiary} style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -261,396 +231,317 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surface },
-  safeTop: { backgroundColor: 'rgba(252,249,247,0.92)' },
+  root: { flex: 1, backgroundColor: colors.bgDeep },
+
+  glow: {
+    position: 'absolute',
+    width: SW * 0.8,
+    height: SW * 0.8,
+    borderRadius: SW * 0.4,
+    backgroundColor: 'rgba(232,181,118,0.05)',
+    top: -SW * 0.2,
+    right: -SW * 0.15,
+    pointerEvents: 'none',
+  },
+
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(136, 76, 50, 0.12)',
-    backgroundColor: 'rgba(252,249,247,0.92)',
+    paddingHorizontal: 22,
+    paddingBottom: 20,
   },
-  headerIdentity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  topLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F5ECE8',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.accentWarm}18`,
     borderWidth: 1,
-    borderColor: outlineVariant,
+    borderColor: `${colors.accentWarm}30`,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: 17,
-    fontFamily: 'Poppins_600SemiBold',
-    color: primary,
+  avatarInitial: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 20,
+    color: colors.accentWarm,
   },
-  brandText: {
-    fontSize: 12,
-    lineHeight: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    letterSpacing: 0.6,
+  eyebrow: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarm,
+    marginBottom: 2,
   },
   screenTitle: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 22,
+    color: colors.inkPrimary,
+    letterSpacing: -0.4,
+  },
+  screenTitleItalic: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.accentWarm,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.68)',
-    borderWidth: 1,
-    borderColor: outlineVariant,
   },
+
   scroll: { flex: 1 },
-  scrollInner: { paddingHorizontal: 20, paddingTop: 18 },
-  heroEyebrow: {
-    fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 31,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
-    marginBottom: 18,
-    maxWidth: 310,
-  },
-  summaryBento: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
-  },
+  scrollInner: { paddingHorizontal: 20, paddingTop: 4, gap: 14 },
+
+  // Bento
+  bento: { flexDirection: 'row', gap: 10 },
   streakCard: {
-    flex: 1.12,
-    minHeight: 218,
-    backgroundColor: white,
-    borderRadius: 24,
+    flex: 1.1,
+    backgroundColor: colors.bgMid,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: outlineVariant,
+    borderColor: `${colors.accentWarm}20`,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#4A4542',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  streakIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFF8F5',
-    borderWidth: 1,
-    borderColor: outlineVariant,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    gap: 4,
+    overflow: 'hidden',
+    minHeight: 160,
   },
   streakValue: {
-    fontSize: 46,
-    lineHeight: 52,
-    fontFamily: 'Poppins_700Bold',
-    color: onSurface,
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 52,
+    color: colors.inkPrimary,
+    letterSpacing: -1,
+    lineHeight: 60,
   },
   streakLabel: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurfaceVariant,
-    marginBottom: 8,
-  },
-  streakHint: {
+    ...typography.body,
     fontSize: 12,
-    lineHeight: 17,
-    fontFamily: 'Poppins_500Medium',
-    color: '#7A6E68',
-    textAlign: 'center',
+    color: colors.inkTertiary,
   },
-  sideStats: {
-    flex: 0.88,
-    gap: 10,
-  },
+  sideTiles: { flex: 0.9, gap: 10 },
   statTile: {
     flex: 1,
-    backgroundColor: '#FBF2ED',
-    borderRadius: 20,
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: outlineVariant,
-    padding: 14,
-    justifyContent: 'center',
+    borderColor: colors.hairline,
+    padding: 12,
   },
-  statMiniLabel: {
-    fontSize: 10,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    letterSpacing: 0.5,
+  tileLabel: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarmSoft,
     marginBottom: 4,
   },
-  statMiniValue: {
-    fontSize: 26,
-    lineHeight: 32,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+  tileValue: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 28,
+    color: colors.inkPrimary,
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
-  statMiniSub: {
+  tileSub: {
+    ...typography.body,
     fontSize: 11,
-    lineHeight: 15,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
+    color: colors.inkTertiary,
     marginTop: 2,
   },
   levelTrack: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(136, 76, 50, 0.12)',
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.hairlineStrong,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 8,
   },
-  levelFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: primary,
-  },
-  chartPanel: {
-    backgroundColor: white,
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    marginBottom: 20,
+  levelFill: { height: 2, borderRadius: 1 },
+
+  // Chart
+  chartCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: outlineVariant,
-    shadowColor: '#4A4542',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 1,
+    borderColor: colors.hairline,
+    padding: 16,
   },
-  chartTitleRow: {
+  chartHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    gap: 10,
+    marginBottom: 14,
   },
-  chartPanelTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+  chartTitle: {
+    ...typography.bodyMedium,
+    fontSize: 14,
+    color: colors.inkPrimary,
+    marginBottom: 3,
   },
-  chartPanelSub: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
-    marginTop: 2,
+  chartSub: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkTertiary,
   },
-  chartWeekPill: {
+  weekPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(176, 109, 80, 0.14)',
+    backgroundColor: `${colors.accentWarm}14`,
     borderWidth: 1,
-    borderColor: 'rgba(176, 109, 80, 0.35)',
+    borderColor: `${colors.accentWarm}30`,
   },
-  chartWeekPillText: {
+  weekPillText: {
+    ...typography.bodyMedium,
     fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
+    color: colors.accentWarm,
   },
-  badgeSectionHead: {
+
+  // Section head
+  sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: outlineVariant,
-    paddingBottom: 10,
-    marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkSecondary,
   },
   badgeCount: {
+    ...typography.body,
     fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurfaceVariant,
-    backgroundColor: '#F5ECE8',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    overflow: 'hidden',
+    color: colors.accentWarmSoft,
   },
-  badgeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
+
+  // Badges
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   badgeCard: {
     width: '48%',
-    minHeight: 178,
-    backgroundColor: white,
-    borderRadius: 20,
+    minHeight: 160,
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: outlineVariant,
+    borderColor: colors.hairline,
     padding: 14,
     alignItems: 'center',
-    shadowColor: '#4A4542',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 1,
   },
   badgeCardLocked: {
-    backgroundColor: '#F5ECE8',
-    borderStyle: 'dashed',
-    opacity: 0.78,
+    opacity: 0.6,
   },
   badgeIconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   badgeIconUnlocked: {
-    backgroundColor: '#FFF8F5',
-    borderWidth: 1.5,
-    borderColor: primary,
+    backgroundColor: `${colors.accentWarm}14`,
+    borderWidth: 1,
+    borderColor: `${colors.accentWarm}30`,
   },
   badgeIconLocked: {
-    backgroundColor: '#EAE1DC',
+    backgroundColor: colors.bgSoft,
     borderWidth: 1,
-    borderColor: '#D8C2BA',
+    borderColor: colors.hairlineStrong,
   },
   badgeTitle: {
-    fontSize: 14,
-    lineHeight: 19,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkPrimary,
     textAlign: 'center',
+    marginBottom: 4,
   },
-  badgeTextLocked: {
-    color: '#66574F',
-  },
+  badgeTitleLocked: { color: colors.inkTertiary },
   badgeDesc: {
+    ...typography.body,
     fontSize: 11,
-    lineHeight: 15,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
+    color: colors.inkTertiary,
     textAlign: 'center',
-    marginTop: 5,
+    lineHeight: 15,
   },
-  badgeProgressTrack: {
+  badgeTrack: {
     width: '100%',
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(136, 76, 50, 0.12)',
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.hairlineStrong,
     overflow: 'hidden',
     marginTop: 'auto',
   },
-  badgeProgressFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#85736C',
-  },
+  badgeFill: { height: 2, borderRadius: 1, backgroundColor: colors.accentWarmSoft },
+
+  // Memory card
   memoryCard: {
-    backgroundColor: '#F9F2ED',
-    borderRadius: 20,
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(176, 109, 80, 0.28)',
+    borderColor: colors.hairline,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.accentWarmSoft,
     padding: 14,
-    marginBottom: 16,
   },
-  memoryTopRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  memoryIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(165, 100, 72, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(176, 109, 80, 0.18)',
+  memoryRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  memoryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${colors.accentWarm}12`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memoryLabel: {
-    fontSize: 10,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
-    letterSpacing: 0.8,
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarmSoft,
     marginBottom: 6,
   },
   memoryText: {
+    ...typography.body,
     fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurfaceVariant,
+    color: colors.inkSecondary,
+    lineHeight: 19,
   },
-  savedPhrasePill: {
+  phrasePill: {
     marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.58)',
-    borderRadius: 14,
+    backgroundColor: colors.bgSoft,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: outlineVariant,
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  savedPhraseLabel: {
-    fontSize: 10,
-    fontFamily: 'Poppins_600SemiBold',
-    color: terracotta,
+  phraseLabel: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarmSoft,
     marginBottom: 3,
   },
-  savedPhraseText: {
+  phraseText: {
+    ...typography.bodyMedium,
     fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'Poppins_500Medium',
-    color: onSurface,
+    color: colors.inkPrimary,
   },
-  actionBtn: {
+
+  // Action rows
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: white,
-    borderRadius: 16,
+    gap: 12,
+    backgroundColor: colors.bgMid,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: outlineVariant,
+    borderColor: colors.hairline,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    marginBottom: 10,
-    gap: 12,
   },
-  actionBtnText: {
-    fontSize: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: onSurface,
+  actionText: {
+    ...typography.bodyMedium,
+    fontSize: 14,
+    color: colors.inkPrimary,
   },
 });
