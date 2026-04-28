@@ -1,20 +1,25 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Share, Dimensions, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Feather from '@expo/vector-icons/Feather';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
-
-const { width: SW } = Dimensions.get('window');
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StageResult, UserProfile } from '../types';
-import { getDailyLeaderboard, LeaderboardEntry } from '../services/leaderboard';
-import { completeStage, getLevelFromXp } from '../services/progress';
-import { getCelebrationByLevel } from '../services/personas';
+import type { SceneSession } from '../types';
+import { completeStage, getLevelFromXp, type ProgressionUnlock } from '../services/progress';
+import { saveSceneSession } from '../services/sessionMemory';
 import { trackEvent } from '../services/telemetry';
 import { tryParseJson } from '../services/json';
-import { getMotivationHero, buildStageReplayCta, oneLineRunDelta, resolvePlayerIdentity, PlayerIdentitySnapshot } from '../services/runHook';
-import { buildChallengeLink, buildResultEmotionalLine } from '../services/challengeShare';
+import { scenarios } from '../data/scenarios';
 
 type Props = {
   result: StageResult;
@@ -24,6 +29,74 @@ type Props = {
   onOpenGrammar: () => void;
   onOpenQuiz: () => void;
   firstSessionMode?: boolean;
+};
+
+type ResultFeedback = {
+  bestLine: string;
+  awkwardMoment: string;
+  betterAlternative?: string;
+  nextFocus: string;
+};
+
+const stageLabel: Record<StageResult['stageType'], string> = {
+  cafe: 'kafe',
+  travel: 'yolculuk',
+  business: 'iş',
+  social: 'sosyal',
+  story: 'hikaye',
+  survival: 'hayatta kalma',
+};
+
+const difficultyMap: Record<string, SceneSession['difficulty']> = {
+  advanced: 'advanced',
+  intermediate: 'intermediate',
+  beginner: 'beginner',
+  fluent: 'advanced',
+};
+
+const pickReplayTwist = (result: StageResult): string | null => {
+  const scenario = scenarios.find(s => s.id === result.scenarioId);
+  const twists = scenario?.replayTwists?.filter(Boolean) ?? [];
+  if (twists.length === 0) return null;
+  const seed = (result.comboMax ?? 0) + (result.awkwardTurns ?? 0) + result.userMessageCount;
+  return twists[seed % twists.length];
+};
+
+const buildFeedback = (result: StageResult): ResultFeedback => {
+  const goodTurn = result.turnReviews?.find(t => t.quality === 'good');
+  const awkwardTurn = result.turnReviews?.find(t => t.quality === 'awkward');
+  const okTurn = result.turnReviews?.find(t => t.quality === 'ok');
+
+  const bestLine =
+    result.learningSummary?.bestReply?.trim()
+    || goodTurn?.selectedText?.trim()
+    || okTurn?.selectedText?.trim()
+    || result.nativePhraseHighlight?.trim()
+    || 'Sahnede konuşmayı devam ettirecek net bir cevap verdin.';
+
+  const awkwardMoment =
+    result.learningSummary?.awkwardMoment?.trim()
+    || awkwardTurn?.selectedText?.trim()
+    || ((result.awkwardTurns ?? 0) > 0
+      ? `${result.awkwardTurns} cevapta sahnenin tonu biraz zorlandı.`
+      : 'Büyük bir kopuş yok; sadece bir sonraki provada daha doğal akış hedefle.');
+
+  const betterAlternative =
+    result.learningSummary?.betterAlternative?.trim()
+    || (awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText
+      ? awkwardTurn.goodOption.trim()
+      : undefined);
+
+  const nextFocus =
+    result.learningSummary?.nextFocus?.trim()
+    || result.naturalTip?.trim()
+    || ((result.timedOutTurns ?? 0) > 0
+      ? 'Cevabı bir nefes daha erken seç; zaman baskısı sahneyi bölmesin.'
+      : (result.flowPath === 'friction'
+        ? 'Önce akışı koru, sonra daha iddialı cevaplara geç.'
+        : 'Bir sonraki provada aynı doğallığı bir tur daha ileri taşı.'));
+
+  return { bestLine, awkwardMoment, betterAlternative, nextFocus };
 };
 
 export default function StageResultScreen({
@@ -38,571 +111,577 @@ export default function StageResultScreen({
   const [streak, setStreak] = useState(0);
   const [totalXp, setTotalXp] = useState(0);
   const [nextGoal, setNextGoal] = useState('');
-  const [newlyUnlocked, setNewlyUnlocked] = useState<string[]>([]);
-  const [leveledUp, setLeveledUp] = useState(false);
-  const [identityGoal, setIdentityGoal] = useState<string | null>(null);
-  const [playerIdentity, setPlayerIdentity] = useState<PlayerIdentitySnapshot | null>(null);
-  const [displayName, setDisplayName] = useState('Player');
-  const [sharing, setSharing] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<(LeaderboardEntry & { rank: number })[]>([]);
-  const [showDetails, setShowDetails] = useState(false);
-  const [memoryFocus, setMemoryFocus] = useState<string | null>(null);
-  const heroY = useRef(new Animated.Value(24)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-  const xpPop = useRef(new Animated.Value(0.85)).current;
+  const [newUnlocks, setNewUnlocks] = useState<ProgressionUnlock[]>([]);
+  const [saved, setSaved] = useState(false);
+  const [showTools, setShowTools] = useState(false);
+  const entrance = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    heroOpacity.setValue(0);
-    heroY.setValue(22);
-    xpPop.setValue(0.82);
-    Animated.parallel([
-      Animated.timing(heroOpacity, { toValue: 1, duration: 420, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-      Animated.spring(heroY, { toValue: 0, friction: 9, tension: 70, useNativeDriver: true }),
-      Animated.spring(xpPop, { toValue: 1, friction: 6, tension: 120, useNativeDriver: true }),
-    ]).start();
-  }, [result.scenarioId, heroOpacity, heroY, xpPop]);
-
-  useEffect(() => {
-    setShowDetails(false);
-  }, [result.scenarioId, result.stageType]);
-
-  useEffect(() => {
-    trackEvent('result_seen', {
-      scenarioId: result.scenarioId,
-      stageType: result.stageType,
-      userLevel: result.userLevel,
-      xpEarned: result.xpEarned,
-      messageCount: result.userMessageCount,
-      firstSessionMode,
-    });
-    completeStage(result).then(summary => {
-      const prevXp = summary.progress.xp - summary.appliedXp;
-      const prevLevel = getLevelFromXp(prevXp < 0 ? 0 : prevXp);
-      const newLevel = getLevelFromXp(summary.progress.xp);
-      setLeveledUp(newLevel > prevLevel);
-      setStreak(summary.progress.streak);
-      setTotalXp(summary.progress.xp);
-      setNextGoal(summary.unlockState.nextGoal);
-      setNewlyUnlocked(summary.newlyUnlocked);
-      setMemoryFocus(summary.progress.learningMemory?.nextRecommendedFocus ?? null);
-    });
-    AsyncStorage.getItem('userProfile').then(raw => {
-      const profile = raw ? tryParseJson<UserProfile>(raw) : null;
-      const goal = profile?.identity?.goal ?? profile?.goalDescription ?? null;
-      setIdentityGoal(goal);
-      setDisplayName(profile?.displayName?.trim() || 'Player');
-    });
-    getDailyLeaderboard().then(setLeaderboard);
-    resolvePlayerIdentity(result).then(setPlayerIdentity).catch(() => setPlayerIdentity(null));
-  }, [result, firstSessionMode]);
-
+  const feedback = useMemo(() => buildFeedback(result), [result]);
+  const replayTwist = useMemo(() => pickReplayTwist(result), [result]);
+  const clearVoiceAttempt = useMemo(() => result.voiceAttempts?.find(attempt => attempt.meaningClear) ?? null, [result.voiceAttempts]);
+  const retryVoiceAttempt = useMemo(() => result.voiceAttempts?.find(attempt => !attempt.meaningClear) ?? null, [result.voiceAttempts]);
+  const accuracy = Math.round((result.sceneAccuracy ?? 0) * 100);
+  const stageName = stageLabel[result.stageType] ?? 'sahne';
   const level = getLevelFromXp(totalXp);
-  const motivation = getMotivationHero(result);
-  const replayCta = buildStageReplayCta(result);
-  const deltaLine = oneLineRunDelta(result);
-  const challengeTaunts = ['Can you beat me?', 'Try this without getting awkward.', 'Your turn. Beat this run.'];
-  const chosenTaunt = challengeTaunts[(result.comboMax ?? 0) % challengeTaunts.length];
-  const identityLabel = `${playerIdentity?.label ?? 'Flow Keeper'} 🔥`;
-  const emotionalLine = buildResultEmotionalLine(result);
-  const keyStat = result.comboMax != null
-    ? `Combo ${result.comboMax} · ${Math.round((result.sceneAccuracy ?? 0) * 100)}% accuracy`
-    : `${Math.round((result.sceneAccuracy ?? 0) * 100)}% accuracy`;
-  const bestReplyLine =
-    result.learningSummary?.bestReply
-    ?? result.turnReviews?.find(t => t.quality === 'good')?.selectedText
-    ?? result.nativePhraseHighlight
-    ?? (result.sceneAccuracy != null && result.sceneAccuracy >= 0.75 ? 'Sahneyi net cevaplarla taşıdın.' : 'Sahnede birkaç sağlam cevap buldun.');
-  const awkwardTurn = result.turnReviews?.find(t => t.quality === 'awkward');
-  const awkwardMomentLine =
-    result.learningSummary?.awkwardMoment
-    ?? awkwardTurn?.selectedText
-    ?? ((result.awkwardTurns ?? 0) > 0 ? `${result.awkwardTurns} garip cevap sahneyi zorlaştırdı.` : 'Büyük kopuş yok; bir cevap hâlâ temizlenebilir.');
-  const betterAlternativeLine =
-    result.learningSummary?.betterAlternative
-    ?? (awkwardTurn?.goodOption && awkwardTurn.goodOption !== awkwardTurn.selectedText ? awkwardTurn.goodOption : undefined)
-    ?? 'Sahne baskı kurduğunda daha yumuşak ve net cevap seç.';
-  const nextFocusLine =
-    memoryFocus
-    ?? result.learningSummary?.nextFocus
-    ?? ((result.timedOutTurns ?? 0) > 0
-      ? `Answer one beat earlier; the clock hit you ${result.timedOutTurns} turn(s).`
-      : (result.naturalTip
-        ?? ((result.flowPath ?? 'smooth') === 'friction'
-          ? 'Protect flow for 2 more turns before taking risks.'
-          : 'Push one extra clean turn while protecting your combo.')));
+  const visibleReplayTwist = level >= 3 ? replayTwist : null;
 
-  const shareTarget = {
-    id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-    scenarioId: result.scenarioId,
-    challengerName: displayName,
-    challengerTitle: playerIdentity?.label ?? 'Flow Keeper',
-    challengerCombo: result.comboMax ?? 0,
-    challengerAccuracy: result.sceneAccuracy ?? 0,
-    challengerFlow: result.flowPath,
-    challengerAwkward: result.awkwardTurns,
-    taunt: chosenTaunt,
-  } as const;
-  const challengeUrl = buildChallengeLink(shareTarget);
+  useEffect(() => {
+    entrance.setValue(0);
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 520,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [entrance, result.resultId, result.scenarioId]);
 
-  const shareCardText = [
-    '┌────────────────────────────┐',
-    `│ ${identityLabel.padEnd(26, ' ')}│`,
-    `│ ${keyStat.padEnd(26, ' ')}│`,
-    `│ ${emotionalLine.padEnd(26, ' ')}│`,
-    '└────────────────────────────┘',
-  ].join('\n');
+  useEffect(() => {
+    let cancelled = false;
 
-  const onShareRun = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      await Share.share({
-        message: `${shareCardText}\n\n${chosenTaunt}\n${challengeUrl}`,
+    const persistResult = async () => {
+      await trackEvent('result_seen', {
+        scenarioId: result.scenarioId,
+        stageType: result.stageType,
+        xpEarned: result.xpEarned,
+        accuracy: result.sceneAccuracy,
+        hasBestLine: !!feedback.bestLine,
+        hasAwkwardMoment: !!feedback.awkwardMoment,
+        hasNextFocus: !!feedback.nextFocus,
+        firstSessionMode,
       });
-      await trackEvent('friend_challenge_shared', { scenarioId: result.scenarioId, taunt: chosenTaunt });
-    } finally {
-      setSharing(false);
-    }
-  };
+
+      const summary = await completeStage({
+        ...result,
+        learningSummary: {
+          bestReply: feedback.bestLine,
+          awkwardMoment: feedback.awkwardMoment,
+          betterAlternative: feedback.betterAlternative,
+          nextFocus: feedback.nextFocus,
+        },
+      });
+      if (!cancelled) {
+        setStreak(summary.progress.streak);
+        setTotalXp(summary.progress.xp);
+        setNextGoal(summary.unlockState.nextGoal);
+        setNewUnlocks(summary.newlyUnlockedFeatures);
+      }
+
+      const raw = await AsyncStorage.getItem('userProfile');
+      const profile = raw ? tryParseJson<UserProfile>(raw) : null;
+      const completedLevel = getLevelFromXp(summary.progress.xp);
+      const savedReplayTwist = completedLevel >= 3 ? replayTwist : null;
+      const session: SceneSession = {
+        sessionId: result.resultId ?? `${result.scenarioId}-${Date.now().toString(36)}`,
+        timestamp: new Date().toISOString(),
+        source: 'stage_result',
+        scenarioId: result.scenarioId,
+        scenarioTitle: result.scenarioTitle,
+        stageType: result.stageType,
+        language: profile?.language?.code ?? 'unknown',
+        npcPersona: result.personaName ?? '',
+        difficulty: difficultyMap[result.userLevel] ?? 'beginner',
+        userGoal: profile?.goalDescription ?? undefined,
+        identityGoal: profile?.identity?.goal ?? undefined,
+        selectedChoices: (result.turnReviews ?? []).map((turn, index) => ({
+          turn: index + 1,
+          npcMessage: turn.npcMessage,
+          selectedText: turn.selectedText,
+          quality: turn.quality,
+          goodOption: turn.goodOption ?? turn.selectedText,
+        })),
+        score: {
+          accuracy: result.sceneAccuracy ?? 0,
+          comboMax: result.comboMax ?? 0,
+          xpEarned: result.xpEarned,
+          flowPath: result.flowPath ?? 'smooth',
+          goodTurns: result.goodTurns ?? 0,
+          awkwardTurns: result.awkwardTurns ?? 0,
+          timedOutTurns: result.timedOutTurns ?? 0,
+        },
+        bestLine: feedback.bestLine,
+        awkwardMoment: feedback.awkwardMoment,
+        betterAlternative: feedback.betterAlternative,
+        nextFocus: feedback.nextFocus,
+        dramaticBeat: savedReplayTwist ? `Tekrar provada twist: ${savedReplayTwist}` : `Bugünkü ${stageName} provası tamamlandı`,
+        voiceAttempts: result.voiceAttempts,
+      };
+      await saveSceneSession(session);
+      if (!cancelled) setSaved(true);
+    };
+
+    void persistResult();
+    return () => {
+      cancelled = true;
+    };
+  }, [feedback, firstSessionMode, replayTwist, result, stageName]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-      <Animated.View style={{ opacity: heroOpacity, transform: [{ translateY: heroY }], alignItems: 'center', width: '100%' }}>
-        <View style={styles.motivationBlock}>
-          {!!playerIdentity && (
-            <View style={styles.identityTitleChip}>
-              <Text style={styles.identityTitleChipText}>{playerIdentity.label}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.glowWarm} pointerEvents="none" />
+      <View style={styles.glowCool} pointerEvents="none" />
+
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: entrance,
+            transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+          },
+        ]}
+      >
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>SAHNE SONUCU</Text>
+          <Text style={styles.title}>Sahne{'\n'}<Text style={styles.titleAccent}>tamamlandı</Text></Text>
+          <Text style={styles.subtitle}>
+            {result.scenarioTitle} provasında konuşmanın akışı, tek bir sonraki odakla kaydedildi.
+          </Text>
+
+          <View style={styles.sceneMetaRow}>
+            <View style={styles.sceneMetaPill}>
+              <Feather name="message-circle" size={13} color={colors.accentWarm} />
+              <Text style={styles.sceneMetaText}>{result.userMessageCount} tur</Text>
             </View>
-          )}
-          {!!playerIdentity && <Text style={styles.identityDescriptor}>{playerIdentity.descriptor}</Text>}
-          <Text style={styles.motivationTitle}>{motivation.title}</Text>
-          <Text style={styles.motivationSubtitle}>{motivation.subtitle}</Text>
-          <Text style={styles.progressMeaning}>Progress = gerçek ana daha hazır cevaplar + temiz akış + daha güçlü tekrar.</Text>
-          {!!deltaLine && <Text style={styles.deltaLine}>{deltaLine}</Text>}
-          {!!playerIdentity && <Text style={styles.identityEgoLine}>{playerIdentity.egoLine}</Text>}
-          {!!playerIdentity && <Text style={styles.identityEvolutionLine}>{playerIdentity.evolutionLine}</Text>}
-        </View>
-        <View style={styles.educationCard}>
-          <Text style={styles.educationTitle}>Sahne koçu</Text>
-          <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>En temiz sahne cevabı</Text>
-            <Text style={styles.educationValue}>{bestReplyLine}</Text>
-          </View>
-          <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Garip kalan an</Text>
-            <Text style={styles.educationValue}>{awkwardMomentLine}</Text>
-          </View>
-          <View style={styles.educationRow}>
-            <Text style={styles.educationLabel}>Bir dahaki provada bunu dene</Text>
-            <Text style={styles.educationValue}>{betterAlternativeLine}</Text>
-          </View>
-          <View style={styles.educationRowLast}>
-            <Text style={styles.educationLabel}>Sonraki odak</Text>
-            <Text style={styles.educationValue}>{nextFocusLine}</Text>
+            <View style={styles.sceneMetaPillMuted}>
+              <Text style={styles.sceneMetaMutedText}>+{result.xpEarned} XP</Text>
+            </View>
+            {result.sceneAccuracy != null ? (
+              <View style={styles.sceneMetaPillMuted}>
+                <Text style={styles.sceneMetaMutedText}>%{accuracy} doğallık</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
-        <TouchableOpacity style={styles.replayHeroBtn} onPress={onGoScenarios} activeOpacity={0.9}>
-          <Text style={styles.replayHeroBtnText}>{firstSessionMode ? 'Devam et ve düzelt' : `Aynı sahneyi düzelt · ${replayCta}`}</Text>
+        <View style={styles.feedbackCard}>
+          <Text style={styles.cardEyebrow}>EN İYİ CÜMLE</Text>
+          <Text style={styles.bestLine}>"{feedback.bestLine}"</Text>
+        </View>
+
+        <View style={styles.feedbackCard}>
+          <Text style={styles.cardEyebrow}>ZORLANAN AN</Text>
+          <Text style={styles.cardBodyText}>{feedback.awkwardMoment}</Text>
+          {feedback.betterAlternative ? (
+            <View style={styles.alternativeBox}>
+              <Text style={styles.alternativeLabel}>Şöyle de denenebilir</Text>
+              <Text style={styles.alternativeText}>"{feedback.betterAlternative}"</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.focusCard}>
+          <Text style={styles.cardEyebrow}>BUGÜNKÜ ODAK</Text>
+          <Text style={styles.focusText}>{feedback.nextFocus}</Text>
+          <View style={styles.savedRow}>
+            <Feather name={saved ? 'check-circle' : 'circle'} size={14} color={saved ? colors.successDs : colors.inkTertiary} />
+            <Text style={styles.savedText}>{saved ? 'Provayı kaydet' : 'Prova kaydı hazırlanıyor'}</Text>
+          </View>
+        </View>
+
+        {visibleReplayTwist ? (
+          <View style={styles.twistCard}>
+            <Text style={styles.cardEyebrow}>BİR SONRAKİ PROVA</Text>
+            <Text style={styles.twistText}>{visibleReplayTwist}</Text>
+          </View>
+        ) : null}
+
+        {result.voiceAttempts?.length ? (
+          <View style={styles.voiceCard}>
+            <Text style={styles.cardEyebrow}>SESLİ PROVA</Text>
+            {clearVoiceAttempt ? (
+              <>
+                <Text style={styles.voiceLabel}>Net söylediğin ifade</Text>
+                <Text style={styles.voiceLine}>"{clearVoiceAttempt.targetText}"</Text>
+              </>
+            ) : null}
+            {retryVoiceAttempt ? (
+              <>
+                <Text style={styles.voiceLabel}>Tekrar çalışılacak ifade</Text>
+                <Text style={styles.voiceLine}>"{retryVoiceAttempt.targetText}"</Text>
+              </>
+            ) : null}
+            <Text style={styles.voiceFeedback}>
+              {(clearVoiceAttempt ?? retryVoiceAttempt)?.feedback ?? 'Sesli prova kaydedildi.'}
+            </Text>
+          </View>
+        ) : null}
+
+        {newUnlocks.length > 0 ? (
+          <View style={styles.unlockNotice}>
+            <Text style={styles.cardEyebrow}>YENİ AÇILDI</Text>
+            {newUnlocks.map(unlock => (
+              <View key={unlock.id} style={styles.unlockNoticeRow}>
+                <Feather name="unlock" size={14} color={colors.accentWarm} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.unlockNoticeTitle}>{unlock.title}</Text>
+                  <Text style={styles.unlockNoticeDesc}>{unlock.description}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <TouchableOpacity style={styles.primaryBtn} onPress={onGoScenarios} activeOpacity={0.9}>
+          <Text style={styles.primaryText}>
+            {visibleReplayTwist ? 'Bu sahneyi farklı problemle tekrar dene' : 'Bu anı tekrar çalış'}
+          </Text>
+          <Feather name="arrow-right" size={16} color={colors.bgDeep} />
         </TouchableOpacity>
-        {!firstSessionMode && (
-          <TouchableOpacity style={styles.shareHeroBtn} onPress={onShareRun} activeOpacity={0.9}>
-            <Text style={styles.shareHeroBtnText}>{sharing ? 'Preparing share...' : 'Share this scene run'}</Text>
-          </TouchableOpacity>
-        )}
-        {!firstSessionMode && (
-          <View style={styles.shareCardPreview}>
-            <Text style={styles.shareCardIdentity}>{identityLabel}</Text>
-            <Text style={styles.shareCardStat}>{keyStat}</Text>
-            <Text style={styles.shareCardEmotion}>{emotionalLine}</Text>
-            <Text style={styles.shareCardChallenge}>{chosenTaunt}</Text>
-          </View>
-        )}
-        {!!result.challengeTarget && !!result.challengeOutcome && (
-          <View style={[styles.challengeResultCard, result.challengeOutcome.won ? styles.challengeWon : styles.challengeLost]}>
-            <Text style={styles.challengeResultTitle}>{result.challengeOutcome.summary}</Text>
-            <Text style={styles.challengeResultLine}>{result.challengeOutcome.diffLine}</Text>
-            <Text style={styles.challengeResultReplay}>{result.challengeOutcome.replayLine}</Text>
-          </View>
-        )}
 
-        {!firstSessionMode && (
-          <TouchableOpacity style={styles.secondaryBtnTight} onPress={onBackHome}>
-            <Text style={styles.secondaryText}>Ana Ekran</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.secondaryBtn} onPress={onBackHome} activeOpacity={0.82}>
+          <Text style={styles.secondaryText}>{firstSessionMode ? 'Devam et' : 'Ana ekrana dön'}</Text>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.detailsToggle} onPress={() => setShowDetails(s => !s)} activeOpacity={0.85}>
-          <Text style={styles.detailsToggleText}>
-            {showDetails ? 'Hide XP, stats & replay notes ↑' : 'Show XP, stats & replay notes ↓'}
+        <TouchableOpacity style={styles.toolsToggle} onPress={() => setShowTools(v => !v)} activeOpacity={0.82}>
+          <Text style={styles.toolsToggleText}>
+            {showTools ? 'Destekleri gizle ↑' : 'Kelime / kalıp desteği aç ↓'}
           </Text>
         </TouchableOpacity>
+
+        {showTools ? (
+          <View style={styles.toolsWrap}>
+            <TouchableOpacity style={styles.toolRow} onPress={onOpenVocab} activeOpacity={0.82}>
+              <View style={styles.toolIcon}><Feather name="book-open" size={15} color={colors.accentWarm} /></View>
+              <View style={styles.toolCopy}>
+                <Text style={styles.toolTitle}>Sahne kelimeleri</Text>
+                <Text style={styles.toolSub}>Bu anı tekrar çalışmadan önce kısa kelime ısınması.</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toolRow} onPress={onOpenGrammar} activeOpacity={0.82}>
+              <View style={styles.toolIcon}><Feather name="edit-3" size={15} color={colors.accentWarm} /></View>
+              <View style={styles.toolCopy}>
+                <Text style={styles.toolTitle}>Sahne kalıpları</Text>
+                <Text style={styles.toolSub}>Zorlanan cevabı daha doğal kurmak için mini kalıp.</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toolRow} onPress={onOpenQuiz} activeOpacity={0.82}>
+              <View style={styles.toolIcon}><Feather name="repeat" size={15} color={colors.accentWarm} /></View>
+              <View style={styles.toolCopy}>
+                <Text style={styles.toolTitle}>Kısa tekrar</Text>
+                <Text style={styles.toolSub}>Cevap refleksini kaybetmeden bir tur pekiştir.</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <View style={styles.xpFooter}>
+          <Text style={styles.xpFooterText}>Bugünkü prova kaydı · Seviye {level} · Pratik serisi {streak} gün</Text>
+          {!!nextGoal && <Text style={styles.xpFooterHint}>{nextGoal}</Text>}
+        </View>
       </Animated.View>
-
-      {showDetails && (
-        <>
-          <View style={styles.scoreCard}>
-            <Text style={styles.detailsSceneLabel}>{result.scenarioTitle}</Text>
-            <Animated.Text style={[styles.scoreLabel, { transform: [{ scale: xpPop }] }]}>+{result.xpEarned} XP</Animated.Text>
-            {result.comboMax != null && (
-              <View style={styles.gameStatsRow}>
-                <Text style={styles.gameStat}>🔥 Combo (max): {result.comboMax}</Text>
-                {result.sceneAccuracy != null && (
-                  <Text style={styles.gameStat}>🎯 Doğallık: %{Math.round(result.sceneAccuracy * 100)}</Text>
-                )}
-                {result.flowPath && (
-                  <Text style={styles.gameStat}>
-                    {result.flowPath === 'smooth' ? '✨ Temiz sahne akışı' : '⚡ Akış pürüzlü'}
-                  </Text>
-                )}
-                {(result.timedOutTurns ?? 0) > 0 && (
-                  <Text style={styles.gameStatWarn}>⏱ {result.timedOutTurns} turda süre doldu</Text>
-                )}
-              </View>
-            )}
-            <View style={styles.levelRow}>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelBadgeText}>{result.userLevel.toUpperCase()}</Text>
-              </View>
-              {leveledUp && (
-                <View style={styles.levelUpBadge}>
-                  <Text style={styles.levelUpText}>⬆ SEVİYE ATLADI</Text>
-                </View>
-              )}
-            </View>
-            {leveledUp && (
-              <Text style={styles.levelUpHint}>
-                {result.userLevel === 'intermediate'
-                  ? 'Artık intermediate seviyesindesin. Sahnelerde daha az destek, daha çok gerçek cevap seçimi göreceksin.'
-                  : 'Artık advanced seviyesindesin. Sahnelerde daha nüanslı cevap seçenekleri göreceksin.'}
-              </Text>
-            )}
-            <Text style={styles.scoreMetaLight}>Toplam XP: {totalXp} · Level {level}</Text>
-            <Text style={styles.scoreMetaLight}>🔥 Seri: {streak} gün</Text>
-            <Text style={styles.rewardLineMuted}>{result.rewardLine ?? 'Bu sahneyi başarıyla tamamladın ✅'}</Text>
-            <Text style={styles.celebrationMuted}>{getCelebrationByLevel(result.userLevel)}</Text>
-            {!!result.nativePhraseHighlight && (
-              <View style={styles.nativeHighlight}>
-                <Text style={styles.nativeHighlightLabel}>SAHNEDE İŞE YARAYAN İFADE</Text>
-                <Text style={styles.nativeHighlightText}>"{result.nativePhraseHighlight}"</Text>
-              </View>
-            )}
-            {!!result.naturalTip && <Text style={styles.tipText}>💬 İpucu: {result.naturalTip}</Text>}
-          </View>
-
-          {leaderboard.length > 0 && (
-            <View style={styles.lbCard}>
-              <Text style={styles.lbTitle}>🏅 Bugünün sıralaması</Text>
-              <Text style={styles.lbSub}>Yerel skor tablosu — aynı sahneyi tekrar prova et, yüksel.</Text>
-              {leaderboard.slice(0, 8).map(row => (
-                <View key={row.id} style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}>
-                  <Text style={styles.lbRank}>#{row.rank}</Text>
-                  <Text style={[styles.lbName, row.isSelf && styles.lbNameSelf]} numberOfLines={1}>
-                    {row.name}{row.isSelf ? ' (sen)' : ''}
-                  </Text>
-                  <Text style={styles.lbScore}>{row.score}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {!!identityGoal && (
-            <View style={styles.identityCard}>
-              <Text style={styles.identityLabel}>HEDEFİNE DOĞRU</Text>
-              <Text style={styles.identityTextLight}>"{identityGoal}"</Text>
-              <Text style={styles.identityHint}>Bu prova, o gerçek konuşma anına bir adım daha hazırladı.</Text>
-            </View>
-          )}
-
-          {newlyUnlocked.length > 0 && (
-            <View style={styles.unlockCard}>
-              <Text style={styles.unlockTitle}>🔓 Yeni açıldı</Text>
-              <Text style={styles.unlockText}>{newlyUnlocked.map(s => s.toUpperCase()).join(' · ')}</Text>
-            </View>
-          )}
-
-          <View style={styles.nextCard}>
-            <Text style={styles.nextTitle}>Sıradaki öneri</Text>
-            <Text style={styles.nextText}>{result.suggestedNextStage ?? 'Travel Stage'}</Text>
-            {!!nextGoal && <Text style={styles.nextGoal}>{nextGoal}</Text>}
-          </View>
-
-          {!firstSessionMode && (
-            <>
-              <Text style={styles.sectionTitle}>İstersen derinleş</Text>
-              <TouchableOpacity style={styles.sideBtn} onPress={onOpenVocab}>
-                <Text style={styles.sideTitle}>Sahne kelimeleri</Text>
-                <Text style={styles.sideDesc}>Aynı sahne için kritik kelime kartları</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.sideBtn} onPress={onOpenGrammar}>
-                <Text style={styles.sideTitle}>Sahne koçu</Text>
-                <Text style={styles.sideDesc}>Garip kalan cevaplardan kısa düzeltme</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.sideBtn} onPress={onOpenQuiz}>
-                <Text style={styles.sideTitle}>Hızlı tekrar</Text>
-                <Text style={styles.sideDesc}>Sahnedeki cevapları hızlı pekiştir</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </>
-      )}
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgDeep },
-  scroll: { paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingHorizontal: 22, paddingBottom: 56 },
-
-  motivationBlock: {
-    width: '100%',
-    backgroundColor: colors.bgMid,
-    borderRadius: 20,
-    padding: 22,
+  scroll: {
+    paddingTop: Platform.OS === 'ios' ? 62 : 42,
+    paddingHorizontal: 22,
+    paddingBottom: 56,
+  },
+  glowWarm: {
+    position: 'absolute',
+    top: -160,
+    right: -120,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: colors.accentGlow,
+  },
+  glowCool: {
+    position: 'absolute',
+    bottom: 160,
+    left: -140,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(95,124,168,0.07)',
+  },
+  content: { width: '100%', gap: 14 },
+  heroCard: {
+    backgroundColor: 'rgba(18,24,34,0.88)',
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(232,181,118,0.18)',
-    marginBottom: 14,
+    borderColor: colors.hairlineStrong,
+    padding: 24,
     overflow: 'hidden',
   },
-  identityTitleChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.bgSoft,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 10,
-  },
-  identityTitleChipText: {
+  eyebrow: {
     ...typography.eyebrow,
-    fontSize: 10,
     color: colors.accentWarm,
-  },
-  identityDescriptor: {
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: colors.inkSecondary,
-    lineHeight: 20,
-    marginBottom: 10,
-  },
-  motivationTitle: {
-    fontFamily: 'Fraunces_300Light',
-    fontSize: 26,
-    color: colors.inkPrimary,
-    lineHeight: 33,
-    marginBottom: 10,
-    letterSpacing: -0.3,
-  },
-  motivationSubtitle: {
-    fontFamily: 'Fraunces_300Light_Italic',
-    fontSize: 15,
-    color: colors.inkSecondary,
-    lineHeight: 23,
-  },
-  progressMeaning: {
-    marginTop: 12,
-    ...typography.body,
-    fontSize: 12,
-    color: colors.inkTertiary,
-    lineHeight: 18,
-  },
-  deltaLine: {
-    marginTop: 12,
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: colors.accentWarm,
-    lineHeight: 19,
-  },
-  identityEgoLine: {
-    marginTop: 12,
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: colors.accentWarm,
-    lineHeight: 19,
-  },
-  identityEvolutionLine: {
-    marginTop: 8,
-    ...typography.body,
-    fontSize: 12,
-    color: colors.inkTertiary,
-    lineHeight: 18,
-  },
-  educationCard: {
-    width: '100%',
-    backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
-    marginBottom: 12,
-  },
-  educationTitle: {
-    ...typography.eyebrow,
-    fontSize: 10,
-    color: colors.accentWarmSoft,
     marginBottom: 14,
   },
-  educationRow: {
-    paddingBottom: 12,
+  title: {
+    ...typography.display,
+    color: colors.inkPrimary,
+    fontSize: 38,
+    lineHeight: 43,
+    letterSpacing: -0.8,
     marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.hairline,
   },
-  educationRowLast: { paddingBottom: 0, marginBottom: 0 },
-  educationLabel: {
-    ...typography.eyebrow,
-    fontSize: 9,
-    color: colors.inkTertiary,
-    marginBottom: 5,
+  titleAccent: {
+    ...typography.displayItalic,
+    color: colors.accentWarm,
   },
-  educationValue: {
+  subtitle: {
     ...typography.body,
-    fontSize: 13,
     color: colors.inkSecondary,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 320,
   },
-  replayHeroBtn: {
-    width: '100%',
-    backgroundColor: colors.inkPrimary,
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+  sceneMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 20,
+  },
+  sceneMetaPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(232,181,118,0.10)',
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
   },
-  replayHeroBtnText: { ...typography.button, fontSize: 15, color: colors.bgDeep, textAlign: 'center' },
-  shareHeroBtn: {
-    width: '100%',
+  sceneMetaText: {
+    ...typography.bodyMedium,
+    color: colors.accentWarm,
+    fontSize: 12,
+  },
+  sceneMetaPillMuted: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  sceneMetaMutedText: {
+    ...typography.bodyMedium,
+    color: colors.inkSecondary,
+    fontSize: 12,
+  },
+  feedbackCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 999,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    marginBottom: 10,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
+    padding: 18,
   },
-  shareHeroBtnText: { ...typography.bodyMedium, fontSize: 14, color: colors.inkSecondary },
-  shareCardPreview: {
-    width: '100%',
-    backgroundColor: colors.bgSoft,
-    borderRadius: 14,
+  cardEyebrow: {
+    ...typography.eyebrow,
+    color: colors.inkTertiary,
+    fontSize: 10,
+    marginBottom: 10,
+  },
+  bestLine: {
+    ...typography.displayItalic,
+    color: colors.inkPrimary,
+    fontSize: 24,
+    lineHeight: 31,
+  },
+  cardBodyText: {
+    ...typography.body,
+    color: colors.inkSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  alternativeBox: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(232,181,118,0.08)',
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+  },
+  alternativeLabel: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    fontSize: 9,
+    marginBottom: 7,
+  },
+  alternativeText: {
+    ...typography.bodyMedium,
+    color: colors.inkPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  focusCard: {
+    backgroundColor: 'rgba(40,30,22,0.78)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+    padding: 18,
+  },
+  focusText: {
+    ...typography.bodyMedium,
+    color: colors.inkPrimary,
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 15,
+  },
+  savedText: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+  },
+  twistCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    padding: 17,
+  },
+  twistText: {
+    ...typography.bodyMedium,
+    color: colors.inkSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  voiceCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    padding: 17,
+    gap: 7,
+  },
+  voiceLabel: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    fontSize: 8.5,
+    marginTop: 2,
+  },
+  voiceLine: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    color: colors.inkPrimary,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  voiceFeedback: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  unlockNotice: {
+    backgroundColor: 'rgba(232,181,118,0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+    padding: 16,
+    gap: 10,
+  },
+  unlockNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  unlockNoticeTitle: {
+    ...typography.bodyMedium,
+    color: colors.inkPrimary,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  unlockNoticeDesc: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  primaryBtn: {
+    minHeight: 56,
+    borderRadius: 999,
+    backgroundColor: colors.inkPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  primaryText: {
+    ...typography.button,
+    color: colors.bgDeep,
+    letterSpacing: -0.1,
+  },
+  secondaryBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  secondaryText: {
+    ...typography.bodyMedium,
+    color: colors.inkTertiary,
+    fontSize: 14,
+  },
+  toolsToggle: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  toolsToggleText: {
+    ...typography.bodyMedium,
+    color: colors.accentWarmSoft,
+    fontSize: 13,
+  },
+  toolsWrap: { gap: 10 },
+  toolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.hairline,
     padding: 14,
-    gap: 4,
-    marginBottom: 10,
   },
-  shareCardIdentity: { ...typography.bodyMedium, fontSize: 14, color: colors.accentWarm },
-  shareCardStat: { ...typography.bodyMedium, fontSize: 14, color: colors.inkPrimary },
-  shareCardEmotion: { ...typography.body, fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
-  shareCardChallenge: { ...typography.bodyMedium, fontSize: 13, color: colors.accentWarm, marginTop: 6 },
-  secondaryBtnTight: { marginTop: 4, backgroundColor: colors.bgMid, borderRadius: 999, padding: 14, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: colors.hairlineStrong },
-  detailsToggle: { marginTop: 14, marginBottom: 8, paddingVertical: 8, alignItems: 'center' },
-  detailsToggleText: { ...typography.body, fontSize: 13, color: colors.inkTertiary, textDecorationLine: 'underline' },
-  detailsSceneLabel: { ...typography.eyebrow, fontSize: 9, color: colors.inkTertiary, marginBottom: 12 },
-  scoreCard: { backgroundColor: colors.bgMid, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: 12 },
-  challengeResultCard: {
-    width: '100%',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    backgroundColor: colors.bgMid,
-    borderColor: colors.hairlineStrong,
+  toolIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(232,181,118,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  challengeWon: { backgroundColor: `${colors.successDs}12`, borderColor: `${colors.successDs}40` },
-  challengeLost: { backgroundColor: `${colors.errorDs}12`, borderColor: `${colors.errorDs}40` },
-  challengeResultTitle: { ...typography.bodyMedium, fontSize: 16, color: colors.inkPrimary, marginBottom: 6 },
-  challengeResultLine: { ...typography.body, fontSize: 13, color: colors.inkSecondary, lineHeight: 20 },
-  challengeResultReplay: { ...typography.bodyMedium, fontSize: 13, color: colors.accentWarm, marginTop: 8 },
-  scoreLabel: {
-    fontFamily: 'Fraunces_300Light',
-    fontSize: 28,
-    color: colors.accentWarm,
-    marginBottom: 10,
-    letterSpacing: -0.5,
-  },
-  levelRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 },
-  levelBadge: { backgroundColor: colors.bgSoft, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: colors.hairline },
-  levelBadgeText: { ...typography.eyebrow, fontSize: 10, color: colors.inkSecondary },
-  levelUpBadge: { backgroundColor: `${colors.successDs}18`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: `${colors.successDs}44` },
-  levelUpText: { ...typography.eyebrow, fontSize: 9, color: colors.successDs },
-  levelUpHint: { ...typography.body, fontSize: 12, color: colors.successDs, lineHeight: 18, marginBottom: 8 },
-  scoreMetaLight: { ...typography.body, fontSize: 12, color: colors.inkTertiary, marginTop: 4 },
-  rewardLineMuted: { ...typography.bodyMedium, fontSize: 13, color: colors.successDs, textAlign: 'center', marginTop: 10 },
-  celebrationMuted: { ...typography.body, fontSize: 12, color: colors.inkTertiary, textAlign: 'center', marginTop: 6, marginBottom: 4 },
-  tipText: { ...typography.body, fontSize: 12, color: colors.inkSecondary, marginTop: 10, lineHeight: 18 },
-  identityCard: { backgroundColor: colors.bgMid, borderRadius: 14, borderWidth: 1, borderColor: colors.hairlineStrong, padding: 14, marginBottom: 14 },
-  identityLabel: { ...typography.eyebrow, fontSize: 9, color: colors.accentWarmSoft, marginBottom: 6 },
-  identityTextLight: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 14, color: colors.inkPrimary, lineHeight: 20 },
-  identityHint: { ...typography.body, fontSize: 12, color: colors.inkTertiary, marginTop: 6 },
-  unlockCard: { backgroundColor: `${colors.successDs}10`, borderRadius: 14, borderWidth: 1, borderColor: `${colors.successDs}30`, padding: 12, marginBottom: 12 },
-  unlockTitle: { ...typography.eyebrow, fontSize: 10, color: colors.successDs, marginBottom: 4 },
-  unlockText: { ...typography.bodyMedium, fontSize: 13, color: colors.inkSecondary, marginTop: 4 },
-  nextCard: { backgroundColor: colors.bgMid, borderRadius: 14, borderWidth: 1, borderColor: colors.hairline, padding: 14, marginBottom: 14 },
-  nextTitle: { ...typography.eyebrow, fontSize: 9, color: colors.inkTertiary, marginBottom: 6 },
-  nextText: {
-    fontFamily: 'Fraunces_300Light',
-    fontSize: 18,
+  toolCopy: { flex: 1 },
+  toolTitle: {
+    ...typography.bodyMedium,
     color: colors.inkPrimary,
-    letterSpacing: -0.2,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  toolSub: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  xpFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    paddingTop: 14,
     marginTop: 2,
+    gap: 5,
   },
-  nextGoal: { ...typography.body, fontSize: 11, color: colors.inkTertiary, marginTop: 6 },
-  sectionTitle: { ...typography.eyebrow, fontSize: 10, color: colors.inkTertiary, marginBottom: 10, marginTop: 4 },
-  sideBtn: { backgroundColor: colors.bgMid, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.hairline, marginBottom: 8 },
-  sideTitle: { ...typography.bodyMedium, fontSize: 13, color: colors.inkPrimary },
-  sideDesc: { ...typography.body, fontSize: 11, color: colors.inkTertiary, marginTop: 3 },
-  primaryBtn: { marginTop: 8, backgroundColor: colors.inkPrimary, borderRadius: 999, padding: 16, alignItems: 'center' },
-  primaryText: { ...typography.button, fontSize: 15, color: colors.bgDeep },
-  secondaryBtn: { marginTop: 10, backgroundColor: colors.bgMid, borderRadius: 999, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.hairlineStrong },
-  secondaryText: { ...typography.body, fontSize: 14, color: colors.inkSecondary },
-  gameStatsRow: { gap: 6, marginBottom: 10, marginTop: 4 },
-  gameStat: { ...typography.body, fontSize: 13, color: colors.inkSecondary },
-  gameStatWarn: { ...typography.body, fontSize: 12, color: colors.errorDs },
-  nativeHighlight: {
-    backgroundColor: colors.bgSoft,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(232,181,118,0.18)',
-    marginTop: 10,
+  xpFooterText: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    textAlign: 'center',
   },
-  nativeHighlightLabel: { ...typography.eyebrow, fontSize: 9, color: colors.inkTertiary, marginBottom: 6 },
-  nativeHighlightText: { fontFamily: 'Fraunces_300Light_Italic', fontSize: 15, color: colors.inkPrimary, lineHeight: 22 },
-  lbCard: {
-    width: '100%',
-    backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
+  xpFooterHint: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
-  lbTitle: { ...typography.bodyMedium, fontSize: 14, color: colors.inkPrimary, marginBottom: 4 },
-  lbSub: { ...typography.body, fontSize: 11, color: colors.inkTertiary, marginTop: 2, marginBottom: 12 },
-  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.hairline },
-  lbRowSelf: { backgroundColor: colors.bgSoft, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 10, borderBottomWidth: 0 },
-  lbRank: { width: 36, ...typography.body, fontSize: 12, color: colors.inkTertiary },
-  lbName: { flex: 1, ...typography.bodyMedium, fontSize: 13, color: colors.inkPrimary },
-  lbNameSelf: { color: colors.accentWarm },
-  lbScore: { ...typography.bodyMedium, fontSize: 13, color: colors.accentWarm },
-  compareCard: {
-    width: '100%',
-    backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
-  },
-  compareTitle: { ...typography.eyebrow, fontSize: 10, color: colors.inkTertiary, marginBottom: 10 },
-  compareLine: { ...typography.bodyMedium, fontSize: 14, color: colors.inkPrimary, marginBottom: 6 },
-  challengeLine: { ...typography.bodyMedium, fontSize: 14, color: colors.accentWarm, marginTop: 8, lineHeight: 20 },
-  journeyFoot: { ...typography.body, fontSize: 12, color: colors.inkTertiary, marginTop: 12, lineHeight: 18, fontStyle: 'italic' },
 });

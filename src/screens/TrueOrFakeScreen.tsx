@@ -5,8 +5,8 @@ import { awardActivityXP } from '../services/progress';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { buildTrueFakeSet, getTrueFakeMaxCount, SentenceItem, TRUE_FAKE_CONFIG, TrueFakeDifficulty } from '../data/trueOrFake';
-import { ModuleResult, UserProfile } from '../types';
+import { buildTrueFakeSet, buildScenarioTrueFakeItems, getTrueFakeMaxCount, SentenceItem, TRUE_FAKE_CONFIG, TrueFakeDifficulty } from '../data/trueOrFake';
+import { ModuleResult, Scenario, UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
 import { useAppTranslation } from '../i18n';
 
@@ -15,16 +15,11 @@ type Props = {
   runMode?: boolean;
   runSceneTitle?: string;
   onComplete?: (result: ModuleResult) => void;
+  /** When provided, prioritises scene-specific phrases over generic bank. */
+  scenario?: Scenario;
 };
 
-const comboBadge = (combo: number) => {
-  if (combo >= 6) return '🚀';
-  if (combo >= 4) return '⚡';
-  if (combo >= 2) return '🔥';
-  return '';
-};
-
-export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitle, onComplete }: Props) {
+export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitle, onComplete, scenario }: Props) {
   const t = useAppTranslation();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [difficulty, setDifficulty] = useState<TrueFakeDifficulty>('easy');
@@ -32,10 +27,10 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   const [langCode, setLangCode] = useState('en');
   const [items, setItems] = useState<SentenceItem[]>([]);
   const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [combo, setCombo] = useState(0);
-  const [maxCombo, setMaxCombo] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [clarityScore, setClarityScore] = useState(0);
+  const [practiceRun, setPracticeRun] = useState(0);
+  const [bestPracticeRun, setBestPracticeRun] = useState(0);
+  const [, setNaturalRun] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(5);
   const [selected, setSelected] = useState<boolean | null>(null);
@@ -66,14 +61,23 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   };
 
   const startGame = (d: TrueFakeDifficulty) => {
-    const set = buildTrueFakeSet(d, langCode, questionCount);
+    // Build scene-specific items first; fill remaining slots with generic bank
+    const sceneItems = scenario
+      ? buildScenarioTrueFakeItems(scenario.usefulPhrases, scenario.likelyMisunderstandings)
+      : [];
+    const remaining = Math.max(0, questionCount - sceneItems.length);
+    const genericItems = buildTrueFakeSet(d, langCode, remaining);
+    // Interleave: up to 3 scene items at start, rest generic, then shuffle tail
+    const sceneHead = sceneItems.slice(0, Math.min(3, sceneItems.length));
+    const tail = [...sceneItems.slice(3), ...genericItems].sort(() => Math.random() - 0.5);
+    const set = [...sceneHead, ...tail].slice(0, questionCount);
     setDifficulty(d);
     setItems(set);
     setIndex(0);
-    setScore(0);
-    setCombo(0);
-    setMaxCombo(0);
-    setStreak(0);
+    setClarityScore(0);
+    setPracticeRun(0);
+    setBestPracticeRun(0);
+    setNaturalRun(0);
     setCorrectCount(0);
     setMistakes([]);
     setTimeLeft(TRUE_FAKE_CONFIG[d].seconds);
@@ -82,7 +86,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   };
 
   const finishGame = async () => {
-    const xp = Math.max(6, Math.min(30, Math.floor(score / 12) + Math.floor(maxCombo / 2)));
+    const xp = Math.max(6, Math.min(30, Math.floor(clarityScore / 12) + Math.floor(bestPracticeRun / 2)));
     await awardActivityXP(xp);
     setPhase('result');
   };
@@ -110,30 +114,30 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
     const isCorrect = pickedReal === current.isReal;
 
     if (isCorrect) {
-      const nextCombo = combo + 1;
-      const multiplier = nextCombo >= 6 ? 1.8 : nextCombo >= 4 ? 1.5 : nextCombo >= 2 ? 1.2 : 1;
+      const nextPracticeRun = practiceRun + 1;
+      const multiplier = nextPracticeRun >= 6 ? 1.8 : nextPracticeRun >= 4 ? 1.5 : nextPracticeRun >= 2 ? 1.2 : 1;
       const add = Math.round(10 * multiplier);
-      setScore(s => s + add);
-      setCombo(nextCombo);
-      setStreak(st => st + 1);
-      setMaxCombo(m => Math.max(m, nextCombo));
+      setClarityScore(s => s + add);
+      setPracticeRun(nextPracticeRun);
+      setNaturalRun(st => st + 1);
+      setBestPracticeRun(m => Math.max(m, nextPracticeRun));
       setCorrectCount(c => c + 1);
       setFeedback({
         correct: true,
-        text: current.isReal ? '✅ Real' : '✅ Fake',
+        text: current.isReal ? 'Doğal geliyor' : 'Garipliği yakaladın',
         correction: current.isReal ? current.text : (current.correction ?? current.text),
         explanation: current.explanation,
       });
       setAwaitingManualNext(false);
     } else {
-      setCombo(0);
-      setStreak(0);
+      setPracticeRun(0);
+      setNaturalRun(0);
       if (!mistakes.includes(current.text)) {
         setMistakes(prev => [...prev, current.text]);
       }
       setFeedback({
         correct: false,
-        text: current.isReal ? '❌ Real' : '❌ Fake',
+        text: current.isReal ? 'Aslında doğal bir cümleydi' : 'Bu kullanım sahnede garip kaçar',
         correction: buildCorrectionText(current),
         explanation: current.explanation,
       });
@@ -186,21 +190,33 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
+          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : 'Ton provası'}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{runMode ? 'Şimdi doğal tonu ayır' : 'Gerçek mi, fake mi?'}</Text>
+          <Text style={styles.cardTitle}>
+            {runMode
+              ? 'Şimdi doğal tonu ayır'
+              : scenario
+                ? `${scenario.title} · ton provası`
+                : 'Doğal mı, garip mi?'}
+          </Text>
           <Text style={styles.cardSub}>
             {runMode
-              ? `${runSceneTitle ?? 'Bugünkü sahne'} başlamadan önce kulağını aç: hangi cümle gerçek hayatta doğal, hangisi sahneyi garipleştirir?`
-              : 'Bugünkü sahnede doğal kalmak için cümleyi gör, doğru tonu hızlı seç.'}
+              ? `${runSceneTitle ?? scenario?.title ?? 'Bugünkü sahne'} başlamadan önce kulağını aç: hangi cümle gerçek hayatta doğal, hangisi sahneyi garipleştirir?`
+              : scenario
+                ? `Bu sahnede seni zorlayacak tonlar — hangisi doğal, hangisi fazla direkt ya da yanlış bağlamda?`
+                : 'Bugünkü sahnede doğal kalmak için cümleyi gör, doğru tonu hızlı seç.'}
           </Text>
 
           {runMode ? (
             <View style={styles.runWhyBox}>
               <Text style={styles.runWhyTitle}>{t('mini.whyNow')}</Text>
-              <Text style={styles.runWhyText}>Ana sahnede amaç çeviri yapmak değil; baskı altında kulağa doğal gelen cevabı seçmek.</Text>
+              <Text style={styles.runWhyText}>
+                {scenario
+                  ? `"${scenario.title}" sahnesinde amaç çeviri yapmak değil; baskı altında kulağa doğal gelen cevabı seçmek.`
+                  : 'Ana sahnede amaç çeviri yapmak değil; baskı altında kulağa doğal gelen cevabı seçmek.'}
+              </Text>
             </View>
           ) : (
             <>
@@ -259,7 +275,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
     const result: ModuleResult = {
       module: 'truefake',
       accuracy: correctCount / total,
-      comboMax: maxCombo,
+      comboMax: bestPracticeRun,
       speed: 1 / Math.max(TRUE_FAKE_CONFIG[difficulty].seconds, 1),
     };
 
@@ -269,19 +285,18 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
+          <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : 'Ton provası'}</Text>
         </View>
 
         <View style={styles.resultCard}>
-          <Text style={styles.resultEmoji}>{score > 120 ? '🏆' : '🎯'}</Text>
-          <Text style={styles.resultTitle}>{runMode ? 'Sahne için hazırsın' : 'Run bitti'}</Text>
-          <Text style={styles.resultScore}>{score} puan</Text>
-          <Text style={styles.resultMeta}>Max combo: {maxCombo} {comboBadge(maxCombo)}</Text>
-          <Text style={styles.resultMeta}>{t('mini.accuracy', { value: accuracy })}</Text>
+          <Text style={styles.resultTitle}>{runMode ? 'Sahne için hazırsın' : 'Ton provası tamamlandı'}</Text>
+          <Text style={styles.resultScore}>%{accuracy}</Text>
+          <Text style={styles.resultMeta}>Doğal seçim oranı</Text>
+          <Text style={styles.resultMeta}>Bir sonraki prova için {mistakes.length > 0 ? 'garip kaçan cümleleri yumuşat' : 'aynı sakin ritmi koru'}.</Text>
 
           {mistakes.length > 0 && (
             <View style={styles.mistakeBox}>
-              <Text style={styles.mistakeTitle}>En çok hata yapılanlar</Text>
+              <Text style={styles.mistakeTitle}>Şöyle de denenebilir</Text>
               <Text style={styles.mistakeText}>{mistakes.slice(0, 5).join(' • ')}</Text>
             </View>
           )}
@@ -292,7 +307,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
-              <Text style={styles.startBtnText}>{t('mini.playAgain')}</Text>
+              <Text style={styles.startBtnText}>Bu anı tekrar çalış</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -308,14 +323,14 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : '✅ True or Fake'}</Text>
-        <Text style={styles.scoreMini}>{score}</Text>
+        <Text style={styles.title}>{runMode ? t('mini.toneWarmup') : 'Ton provası'}</Text>
+        <Text style={styles.scoreMini}>{index + 1}/{items.length}</Text>
       </View>
 
       <View style={styles.topRow}>
-        <Text style={styles.topStat}>Combo {combo} {comboBadge(combo)}</Text>
-        <Text style={styles.topStat}>Streak {streak}</Text>
-        <Text style={styles.topStat}>#{index + 1}/{items.length}</Text>
+        <Text style={styles.topStat}>Akış {practiceRun}</Text>
+        <Text style={styles.topStat}>Doğal seçim {correctCount}</Text>
+        <Text style={styles.topStat}>Kalan {Math.ceil(timeLeft)}s</Text>
       </View>
 
       <View style={styles.timerBg}>
@@ -332,7 +347,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           onPress={() => evaluate(true)}
           disabled={selected !== null}
         >
-          <Text style={styles.pickText}>✅ Real</Text>
+          <Text style={styles.pickText}>Doğal</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -340,7 +355,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
           onPress={() => evaluate(false)}
           disabled={selected !== null}
         >
-          <Text style={styles.pickText}>❌ Fake</Text>
+          <Text style={styles.pickText}>Garip</Text>
         </TouchableOpacity>
       </View>
 

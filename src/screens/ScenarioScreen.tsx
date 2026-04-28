@@ -11,13 +11,12 @@ import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import {
   Scenario, StageResult, UserLevel, UserProfile, ModuleResult, SceneFlowPath,
-  SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview,
+  SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview, VoiceAttempt,
 } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
 import { getPersonaByStage, getGoalContext } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
-import { recordDailySceneScore } from '../services/leaderboard';
 import { useAppTranslation } from '../i18n';
 import {
   getSceneSnapshot,
@@ -26,6 +25,19 @@ import {
   deriveSuccessHook,
   buildLostReplayCta,
 } from '../services/runHook';
+import { getLastSceneSession } from '../services/sessionMemory';
+import {
+  cleanupVoiceRecording,
+  createVoiceAttempt,
+  evaluateVoiceAttempt,
+  requestMicrophonePermission,
+  speakNpcLine,
+  startVoiceRecording,
+  stopNpcSpeech,
+  stopVoiceRecording,
+  transcribeVoice,
+} from '../services/voice';
+import { getVoiceRepeatLimitState, recordVoiceRepeatUse } from '../services/subscription';
 import AnimatedPressable from '../components/AnimatedPressable';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -34,7 +46,7 @@ type NpcMood = 'happy' | 'neutral' | 'confused' | 'impatient';
 type OptionQuality = 'good' | 'ok' | 'awkward';
 type NpcPersonality = 'friendly' | 'busy' | 'rude';
 
-type DialogOption = { text: string; quality: OptionQuality };
+type DialogOption = { text: string; quality: OptionQuality; feedback?: string; why?: string };
 
 type TurnRecord = {
   npcMessage: string;
@@ -50,6 +62,24 @@ type GameTurn = {
   options: DialogOption[];
   reactions: { good: string; ok: string; awkward: string };
   scene_complete?: boolean;
+  sceneState?: {
+    tension?: 'low' | 'medium' | 'high';
+    progress?: 'opening' | 'complication' | 'resolution';
+    nextBeat?: string;
+  };
+};
+
+type AiChoice = {
+  text: string;
+  quality: OptionQuality;
+  feedback?: string;
+  why?: string;
+};
+
+type AiTurnPayload = Partial<GameTurn> & {
+  npcLine?: string;
+  choices?: AiChoice[];
+  sceneState?: GameTurn['sceneState'];
 };
 
 type SavedGameState = {
@@ -120,13 +150,13 @@ type ComboTier = {
   glow: string;
 };
 
-/** Escalating combo copy — visible “power” curve */
+/** Subtle flow copy for consecutive natural replies. */
 const getComboTier = (n: number): ComboTier | null => {
   if (n < 1) return null;
-  if (n === 1) return { hype: 'Nice', sub: 'Doğru ton', color: colors.successDs, emoji: '👍', glow: '#22C55E55' };
-  if (n === 2) return { hype: 'Smooth', sub: 'Akış yakalanıyor', color: colors.accentWarm, emoji: '✨', glow: '#38BDF866' };
-  if (n === 3) return { hype: "You're on fire", sub: 'Üst üste çok doğal', color: colors.accentWarm, emoji: '🔥', glow: '#F9731688' };
-  return { hype: 'Clean scene flow', sub: 'Sahne akışı temiz', color: colors.accentWarm, emoji: '🚀', glow: '#A855F799' };
+  if (n === 1) return { hype: 'Doğru ton', sub: 'Cevap sahneye uydu', color: colors.successDs, emoji: '', glow: '#22C55E55' };
+  if (n === 2) return { hype: 'Akış yakalanıyor', sub: 'İki doğal cevap üst üste', color: colors.accentWarm, emoji: '', glow: '#38BDF866' };
+  if (n === 3) return { hype: 'Sahne ritmi oturdu', sub: 'Üst üste çok doğal', color: colors.accentWarm, emoji: '', glow: '#F9731688' };
+  return { hype: 'Temiz sahne akışı', sub: 'Gerçek hayata hazır ritim', color: colors.accentWarm, emoji: '', glow: '#A855F799' };
 };
 
 const timerUrgencyRgb = (left: number, total: number) => {
@@ -188,6 +218,55 @@ const answerSecondsFor = (p: NpcPersonality, firstSession: boolean) => {
   return Math.round(base * (firstSession ? 1.45 : 1));
 };
 
+const survivalResponsesByLang: Record<string, string[]> = {
+  en: [
+    'Sorry, could you repeat that?',
+    'One moment, please.',
+    "I'm not sure I understood.",
+    'Could you say that more slowly?',
+  ],
+  es: [
+    'Perdón, ¿podrías repetir eso?',
+    'Un momento, por favor.',
+    'No estoy seguro de haber entendido.',
+    '¿Podrías decirlo más despacio?',
+  ],
+  fr: [
+    'Pardon, vous pouvez répéter ?',
+    'Un moment, s’il vous plaît.',
+    'Je ne suis pas sûr d’avoir compris.',
+    'Vous pouvez parler plus lentement ?',
+  ],
+  de: [
+    'Entschuldigung, können Sie das wiederholen?',
+    'Einen Moment, bitte.',
+    'Ich bin nicht sicher, ob ich das verstanden habe.',
+    'Können Sie das langsamer sagen?',
+  ],
+  it: [
+    'Scusi, può ripetere?',
+    'Un momento, per favore.',
+    'Non sono sicuro di aver capito.',
+    'Può dirlo più lentamente?',
+  ],
+  pt: [
+    'Desculpe, pode repetir?',
+    'Um momento, por favor.',
+    'Não tenho certeza se entendi.',
+    'Pode falar mais devagar?',
+  ],
+};
+
+const getSurvivalResponse = (lang: string, turnIndex: number): DialogOption => {
+  const bank = survivalResponsesByLang[lang] ?? survivalResponsesByLang.en;
+  return {
+    text: bank[turnIndex % bank.length],
+    quality: 'ok',
+    feedback: 'Zaman baskısında konuşmayı koparmadan yardım istedin.',
+    why: 'Survival response: anlamadığında sahneyi kurtarır ve karşı tarafı tekrar etmeye davet eder.',
+  };
+};
+
 // ─── Props ─────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -237,6 +316,11 @@ export default function ScenarioScreen({
   const [turnHistory, setTurnHistory] = useState<TurnRecord[]>([]);
   const [sceneComplete, setSceneComplete] = useState(false);
   const [failReaction, setFailReaction] = useState('');
+  const [voiceStep, setVoiceStep] = useState<'idle' | 'ready' | 'recording' | 'review' | 'skipped' | 'locked'>('idle');
+  const [voiceAttempts, setVoiceAttempts] = useState<VoiceAttempt[]>([]);
+  const [currentVoiceAttempt, setCurrentVoiceAttempt] = useState<VoiceAttempt | null>(null);
+  const [voiceMessage, setVoiceMessage] = useState('');
+  const [voiceTargetText, setVoiceTargetText] = useState('');
 
   // Combo + hint
   const [consecutiveGood, setConsecutiveGood] = useState(0);
@@ -287,6 +371,7 @@ export default function ScenarioScreen({
   const [isRecording, setIsRecording] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingUriRef = useRef<string | undefined>(undefined);
 
   // Animation: mic ripple (two concentric rings)
   const micRipple1 = useRef(new Animated.Value(0)).current;
@@ -375,6 +460,7 @@ export default function ScenarioScreen({
     return () => {
       if (reactionTimer.current) clearTimeout(reactionTimer.current);
       if (thinkingTimer.current) clearInterval(thinkingTimer.current);
+      void stopNpcSpeech();
     };
   }, [phase]);
 
@@ -441,16 +527,19 @@ export default function ScenarioScreen({
 
   const getLanguagePack = (lang: string) => {
     const baseByLang: Record<string, {
-      good: string[];
-      ok: string[];
-      awkward: string[];
+      sceneOptions: Record<string, { good: string[]; ok: string[]; awkward: string[] }>;
       followUp: { good: string[]; ok: string[]; awkward: string[] };
       reactions: { good: string[]; ok: string[]; awkward: string[] };
     }> = {
       es: {
-        good: ['Me gustaría', '¿Podría pedir', 'Quisiera'],
-        ok: ['Quiero', 'Necesito', 'Vale,'],
-        awkward: ['Yo querer', 'Dame', 'Eh... yo'],
+        sceneOptions: {
+          cafe: { good: ['Quisiera un café, por favor.', '¿Podría traerme la carta?', 'Me gustaría pedir algo sencillo.'], ok: ['Quiero un café.', 'La carta, por favor.', 'Necesito pedir.'], awkward: ['Dame café ahora.', 'Yo querer carta.', 'Rápido, café.'] },
+          travel: { good: ['¿Podría indicarme la línea correcta?', 'Perdón, ¿esta dirección va al centro?', '¿Me ayuda a confirmar esta parada?'], ok: ['¿Dónde está la línea?', 'Voy al centro.', 'Necesito esta parada.'], awkward: ['Yo perdido, tú decir.', '¿Centro dónde rápido?', 'Esta parada, sí o no.'] },
+          business: { good: ['Me gustaría explicar la propuesta con un ejemplo.', 'En mi opinión, este punto necesita más contexto.', 'Podemos revisar el plazo antes de decidir.'], ok: ['Creo que está bien.', 'Necesito más tiempo.', 'Podemos hablar del proyecto.'], awkward: ['Tu idea no sirve.', 'Yo digo que sí.', 'Esto mal, cambiamos.'] },
+          social: { good: ['Qué gusto conocerte, ¿cómo conoces al grupo?', 'Me encanta este ambiente, ¿vienes a menudo?', 'Soy nuevo aquí, pero me alegra hablar contigo.'], ok: ['Hola, ¿qué tal?', 'Vengo por la música.', 'Soy nuevo aquí.'], awkward: ['Habla conmigo ahora.', 'No sé, tú dime.', 'Estoy aquí, ya está.'] },
+          story: { good: ['Entiendo la situación; intentemos resolverlo con calma.', 'Antes de decidir, quiero escuchar tu versión.', 'Podemos buscar una salida que funcione para ambos.'], ok: ['Vale, entiendo.', 'No sé qué hacer.', 'Podemos hablar.'], awkward: ['Eso es tu problema.', 'No me importa mucho.', 'Hazlo tú.'] },
+          survival: { good: ['Necesito ayuda, ¿podría explicarlo más despacio?', 'No me encuentro bien; ¿qué me recomienda?', 'Perdón, quiero asegurarme de entender bien.'], ok: ['Necesito ayuda.', 'No entiendo bien.', '¿Puede repetir?'], awkward: ['Ayuda, rápido.', 'No entiendo nada.', 'Tú arregla esto.'] },
+        },
         followUp: {
           good: ['Perfecto, ¿algo más?', 'Genial. ¿Quieres añadir algo?', 'Muy bien, seguimos.'],
           ok: ['Entiendo. ¿Puedes concretar un poco?', 'Vale. Dame un poco más de detalle.', 'Sí, pero necesito más información.'],
@@ -463,9 +552,14 @@ export default function ScenarioScreen({
         },
       },
       fr: {
-        good: ['Je voudrais', 'Est-ce que je peux avoir', 'J’aimerais'],
-        ok: ['Je veux', 'D’accord,', 'Bon,'],
-        awkward: ['Moi vouloir', 'Donne-moi', 'Euh... moi'],
+        sceneOptions: {
+          cafe: { good: ['Je voudrais un café, s’il vous plaît.', 'Est-ce que je peux voir la carte ?', 'J’aimerais commander quelque chose de simple.'], ok: ['Je veux un café.', 'La carte, s’il vous plaît.', 'Je veux commander.'], awkward: ['Donne-moi un café.', 'Moi vouloir la carte.', 'Vite, café.'] },
+          travel: { good: ['Vous pourriez m’indiquer la bonne ligne ?', 'Pardon, cette direction va vers le centre ?', 'Vous pouvez m’aider à confirmer cet arrêt ?'], ok: ['Où est la ligne ?', 'Je vais au centre.', 'J’ai besoin de cet arrêt.'], awkward: ['Moi perdu, vous dire.', 'Centre où vite ?', 'Cet arrêt, oui ou non.'] },
+          business: { good: ['J’aimerais expliquer la proposition avec un exemple.', 'À mon avis, ce point mérite plus de contexte.', 'Nous pouvons revoir le délai avant de décider.'], ok: ['Je pense que ça va.', 'J’ai besoin de plus de temps.', 'On peut parler du projet.'], awkward: ['Ton idée ne marche pas.', 'Moi je dis oui.', 'C’est mauvais, on change.'] },
+          social: { good: ['Enchanté, tu connais le groupe comment ?', 'J’aime beaucoup l’ambiance, tu viens souvent ?', 'Je suis nouveau ici, mais je suis content de discuter.'], ok: ['Salut, ça va ?', 'Je viens pour la musique.', 'Je suis nouveau ici.'], awkward: ['Parle avec moi maintenant.', 'Je ne sais pas, dis-moi.', 'Je suis ici, voilà.'] },
+          story: { good: ['Je comprends la situation; essayons de régler ça calmement.', 'Avant de décider, je veux entendre ta version.', 'On peut chercher une solution qui marche pour nous deux.'], ok: ['D’accord, je comprends.', 'Je ne sais pas quoi faire.', 'On peut parler.'], awkward: ['C’est ton problème.', 'Ça m’est égal.', 'Fais-le toi-même.'] },
+          survival: { good: ['J’ai besoin d’aide, vous pouvez expliquer plus lentement ?', 'Je ne me sens pas bien; qu’est-ce que vous me conseillez ?', 'Pardon, je veux être sûr de bien comprendre.'], ok: ['J’ai besoin d’aide.', 'Je ne comprends pas bien.', 'Vous pouvez répéter ?'], awkward: ['Aide, vite.', 'Je comprends rien.', 'Vous réparez ça.'] },
+        },
         followUp: {
           good: ['Parfait, autre chose ?', 'Très bien, on continue.', 'Super, et ensuite ?'],
           ok: ['Je comprends, mais sois plus précis.', 'OK, donne un peu plus de détail.', 'Oui, mais formule un peu mieux.'],
@@ -478,9 +572,14 @@ export default function ScenarioScreen({
         },
       },
       de: {
-        good: ['Ich hätte gern', 'Könnte ich bitte', 'Ich möchte'],
-        ok: ['Ich will', 'Okay,', 'Gut,'],
-        awkward: ['Ich wollen', 'Gib mir', 'Äh... ich'],
+        sceneOptions: {
+          cafe: { good: ['Ich hätte gern einen Kaffee, bitte.', 'Könnte ich bitte die Karte sehen?', 'Ich möchte etwas Einfaches bestellen.'], ok: ['Ich will einen Kaffee.', 'Die Karte, bitte.', 'Ich möchte bestellen.'], awkward: ['Gib mir Kaffee.', 'Ich wollen Karte.', 'Schnell, Kaffee.'] },
+          travel: { good: ['Könnten Sie mir die richtige Linie zeigen?', 'Entschuldigung, fährt diese Richtung ins Zentrum?', 'Können Sie mir helfen, diese Haltestelle zu bestätigen?'], ok: ['Wo ist die Linie?', 'Ich gehe ins Zentrum.', 'Ich brauche diese Haltestelle.'], awkward: ['Ich verloren, du sagen.', 'Zentrum wo schnell?', 'Diese Haltestelle, ja oder nein.'] },
+          business: { good: ['Ich möchte den Vorschlag mit einem Beispiel erklären.', 'Meiner Meinung nach braucht dieser Punkt mehr Kontext.', 'Wir können die Frist prüfen, bevor wir entscheiden.'], ok: ['Ich denke, das ist okay.', 'Ich brauche mehr Zeit.', 'Wir können über das Projekt sprechen.'], awkward: ['Deine Idee ist schlecht.', 'Ich sage ja.', 'Das falsch, wir ändern.'] },
+          social: { good: ['Freut mich, wie kennst du die Gruppe?', 'Ich mag die Stimmung hier, kommst du öfter?', 'Ich bin neu hier, aber freue mich zu reden.'], ok: ['Hallo, wie geht’s?', 'Ich bin wegen der Musik hier.', 'Ich bin neu hier.'], awkward: ['Sprich jetzt mit mir.', 'Keine Ahnung, du sag.', 'Ich bin hier, fertig.'] },
+          story: { good: ['Ich verstehe die Situation; lass uns das ruhig lösen.', 'Bevor wir entscheiden, möchte ich deine Sicht hören.', 'Wir können eine Lösung finden, die für beide passt.'], ok: ['Okay, ich verstehe.', 'Ich weiß nicht, was ich tun soll.', 'Wir können reden.'], awkward: ['Das ist dein Problem.', 'Ist mir egal.', 'Mach du das.'] },
+          survival: { good: ['Ich brauche Hilfe, könnten Sie das langsamer erklären?', 'Mir geht es nicht gut; was empfehlen Sie?', 'Entschuldigung, ich möchte sicher sein, dass ich es richtig verstehe.'], ok: ['Ich brauche Hilfe.', 'Ich verstehe nicht gut.', 'Können Sie das wiederholen?'], awkward: ['Hilfe, schnell.', 'Ich verstehe nichts.', 'Du machst das.'] },
+        },
         followUp: {
           good: ['Perfekt, noch etwas?', 'Sehr gut, wir machen weiter.', 'Top, was noch?'],
           ok: ['Verstanden, aber bitte etwas genauer.', 'Okay, gib mir mehr Details.', 'Ja, aber es klingt etwas knapp.'],
@@ -493,9 +592,14 @@ export default function ScenarioScreen({
         },
       },
       en: {
-        good: ['I’d like', 'Could I please get', 'I would like'],
-        ok: ['I want', 'Okay,', 'Fine,'],
-        awkward: ['Me want', 'Give me', 'Uh... me'],
+        sceneOptions: {
+          cafe: { good: ['Could I get a coffee, please?', 'Could I see the menu for a moment?', 'I’d like to order something simple.'], ok: ['I want a coffee.', 'The menu, please.', 'I need to order.'], awkward: ['Give me coffee now.', 'Me want menu.', 'Coffee. Fast.'] },
+          travel: { good: ['Could you point me to the right line?', 'Sorry, does this direction go downtown?', 'Could you help me confirm this stop?'], ok: ['Where is the line?', 'I go downtown.', 'I need this stop.'], awkward: ['I lost, you tell.', 'Downtown where fast?', 'This stop, yes or no.'] },
+          business: { good: ['I’d like to explain the proposal with one example.', 'In my view, this point needs more context.', 'Could we review the timeline before deciding?'], ok: ['I think it is okay.', 'I need more time.', 'We can talk about the project.'], awkward: ['Your idea does not work.', 'I say yes.', 'This bad, we change.'] },
+          social: { good: ['Nice to meet you, how do you know everyone here?', 'I love the atmosphere, do you come here often?', 'I’m new here, but I’m glad we started talking.'], ok: ['Hi, how are you?', 'I came for the music.', 'I am new here.'], awkward: ['Talk to me now.', 'I don’t know, you tell me.', 'I am here, that is all.'] },
+          story: { good: ['I understand the situation; let’s handle it calmly.', 'Before we decide, I’d like to hear your side.', 'We can look for a solution that works for both of us.'], ok: ['Okay, I understand.', 'I don’t know what to do.', 'We can talk.'], awkward: ['That is your problem.', 'I do not care much.', 'You do it.'] },
+          survival: { good: ['I need help; could you explain that more slowly?', 'I’m not feeling well; what would you recommend?', 'Sorry, I want to make sure I understood correctly.'], ok: ['I need help.', 'I don’t understand well.', 'Could you repeat that?'], awkward: ['Help, fast.', 'I understand nothing.', 'You fix this.'] },
+        },
         followUp: {
           good: ['Perfect, anything else?', 'Great, let’s continue.', 'Nice. What next?'],
           ok: ['I understand, can you be more specific?', 'Okay, give me a bit more detail.', 'Works, but make it clearer.'],
@@ -509,18 +613,62 @@ export default function ScenarioScreen({
       },
     };
 
-    return baseByLang[lang] ?? baseByLang.en;
+    const extraByLang: Partial<typeof baseByLang> = {
+      it: {
+        sceneOptions: {
+          cafe: { good: ['Vorrei un caffè, per favore.', 'Posso vedere il menù?', 'Vorrei ordinare qualcosa di semplice.'], ok: ['Voglio un caffè.', 'Il menù, per favore.', 'Devo ordinare.'], awkward: ['Dammi caffè ora.', 'Io volere menù.', 'Caffè. Veloce.'] },
+          travel: { good: ['Può indicarmi la linea giusta?', 'Scusi, questa direzione va in centro?', 'Mi aiuta a confermare questa fermata?'], ok: ['Dov’è la linea?', 'Vado in centro.', 'Mi serve questa fermata.'], awkward: ['Io perso, tu dire.', 'Centro dove veloce?', 'Questa fermata, sì o no.'] },
+          business: { good: ['Vorrei spiegare la proposta con un esempio.', 'Secondo me, questo punto richiede più contesto.', 'Possiamo rivedere la scadenza prima di decidere?'], ok: ['Penso che vada bene.', 'Ho bisogno di più tempo.', 'Possiamo parlare del progetto.'], awkward: ['La tua idea non va.', 'Io dico sì.', 'Questo male, cambiamo.'] },
+          social: { good: ['Piacere, come conosci il gruppo?', 'Mi piace molto l’atmosfera, vieni spesso?', 'Sono nuovo qui, ma sono contento di parlare con te.'], ok: ['Ciao, come va?', 'Sono venuto per la musica.', 'Sono nuovo qui.'], awkward: ['Parla con me ora.', 'Non so, dimmi tu.', 'Sono qui, basta.'] },
+          story: { good: ['Capisco la situazione; proviamo a risolverla con calma.', 'Prima di decidere, vorrei sentire la tua versione.', 'Possiamo cercare una soluzione che funzioni per entrambi.'], ok: ['Va bene, capisco.', 'Non so cosa fare.', 'Possiamo parlare.'], awkward: ['È un problema tuo.', 'Non mi importa.', 'Fallo tu.'] },
+          survival: { good: ['Ho bisogno di aiuto, può spiegarmelo più lentamente?', 'Non mi sento bene; cosa mi consiglia?', 'Scusi, voglio essere sicuro di aver capito.'], ok: ['Ho bisogno di aiuto.', 'Non capisco bene.', 'Può ripetere?'], awkward: ['Aiuto, veloce.', 'Non capisco niente.', 'Tu sistemi questo.'] },
+        },
+        followUp: {
+          good: ['Perfetto, qualcos’altro?', 'Molto bene, continuiamo.', 'Ottimo, e poi?'],
+          ok: ['Capisco, ma sii più preciso.', 'Va bene, dammi qualche dettaglio in più.', 'Funziona, ma può essere più naturale.'],
+          awkward: ['Non capisco bene. Puoi ripetere?', 'Hmm... suona strano.', 'Qui non è molto naturale.'],
+        },
+        reactions: {
+          good: ['Molto naturale 👌', 'Perfetto ✅', 'Ottima scelta ✨'],
+          ok: ['Si capisce 👍', 'Funziona, ma è un po’ secco.', 'Corretto, ma poco naturale.'],
+          awkward: ['Un po’ strano 😅', 'Suona poco naturale.', 'Meglio riformulare.'],
+        },
+      },
+      pt: {
+        sceneOptions: {
+          cafe: { good: ['Eu gostaria de um café, por favor.', 'Posso ver o cardápio?', 'Gostaria de pedir algo simples.'], ok: ['Eu quero um café.', 'O cardápio, por favor.', 'Preciso pedir.'], awkward: ['Me dá café agora.', 'Eu querer cardápio.', 'Café. Rápido.'] },
+          travel: { good: ['Pode me indicar a linha certa?', 'Desculpe, esta direção vai para o centro?', 'Pode me ajudar a confirmar esta estação?'], ok: ['Onde fica a linha?', 'Vou para o centro.', 'Preciso desta estação.'], awkward: ['Eu perdido, você fala.', 'Centro onde rápido?', 'Esta estação, sim ou não.'] },
+          business: { good: ['Gostaria de explicar a proposta com um exemplo.', 'Na minha opinião, este ponto precisa de mais contexto.', 'Podemos rever o prazo antes de decidir?'], ok: ['Acho que está bom.', 'Preciso de mais tempo.', 'Podemos falar do projeto.'], awkward: ['Sua ideia não presta.', 'Eu digo sim.', 'Isso ruim, mudamos.'] },
+          social: { good: ['Prazer, como você conhece o pessoal?', 'Gosto muito do clima daqui, você vem sempre?', 'Sou novo aqui, mas fico feliz de conversar.'], ok: ['Oi, tudo bem?', 'Vim pela música.', 'Sou novo aqui.'], awkward: ['Fala comigo agora.', 'Não sei, você diz.', 'Estou aqui, só isso.'] },
+          story: { good: ['Entendo a situação; vamos resolver com calma.', 'Antes de decidir, quero ouvir o seu lado.', 'Podemos procurar uma solução boa para os dois.'], ok: ['Tá bom, entendo.', 'Não sei o que fazer.', 'Podemos conversar.'], awkward: ['Isso é problema seu.', 'Não me importo.', 'Faz você.'] },
+          survival: { good: ['Preciso de ajuda, pode explicar mais devagar?', 'Não estou me sentindo bem; o que recomenda?', 'Desculpe, quero ter certeza de que entendi.'], ok: ['Preciso de ajuda.', 'Não entendi bem.', 'Pode repetir?'], awkward: ['Ajuda, rápido.', 'Não entendi nada.', 'Você resolve isso.'] },
+        },
+        followUp: {
+          good: ['Perfeito, mais alguma coisa?', 'Muito bem, vamos continuar.', 'Ótimo, e agora?'],
+          ok: ['Entendo, mas seja mais específico.', 'Certo, me dê mais detalhes.', 'Funciona, mas pode soar melhor.'],
+          awkward: ['Não entendi bem. Pode repetir?', 'Hmm... isso soa estranho.', 'Não fica natural aqui.'],
+        },
+        reactions: {
+          good: ['Muito natural 👌', 'Perfeito ✅', 'Ótima escolha ✨'],
+          ok: ['Dá para entender 👍', 'Funciona, mas soa direto.', 'Correto, mas pouco natural.'],
+          awkward: ['Um pouco estranho 😅', 'Soa pouco natural.', 'Melhor reformular.'],
+        },
+      },
+    };
+
+    return baseByLang[lang] ?? extraByLang[lang] ?? baseByLang.en;
   };
 
   const buildLocalTurn = (history: TurnRecord[], openingMsg: string): GameTurn => {
     const pack = getLanguagePack(scenario.language);
     const idx = history.length;
-    const baseWord = scenario.vocabHints?.[idx % (scenario.vocabHints?.length || 1)]?.word ?? persona.name;
-    const punctuation = idx % 2 === 0 ? '.' : '?';
+    const stageOptions = pack.sceneOptions[stageKey] ?? pack.sceneOptions.social;
+    const currentBeat = scenario.dramaticBeats?.[idx % (scenario.dramaticBeats?.length || 1)];
+    const usefulPhrase = scenario.usefulPhrases?.[idx % (scenario.usefulPhrases?.length || 1)]?.phrase;
 
-    const good = `${pickByIndex(pack.good, idx)} ${baseWord}${punctuation}`;
-    const ok = `${pickByIndex(pack.ok, idx)} ${baseWord}${punctuation}`;
-    const awkward = `${pickByIndex(pack.awkward, idx)} ${baseWord}${punctuation}`;
+    const good = pickByIndex(stageOptions.good, idx);
+    const ok = pickByIndex(stageOptions.ok, idx);
+    const awkward = pickByIndex(stageOptions.awkward, idx);
 
     const lastQuality = history[history.length - 1]?.quality ?? 'good';
     const npcLine = history.length === 0
@@ -528,9 +676,24 @@ export default function ScenarioScreen({
       : pickByIndex(pack.followUp[lastQuality], idx + playCount);
 
     const dialogOptions: DialogOption[] = [
-      { text: good, quality: 'good' },
-      { text: ok, quality: 'ok' },
-      { text: awkward, quality: 'awkward' },
+      {
+        text: good,
+        quality: 'good',
+        feedback: usefulPhrase ? `Bu cevap sahnenin doğal kalıbına yakın: "${usefulPhrase}".` : 'Doğal, nazik ve sahne hedefini ilerletiyor.',
+        why: currentBeat ? `Dramatic beat’e uyuyor: ${currentBeat}` : 'Sosyal tonu koruyup konuşmayı ileri taşır.',
+      },
+      {
+        text: ok,
+        quality: 'ok',
+        feedback: 'Anlaşılıyor ama biraz kısa; NPC ek açıklama isteyebilir.',
+        why: 'İletişimi koparmaz fakat sosyal tonu güçlendirmez.',
+      },
+      {
+        text: awkward,
+        quality: 'awkward',
+        feedback: 'Bu cevap fazla direkt veya kırık duyulur.',
+        why: 'Sahne içinde karşı tarafı durdurabilir ya da açıklama istemesine yol açabilir.',
+      },
     ];
 
     return {
@@ -543,6 +706,37 @@ export default function ScenarioScreen({
         awkward: pickByIndex(pack.reactions.awkward, idx),
       },
       scene_complete: history.length >= 4,
+      sceneState: {
+        tension: lastQuality === 'awkward' ? 'high' : lastQuality === 'ok' ? 'medium' : 'low',
+        progress: history.length <= 1 ? 'opening' : history.length >= 4 ? 'resolution' : 'complication',
+        nextBeat: currentBeat ?? scenario.baseSituation ?? scenario.mission,
+      },
+    };
+  };
+
+  const normalizeAiTurn = (payload: AiTurnPayload | null, openingMsg: string): GameTurn | null => {
+    if (!payload) return null;
+    const rawOptions = payload.options ?? payload.choices ?? [];
+    const options = rawOptions
+      .filter((option): option is DialogOption => {
+        const quality = option?.quality;
+        return !!option?.text && (quality === 'good' || quality === 'ok' || quality === 'awkward');
+      })
+      .slice(0, 3);
+
+    if (options.length < 3) return null;
+
+    return {
+      npc_message: payload.npc_message ?? payload.npcLine ?? openingMsg,
+      npc_mood: payload.npc_mood ?? (payload.sceneState?.tension === 'high' ? 'impatient' : 'neutral'),
+      options,
+      reactions: payload.reactions ?? {
+        good: options.find(o => o.quality === 'good')?.feedback ?? 'That lands naturally.',
+        ok: options.find(o => o.quality === 'ok')?.feedback ?? 'Clear enough, but a bit flat.',
+        awkward: options.find(o => o.quality === 'awkward')?.feedback ?? 'That feels off in this scene.',
+      },
+      scene_complete: payload.scene_complete,
+      sceneState: payload.sceneState,
     };
   };
 
@@ -578,16 +772,38 @@ export default function ScenarioScreen({
 
   const requestTurn = async (history: TurnRecord[], openingMsg: string): Promise<GameTurn | null> => {
     const p = await getProfile();
+    const lastSession = await getLastSceneSession();
     const nativeLang = p?.nativeLanguage?.name ?? 'Turkish';
     const langName = p?.language?.name ?? 'Spanish';
     const identityGoal = p?.identity?.goal ?? p?.goalDescription ?? '';
     const isFirst = history.length === 0;
+    const currentBeat =
+      scenario.dramaticBeats?.[Math.min(history.length, Math.max((scenario.dramaticBeats?.length ?? 1) - 1, 0))]
+      ?? scenario.baseSituation
+      ?? scenario.mission
+      ?? 'Keep the conversation moving naturally.';
+    const memoryIsRelevant =
+      !!lastSession
+      && (lastSession.scenarioId === scenario.id || lastSession.stageType === stageKey || lastSession.language === p?.language?.code);
+    const memoryContext = memoryIsRelevant
+      ? [
+        `Last session weakness: ${lastSession.awkwardMoment ?? lastSession.betterAlternative ?? 'none recorded'}`,
+        `Last session best line: ${lastSession.bestLine ?? 'none recorded'}`,
+        `Next focus: ${lastSession.nextFocus ?? 'keep the scene flow natural'}`,
+      ].join('\n')
+      : 'No relevant prior scene memory.';
+    const usefulPhrases = scenario.usefulPhrases?.slice(0, 4)
+      .map(p => `- "${p.phrase}" (${p.context})`)
+      .join('\n') || 'No fixed phrase list. Generate natural scene-specific lines.';
+    const likelyMisunderstandings = scenario.likelyMisunderstandings?.slice(0, 3).map(item => `- ${item}`).join('\n') || 'None recorded.';
+    const vocabFocus = scenario.vocabularyFocus ?? scenario.vocabHints?.slice(0, 4).map(v => v.word).join(', ') ?? 'scene vocabulary';
 
     const historyText = history
       .map((t, i) => `Turn ${i + 1}: NPC: "${t.npcMessage}" → User: "${t.selectedText}" (${t.quality})`)
       .join('\n');
 
     const reactionFmt = `"reactions":{"good":"(warm NPC reply in ${langName}, 1 sentence)","ok":"(brief/neutral reply in ${langName}, 1 sentence)","awkward":"(confused/impatient reply in ${langName}, 1 sentence)"}`;
+    const choiceSchema = `"choices":[{"text":"...","quality":"good","feedback":"why this is natural","why":"social reason"},{"text":"...","quality":"ok","feedback":"what is missing","why":"social reason"},{"text":"...","quality":"awkward","feedback":"why this creates friction","why":"social reason"}]`;
 
     const okSlowHint = history.length > 0 && history[history.length - 1].quality === 'ok'
       ? `\nThe user's last response was "ok" quality (understood but blunt/minimal). NPC should ask a short clarifying follow-up instead of progressing — show that "ok" choices create friction and slow the scene down.`
@@ -620,42 +836,62 @@ export default function ScenarioScreen({
       ? `NPC context: ${scenario.systemPrompt.split('\n')[0]}\n`
       : '';
 
+    const sharedContext = `SCENE CONTEXT
+- User identity goal: "${identityGoal || 'not provided'}"
+- Target language: ${langName} (${p?.language?.code ?? scenario.language})
+- User native language: ${nativeLang}
+- Current scenario: "${scenario.title}" at ${scenario.location}
+- Scene mission: ${scenario.mission ?? 'Complete the interaction naturally'}
+- Dramatic beat now: ${currentBeat}
+- NPC persona: ${persona.name} (${persona.roleLabel}); ${PERSONALITY_LABEL[personality]}
+- Difficulty: scenario=${scenario.difficulty}; replayCount=${playCount}; personality=${personality}
+- Last session memory:
+${memoryContext}
+- Grammar focus: ${scenario.grammarFocus ?? 'choose register and polite forms that fit the scene'}
+- Vocabulary focus: ${vocabFocus}
+- Useful phrases to inspire, NOT copy-paste blindly:
+${usefulPhrases}
+- Likely misunderstandings:
+${likelyMisunderstandings}
+
+Generate choices as social-tone alternatives, not grammar quiz answers. The three choices should usually share the same broad intent but differ by tact, clarity, and fit for the NPC relationship.
+Do not paste vocabHint words into unnatural templates. Use vocabulary only if it fits the sentence naturally.`;
+
     const prompt = isFirst
       ? `Turn-based language roleplay game.
-Scene: "${scenario.title}" at ${scenario.location}.
-Character: ${persona.name} (${persona.roleLabel}). ${personalityPrompt(personality)}
-${npcContext}Target language: ${langName}. User native language: ${nativeLang}.
-User goal: "${identityGoal}". Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"${goalInject}
+${sharedContext}
+Character instruction: ${personalityPrompt(personality)}
+${npcContext}${goalInject}
 ${branchNote}${replayNote}
 
 NPC opening line: "${openingMsg}"
 
-Generate 3 response options (in ${langName}) — same intent, 3 different social registers:
+Generate 3 response choices (in ${langName}) — same intent, 3 different social registers:
 "good" = polite and natural, "ok" = minimal but understood, "awkward" = wrong grammar or socially odd.
 NPC personality affects how reactions differ between qualities.
-Shuffle options randomly. 1 sentence max each.${difficultyHint}
+1 sentence max each.${difficultyHint}
 
 IMPORTANT: Do NOT include action narrations like *wipes the glass*, *smiles*, *leans forward* etc. NPC must speak only in dialogue. No asterisk actions, no stage directions, no narration.
 
 Return ONLY valid JSON:
-{"npc_message":"${openingMsg}","npc_mood":"neutral",${reactionFmt},"options":[{"text":"...","quality":"good"},{"text":"...","quality":"ok"},{"text":"...","quality":"awkward"}],"scene_complete":false}`
+{"npcLine":"${openingMsg}",${choiceSchema},"sceneState":{"tension":"low","progress":"opening","nextBeat":"..."},"npc_mood":"neutral",${reactionFmt},"scene_complete":false}`
       : `Turn-based language roleplay.
-Scene: "${scenario.title}" at ${scenario.location}. Character: ${persona.name}. ${personalityPrompt(personality)}
-${npcContext}Target: ${langName}. Native: ${nativeLang}. Goal: "${identityGoal}"${goalInject}
-Scene goal: "${scenario.mission ?? 'Complete the interaction naturally'}"
+${sharedContext}
+Character instruction: ${personalityPrompt(personality)}
+${npcContext}${goalInject}
 ${branchNote}${replayNote}
 
 History:\n${historyText}
 
 Write NPC's next line (react naturally based on personality + last user choice).
-Generate 3 response options — same intent, 3 social registers.
-Options must feel like real choices a person might make, not a grammar test.
+Generate 3 response choices — same intent, 3 social registers.
+Choices must feel like real choices a person might make, not a grammar test.
 scene_complete:true only after turn ${history.length} if scene goal naturally achieved (min 3 turns).${okSlowHint}${difficultyHint}
 
 IMPORTANT: Do NOT include action narrations like *wipes the glass*, *smiles*, *leans forward* etc. NPC must speak only in dialogue. No asterisk actions, no stage directions, no narration.
 
 Return ONLY valid JSON:
-{"npc_message":"...","npc_mood":"neutral",${reactionFmt},"options":[{"text":"...","quality":"good"},{"text":"...","quality":"ok"},{"text":"...","quality":"awkward"}],"scene_complete":false}`;
+{"npcLine":"...","choices":[{"text":"...","quality":"good","feedback":"...","why":"..."},{"text":"...","quality":"ok","feedback":"...","why":"..."},{"text":"...","quality":"awkward","feedback":"...","why":"..."}],"sceneState":{"tension":"low|medium|high","progress":"opening|complication|resolution","nextBeat":"..."},"npc_mood":"neutral",${reactionFmt},"scene_complete":false}`;
 
     const res = await sendMessage(
       [{ id: `t${history.length}`, role: 'user', content: prompt, timestamp: new Date() }],
@@ -663,7 +899,7 @@ Return ONLY valid JSON:
       { maxTokens: 520 },
     );
 
-    return parseModelJson<GameTurn>(res, 'object');
+    return normalizeAiTurn(parseModelJson<AiTurnPayload>(res, 'object'), openingMsg);
   };
 
   const prefetchNextTurns = async (
@@ -759,6 +995,11 @@ Return ONLY valid JSON:
     setSelectedIdx(null);
     setNpcReaction(null);
     setReactionVisible(false);
+    setVoiceStep('idle');
+    setVoiceAttempts([]);
+    setCurrentVoiceAttempt(null);
+    setVoiceMessage('');
+    setVoiceTargetText('');
     setSceneComplete(false);
     setConsecutiveGood(0);
     setConsecutiveBad(0);
@@ -767,11 +1008,27 @@ Return ONLY valid JSON:
     loadTurn(history, msg);
   };
 
-  const handleSelect = (idx: number, _meta?: { timedOut?: boolean }) => {
-    if (selectedIdx !== null || optionsLoading || !options) return;
+  const handleSelect = (idx: number, _meta?: { timedOut?: boolean }, providedOptions?: DialogOption[]) => {
+    const activeOptions = providedOptions ?? options;
+    if (selectedIdxRef.current !== null || optionsLoading || !activeOptions) return;
+    const picked = activeOptions[idx];
+    if (!picked) return;
     clearAnswerTimer();
     setSelectedIdx(idx);
-    if (options[idx].quality === 'good') {
+    setVoiceTargetText(picked.text);
+    setCurrentVoiceAttempt(null);
+    setVoiceMessage('');
+    getVoiceRepeatLimitState()
+      .then(limit => {
+        if (limit.canUseVoiceRepeat) {
+          setVoiceStep('ready');
+        } else {
+          setVoiceStep('locked');
+          setVoiceMessage(t('scenario.voiceLocked'));
+        }
+      })
+      .catch(() => setVoiceStep('ready'));
+    if (picked.quality === 'good') {
       const tier = getComboTier(consecutiveGood + 1);
       if (tier) setRewardText(tier.hype);
     }
@@ -779,13 +1036,33 @@ Return ONLY valid JSON:
     feedbackEntrance.setValue(0);
     Animated.timing(feedbackEntrance, { toValue: 1, duration: 240, useNativeDriver: true }).start();
     // Micro delay before NPC reaction appears
-    const reaction = currentReactions?.[options[idx].quality] ?? null;
+    const reaction = currentReactions?.[picked.quality] ?? picked.feedback ?? null;
     reactionTimer.current = setTimeout(() => {
       setNpcReaction(reaction);
       setReactionVisible(true);
       animateNpcReplyEntrance();
-      setNpcMood(computeMood(turnHistory, options[idx].quality, consecutiveGood));
+      setNpcMood(computeMood(turnHistory, picked.quality, consecutiveGood));
     }, REACTION_DELAY_MS);
+  };
+
+  const handleTimeoutFallback = () => {
+    const activeOptions = optionsRef.current;
+    if (selectedIdxRef.current !== null || !activeOptions?.length) return;
+    const survival = getSurvivalResponse(scenario.language, turnHistory.length);
+    const nextOptions = [...activeOptions, survival];
+    const survivalIndex = nextOptions.length - 1;
+    optionsRef.current = nextOptions;
+    setOptions(nextOptions);
+    timedOutTurnsRef.current += 1;
+    void trackEvent('scene_answer_timeout', {
+      scenarioId: scenario.id,
+      personality,
+      fallback: 'survival_response',
+    });
+    handleSelect(survivalIndex, { timedOut: true }, nextOptions);
+    setTimeout(() => {
+      void handleNextRef.current?.();
+    }, REACTION_DELAY_MS + 720);
   };
 
   const handleNext = async () => {
@@ -805,6 +1082,10 @@ Return ONLY valid JSON:
     setSelectedIdx(null);
     setNpcReaction(null);
     setReactionVisible(false);
+    setVoiceStep('idle');
+    setCurrentVoiceAttempt(null);
+    setVoiceMessage('');
+    setVoiceTargetText('');
     startThinkingCountdown();
 
     // Combo + fail logic
@@ -900,14 +1181,6 @@ Return ONLY valid JSON:
     const goods = turnHistory.filter(t => t.quality === 'good').map(t => t.selectedText);
     const nativePhraseHighlight = goods.sort((a, b) => b.length - a.length)[0] ?? persona.naturalTip ?? '';
 
-    const profile = await getProfile();
-    await recordDailySceneScore({
-      accuracy,
-      comboMax: comboPeakRef.current,
-      xpEarned,
-      displayName: profile?.displayName,
-    });
-
     const hadAwk = turnHistory.some(t => t.quality === 'awkward');
     const almostPerfect = accuracy < 1 && accuracy >= 0.55 && hadAwk;
     const awkwardTurns = turnHistory.filter(t => t.quality === 'awkward').length;
@@ -927,7 +1200,7 @@ Return ONLY valid JSON:
           ? `You had ${awkwardTurns} awkward turn${awkwardTurns > 1 ? 's' : ''}; keep cleaner social tone.`
           : flowPath === 'friction'
             ? 'Keep the flow steady for 2 more turns before taking risks.'
-            : `Protect your combo (${comboPeakRef.current}) and push one turn further next run.`;
+            : `Aynı sakin ritmi bir sonraki provada bir tur daha koru.`;
     const learningSummary: StageLearningSummary = {
       bestReply: bestTurn?.selectedText ?? (nativePhraseHighlight || undefined),
       awkwardMoment: awkwardTurn?.selectedText ?? (awkwardTurns > 0 ? `${awkwardTurns} awkward turn(s) in this run.` : undefined),
@@ -956,6 +1229,7 @@ Return ONLY valid JSON:
       comboMax: comboPeakRef.current,
       flowPath,
       nativePhrase: nativePhraseHighlight || undefined,
+      voiceAttempts,
     });
     onStageComplete({
       scenarioId: scenario.id,
@@ -978,6 +1252,7 @@ Return ONLY valid JSON:
       runCompare: { previous: prevSnap, current: currentSnap },
       turnReviews,
       learningSummary,
+      voiceAttempts,
     });
   };
 
@@ -1011,15 +1286,7 @@ Return ONLY valid JSON:
       }
       const opts = optionsRef.current;
       if (selectedIdxRef.current !== null || !opts?.length) return;
-      const scored = opts.map((o, i) => ({ i, s: o.quality === 'awkward' ? 0 : o.quality === 'ok' ? 1 : 2 }));
-      scored.sort((a, b) => a.s - b.s);
-      const worstI = scored[0]?.i ?? 0;
-      timedOutTurnsRef.current += 1;
-      void trackEvent('scene_answer_timeout', { scenarioId: scenario.id, personality });
-      handleSelectRef.current(worstI, { timedOut: true });
-      setTimeout(() => {
-        void handleNextRef.current?.();
-      }, REACTION_DELAY_MS + 720);
+      handleTimeoutFallback();
     }, 1000);
 
     return () => {
@@ -1241,18 +1508,81 @@ Return ONLY valid JSON:
     return () => loops.forEach(l => l.stop());
   }, [isRecording, waveAnims]);
 
-  const startRecording = () => {
-    if (selectedIdx !== null) return;
-    setIsRecording(true);
-    if (recordingTimer.current) clearTimeout(recordingTimer.current);
-    recordingTimer.current = setTimeout(() => {
-      setIsRecording(false);
-    }, 3000);
+  const replayNpcLine = () => {
+    const text = reactionVisible && npcReaction ? npcReaction : npcMessage;
+    void speakNpcLine(text, scenario.language);
   };
 
-  const stopRecording = () => {
+  const skipVoiceStep = () => {
+    if (isRecording) return;
+    setVoiceStep('skipped');
+    setVoiceMessage(t('scenario.voiceSkipped'));
+  };
+
+  const startRecording = async () => {
+    if (selectedIdx === null || !voiceTargetText || voiceStep === 'locked') return;
+    const allowed = await requestMicrophonePermission();
+    if (!allowed) {
+      setVoiceStep('skipped');
+      setVoiceMessage(t('scenario.voicePermissionDenied'));
+      return;
+    }
+    try {
+      const started = await startVoiceRecording();
+      recordingUriRef.current = started.uri;
+      setIsRecording(true);
+      setVoiceStep('recording');
+      setVoiceMessage('');
+      if (recordingTimer.current) clearTimeout(recordingTimer.current);
+      recordingTimer.current = setTimeout(() => {
+        void stopRecording();
+      }, 3200);
+    } catch {
+      setIsRecording(false);
+      setVoiceStep('skipped');
+      setVoiceMessage(t('scenario.voiceUnavailable'));
+    }
+  };
+
+  const stopRecording = async () => {
     if (recordingTimer.current) clearTimeout(recordingTimer.current);
     setIsRecording(false);
+    if (!voiceTargetText) {
+      setVoiceStep('skipped');
+      return;
+    }
+    try {
+      const stopped = await stopVoiceRecording();
+      const uri = stopped.uri ?? recordingUriRef.current ?? '';
+      const transcription = uri ? await transcribeVoice(uri, scenario.language) : { transcript: '', confidence: undefined };
+      const evaluation = await evaluateVoiceAttempt(voiceTargetText, transcription.transcript, scenario.language);
+      const attempt = createVoiceAttempt({
+        targetText: voiceTargetText,
+        transcript: transcription.transcript,
+        evaluation: { ...evaluation, confidence: transcription.confidence ?? evaluation.confidence },
+        scenarioId: scenario.id,
+        language: scenario.language,
+      });
+      await recordVoiceRepeatUse();
+      setVoiceAttempts(prev => [...prev, attempt]);
+      setCurrentVoiceAttempt(attempt);
+      setVoiceMessage(attempt.feedback ?? '');
+      setVoiceStep('review');
+    } catch {
+      await cleanupVoiceRecording(recordingUriRef.current);
+      const evaluation = await evaluateVoiceAttempt(voiceTargetText, '', scenario.language);
+      const attempt = createVoiceAttempt({
+        targetText: voiceTargetText,
+        transcript: '',
+        evaluation,
+        scenarioId: scenario.id,
+        language: scenario.language,
+      });
+      setVoiceAttempts(prev => [...prev, attempt]);
+      setCurrentVoiceAttempt(attempt);
+      setVoiceMessage(attempt.feedback ?? t('scenario.voiceUnavailable'));
+      setVoiceStep('review');
+    }
   };
 
   // ── Shared header ─────────────────────────────────────────────────────────
@@ -1336,10 +1666,10 @@ Return ONLY valid JSON:
 
           {!!challengeTarget && (
             <View style={styles.challengeIntroCard}>
-              <Text style={styles.challengeIntroLabel}>FRIEND CHALLENGE</Text>
-              <Text style={styles.challengeIntroTitle}>Beat {challengeTarget.challengerName}'s run</Text>
+              <Text style={styles.challengeIntroLabel}>ARKADAŞ PROVASI</Text>
+              <Text style={styles.challengeIntroTitle}>{challengeTarget.challengerName} aynı sahneyi prova etti</Text>
               <Text style={styles.challengeIntroSub}>
-                {challengeTarget.challengerTitle} · combo {challengeTarget.challengerCombo} · %{Math.round(challengeTarget.challengerAccuracy * 100)}
+                {challengeTarget.challengerTitle} · doğal akış {challengeTarget.challengerCombo} · %{Math.round(challengeTarget.challengerAccuracy * 100)}
               </Text>
               <Text style={styles.challengeIntroTaunt}>{challengeTarget.taunt}</Text>
             </View>
@@ -1502,23 +1832,23 @@ Return ONLY valid JSON:
     const timeoutCount = timedOutTurnsRef.current;
 
     const outcomeText =
-      goodCount === total ? 'You moved clean from start to finish — that is yours.' :
-      hadNearMiss ? 'You wobbled mid-scene, then pulled yourself back in — I saw it.' :
-      okCount >= Math.ceil(total * 0.5) ? 'You stayed understood, but the rhythm never fully relaxed.' :
-      goalMet ? 'You crossed the line — you earned this finish.' :
-      'You fought for every beat — keep that stubborn energy.';
+      goodCount === total ? 'Baştan sona temiz bir sahne akışı kurdun.' :
+      hadNearMiss ? 'Sahne ortasında zorlandın, sonra akışı geri topladın.' :
+      okCount >= Math.ceil(total * 0.5) ? 'Anlaşıldın; şimdi ritmi biraz daha doğal hale getirme zamanı.' :
+      goalMet ? 'Sahne tamamlandı; bu anı gerçek hayata taşıyabilirsin.' :
+      'Sahneyi zorlanarak da olsa tamamladın; bir sonraki odak daha sakin cevap.';
 
     const bestPhrase = turnHistory.find(t => t.quality === 'good')?.selectedText ?? null;
 
-    let claimCta = 'Claim your XP — I want you hungry for another run →';
+    let claimCta = 'Provayı kaydet →';
     if (almostPerfectRun) {
       claimCta = awkwardCount >= 2
-        ? `Claim XP — ${awkwardCount} rough replies kaldı. Sonraki provada düzelt →`
-        : 'Claim XP — tek bir rough reply kaldı. Sonraki provada temizle →';
+        ? `${awkwardCount} cevabı yumuşatıp provayı kaydet →`
+        : 'Tek cevabı yumuşatıp provayı kaydet →';
     } else if (timeoutCount >= 2) {
-      claimCta = `Claim XP — you let the clock steal ${timeoutCount} turns from you →`;
+      claimCta = `${timeoutCount} zaman baskısı notuyla provayı kaydet →`;
     } else if (timeoutCount === 1) {
-      claimCta = 'Claim XP — beat the clock on that turn next run →';
+      claimCta = 'Zaman odağıyla provayı kaydet →';
     }
 
     return (
@@ -1527,20 +1857,19 @@ Return ONLY valid JSON:
         <ScrollView contentContainerStyle={styles.doneScroll}>
           {almostPerfectRun ? (
             <View style={styles.doneMotivationHero}>
-              <Text style={styles.doneMotivationEyebrow}>YOU FINISHED — WITH AN EDGE LEFT</Text>
-              <Text style={styles.doneMotivationTitle}>One cleaner reply would make this scene feel ready</Text>
+              <Text style={styles.doneMotivationEyebrow}>SAHNE TAMAMLANDI</Text>
+              <Text style={styles.doneMotivationTitle}>Bir cevabı daha yumuşatırsan bu an gerçek hayata hazır</Text>
               <Text style={styles.doneMotivationBody}>
                 {awkwardCount >= 2
-                  ? `You still have ${awkwardCount} replies worth rewriting. Claim XP, then rehearse those moments again.`
-                  : 'One answer still needs a cleaner version. Claim XP, then replay while the moment is fresh.'}
+                  ? `${awkwardCount} cevabı tekrar kurmaya değer. Kaydet, sonra bu anları yeniden prova et.`
+                  : 'Tek cevap daha temiz kurulabilir. Kaydet, an tazeyken tekrar prova et.'}
               </Text>
             </View>
           ) : (
             <Animated.View style={{ transform: [{ scale: doneHeroScale }], alignItems: 'center', width: '100%' }}>
-              <Text style={styles.bigEmoji}>{goalMet ? '🎉' : '💪'}</Text>
-              <Text style={styles.bigTitle}>{goalMet ? 'You made it through' : 'You hung in there'}</Text>
+              <Text style={styles.bigTitle}>{goalMet ? 'Sahne tamamlandı' : 'Akışı bırakmadın'}</Text>
               <Text style={styles.doneVictoryHint}>
-                {goalMet ? 'Your strongest picks kept the scene moving.' : 'One cleaner streak changes how this moment plays out.'}
+                {goalMet ? 'En güçlü cevapların sahneyi ileri taşıdı.' : 'Bir daha temiz cevap bu anın hissini değiştirir.'}
               </Text>
             </Animated.View>
           )}
@@ -1548,7 +1877,7 @@ Return ONLY valid JSON:
           {almostPerfectRun && (
             <TouchableOpacity style={styles.doneDetailsToggle} onPress={() => setDoneDetailsOpen(o => !o)} activeOpacity={0.85}>
               <Text style={styles.doneDetailsToggleText}>
-                {doneDetailsOpen ? 'Hide turn-by-turn breakdown ↑' : 'Show turn-by-turn breakdown ↓'}
+                {doneDetailsOpen ? 'Tur özetini gizle ↑' : 'Tur özetini göster ↓'}
               </Text>
             </TouchableOpacity>
           )}
@@ -1557,43 +1886,43 @@ Return ONLY valid JSON:
             <>
               {!almostPerfectRun && goodCount < total && accRatio >= 0.55 && (
                 <View style={styles.almostPerfectBanner}>
-                  <Text style={styles.almostPerfectTitle}>Near-perfect run</Text>
+                  <Text style={styles.almostPerfectTitle}>Gerçek hayata çok yakın</Text>
                   <Text style={styles.almostPerfectBody}>
-                    One cleaner line would make this rehearsal feel ready for real life.
+                    Bir daha temiz cümle bu provayı gerçek hayata hazır hissettirir.
                   </Text>
                 </View>
               )}
               {donePrevSnap && (
                 <View style={styles.journeyCard}>
-                  <Text style={styles.journeyLabel}>FOR YOUR NEXT RUN</Text>
+                  <Text style={styles.journeyLabel}>BİR SONRAKİ PROVA</Text>
                   {donePrevSnap.failed ? (
                     <Text style={styles.journeyText}>
-                      Last time the scene ended early. This time you carried it through — rehearse it once more while it is fresh.
+                      Geçen sefer sahne erken koptu. Bu kez akışı taşıdın; tazeyken bir kez daha prova et.
                     </Text>
                   ) : (
                     <Text style={styles.journeyText}>
-                      Last run: combo {donePrevSnap.comboMax} · natural %{Math.round(donePrevSnap.accuracy * 100)}
-                      {donePrevSnap.flowPath === 'friction' ? ' — now you know where the flow gets fragile.' : ' — replay to make the moment cleaner.'}
+                      Önceki prova: doğal akış {donePrevSnap.comboMax} · %{Math.round(donePrevSnap.accuracy * 100)}
+                      {donePrevSnap.flowPath === 'friction' ? ' — akışın nerede kırılganlaştığını biliyorsun.' : ' — bu anı daha temiz kurmak için tekrar et.'}
                     </Text>
                   )}
                 </View>
               )}
               {hadNearMiss && !hadNativeFlow && !almostPerfectRun && (
                 <View style={styles.nearMissBadge}>
-                  <Text style={styles.nearMissText}>⚡ Akış bozuldu, sonra sahneyi toparladın</Text>
+                  <Text style={styles.nearMissText}>Akış bozuldu, sonra sahneyi toparladın</Text>
                 </View>
               )}
               {hadNativeFlow && (
                 <View style={styles.nativeFlowBadge}>
-                  <Text style={styles.nativeFlowText}>🚀 Temiz sahne akışı yakaladın</Text>
+                  <Text style={styles.nativeFlowText}>Temiz sahne akışı yakaladın</Text>
                 </View>
               )}
 
-              <View style={[styles.goalRow, { borderColor: goalMet ? '#3DD68C' : '#F5B800' }]}>
-                <Text style={styles.goalRowIcon}>{goalMet ? '✅' : '🎯'}</Text>
+              <View style={[styles.goalRow, { borderColor: goalMet ? colors.successDs : colors.accentWarm }]}>
+                <Text style={styles.goalRowIcon}>{goalMet ? '✓' : '•'}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.goalRowStatus, { color: goalMet ? '#3DD68C' : '#F5B800' }]}>
-                    {goalMet ? 'Mission cleared' : 'Mission: keep pushing'}
+                  <Text style={[styles.goalRowStatus, { color: goalMet ? colors.successDs : colors.accentWarm }]}>
+                    {goalMet ? 'Sahne tamamlandı' : 'Sahne odağı devam ediyor'}
                   </Text>
                   <Text style={styles.goalRowText} numberOfLines={2}>
                     {scenario.mission ?? 'Konuşmayı tamamla'}
@@ -1608,7 +1937,7 @@ Return ONLY valid JSON:
                 </View>
                 <View style={styles.doneStat}>
                   <Text style={[styles.doneStatVal, { color: colors.accentWarm }]}>{comboPeakRef.current}</Text>
-                  <Text style={styles.doneStatLbl}>Max combo</Text>
+                  <Text style={styles.doneStatLbl}>Doğal akış</Text>
                 </View>
                 <View style={styles.doneStat}>
                   <Text style={[styles.doneStatVal, { color: colors.errorDs }]}>{awkwardCount}</Text>
@@ -1619,12 +1948,12 @@ Return ONLY valid JSON:
               <View style={styles.donePathRow}>
                 <Text style={styles.donePathLabel}>Dallanma</Text>
                 <Text style={styles.donePathVal}>
-                  {computeFlowPath(turnHistory) === 'smooth' ? '✨ Temiz akış' : '⚡ Gergin / pürüzlü'}
+                  {computeFlowPath(turnHistory) === 'smooth' ? 'Temiz akış' : 'Gergin / pürüzlü'}
                 </Text>
               </View>
               {timeoutCount > 0 && (
                 <Text style={styles.timeoutNote}>
-                  ⏱ {timeoutCount} turda süre doldu — gerçek anda daha erken cevap vermeyi prova et.
+                  {timeoutCount} turda süre doldu — gerçek anda daha erken cevap vermeyi prova et.
                 </Text>
               )}
 
@@ -1646,7 +1975,7 @@ Return ONLY valid JSON:
                     {qLabel(t.quality)}  "{t.selectedText}"
                   </Text>
                   {t.quality !== 'good' && t.goodOption !== t.selectedText && (
-                    <Text style={styles.replayBetter}>💡 Daha doğal: "{t.goodOption}"</Text>
+                    <Text style={styles.replayBetter}>Daha doğal: "{t.goodOption}"</Text>
                   )}
                 </View>
               ))}
@@ -1884,6 +2213,9 @@ Return ONLY valid JSON:
               {npcMood !== 'neutral' && (
                 <Text style={gStyles.npcMoodEmoji}>{MOOD_EMOJI[npcMood]}</Text>
               )}
+              <TouchableOpacity style={gStyles.speakerBtn} onPress={replayNpcLine} activeOpacity={0.72}>
+                <Feather name="volume-2" size={13} color={colors.accentWarm} />
+              </TouchableOpacity>
             </View>
 
             {/* NPC speech */}
@@ -1984,6 +2316,50 @@ Return ONLY valid JSON:
                         >
                           <Text style={[gStyles.qualityTag, { color: c }]}>{qLabel(opt.quality)}</Text>
                         </Animated.View>
+                        {voiceStep !== 'idle' && (
+                          <View style={gStyles.voiceRepeatBox}>
+                            <Text style={gStyles.voiceRepeatEyebrow}>{t('scenario.voiceEyebrow')}</Text>
+                            <Text style={gStyles.voiceRepeatTitle}>{t('scenario.voicePrompt')}</Text>
+                            {voiceStep === 'recording' ? (
+                              <Text style={gStyles.voiceRepeatSub}>{t('scenario.voiceRecording')}</Text>
+                            ) : currentVoiceAttempt ? (
+                              <Text style={gStyles.voiceRepeatSub}>{currentVoiceAttempt.feedback}</Text>
+                            ) : voiceMessage ? (
+                              <Text style={gStyles.voiceRepeatSub}>{voiceMessage}</Text>
+                            ) : (
+                              <Text style={gStyles.voiceRepeatSub}>{t('scenario.voiceReady')}</Text>
+                            )}
+                            {voiceStep === 'ready' ? (
+                              <Text style={gStyles.voicePrivacy}>{t('scenario.voicePrivacy')}</Text>
+                            ) : null}
+                            {currentVoiceAttempt?.transcript ? (
+                              <Text style={gStyles.voiceTranscript} numberOfLines={2}>
+                                "{currentVoiceAttempt.transcript}"
+                              </Text>
+                            ) : null}
+                            <View style={gStyles.voiceActions}>
+                              {voiceStep === 'ready' || voiceStep === 'skipped' || voiceStep === 'locked' ? (
+                                <TouchableOpacity
+                                  style={[gStyles.voicePrimary, voiceStep === 'locked' && gStyles.voicePrimaryDisabled]}
+                                  onPress={startRecording}
+                                  disabled={voiceStep === 'locked'}
+                                  activeOpacity={0.82}
+                                >
+                                  <Feather name="mic" size={13} color={colors.bgDeep} />
+                                  <Text style={gStyles.voicePrimaryText}>{t('scenario.voiceStart')}</Text>
+                                </TouchableOpacity>
+                              ) : voiceStep === 'recording' ? (
+                                <TouchableOpacity style={gStyles.voicePrimary} onPress={stopRecording} activeOpacity={0.82}>
+                                  <Feather name="square" size={12} color={colors.bgDeep} />
+                                  <Text style={gStyles.voicePrimaryText}>{t('scenario.voiceStop')}</Text>
+                                </TouchableOpacity>
+                              ) : null}
+                              <TouchableOpacity style={gStyles.voiceSecondary} onPress={skipVoiceStep} activeOpacity={0.72}>
+                                <Text style={gStyles.voiceSecondaryText}>{t('scenario.voiceSkip')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
                       </>
                     );
                   })()}
@@ -2035,8 +2411,9 @@ Return ONLY valid JSON:
                         />
                         <TouchableOpacity
                           style={gStyles.micButton}
-                          onPressIn={startRecording}
-                          onPressOut={() => { /* recording auto-stops via timer */ }}
+                          onPress={() => {
+                            setVoiceMessage(t('scenario.chooseAbove'));
+                          }}
                           activeOpacity={0.85}
                         >
                           <Feather name="mic" size={22} color={colors.bgDeep} />
@@ -2096,7 +2473,7 @@ Return ONLY valid JSON:
               <TouchableOpacity
                 style={gStyles.bottomLink}
                 activeOpacity={0.6}
-                onPress={stopRecording}
+                onPress={() => { void stopRecording(); }}
               >
                 <Text style={gStyles.bottomLinkText}>{t('scenario.release')}</Text>
               </TouchableOpacity>
@@ -3014,6 +3391,100 @@ const gStyles = StyleSheet.create({
     fontSize: 10,
     color: colors.inkTertiary,
     letterSpacing: 1.6,
+  },
+
+  speakerBtn: {
+    marginLeft: 'auto',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(232,181,118,0.10)',
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+  },
+
+  voiceRepeatBox: {
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    padding: 12,
+    gap: 7,
+  },
+
+  voiceRepeatEyebrow: {
+    ...typography.eyebrow,
+    fontSize: 8.5,
+    color: colors.accentWarm,
+  },
+
+  voiceRepeatTitle: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkPrimary,
+  },
+
+  voiceRepeatSub: {
+    ...typography.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: colors.inkTertiary,
+  },
+
+  voicePrivacy: {
+    ...typography.body,
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: colors.inkTertiary,
+    opacity: 0.78,
+  },
+
+  voiceTranscript: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: colors.inkSecondary,
+  },
+
+  voiceActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginTop: 2,
+  },
+
+  voicePrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: colors.inkPrimary,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+
+  voicePrimaryDisabled: {
+    opacity: 0.45,
+  },
+
+  voicePrimaryText: {
+    ...typography.bodyMedium,
+    fontSize: 12,
+    color: colors.bgDeep,
+  },
+
+  voiceSecondary: {
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+
+  voiceSecondaryText: {
+    ...typography.bodyMedium,
+    fontSize: 12,
+    color: colors.inkTertiary,
   },
 
   stopBtn: {

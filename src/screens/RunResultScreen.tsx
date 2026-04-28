@@ -48,10 +48,10 @@ export default function RunResultScreen({ results, onExit, onReplay, dailyRunBoa
     : 'Yarın ilk odak: aynı sakin ritmi bir sahne daha ileri taşı.';
 
   const message = overallAccuracy >= 80
-    ? 'Temiz bir koşuydu — sahne ritmini tuttun.'
+    ? 'Temiz bir provaydı; sahne ritmini tuttun.'
     : overallAccuracy >= 55
     ? 'Biraz tereddüt ettin ama toparladın.'
-    : 'You can do better — yarın aynı koşuyu tekrar al.';
+    : 'Bir sonraki provada aynı anı daha sakin kur.';
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} style={styles.scrollView}>
@@ -61,51 +61,50 @@ export default function RunResultScreen({ results, onExit, onReplay, dailyRunBoa
         width: '100%',
         alignItems: 'center',
       }}>
-        <Text style={styles.emoji}>{overallAccuracy >= 80 ? '🏆' : overallAccuracy >= 55 ? '🎯' : '💪'}</Text>
-        <Text style={styles.title}>Günlük loop tamam</Text>
-        <Text style={styles.sub}>Warm-up · Sahne · Sonuç</Text>
+        <Text style={styles.title}>Sahne akışı tamamlandı</Text>
+        <Text style={styles.sub}>Isınma · Sahne · Bir sonraki odak</Text>
 
         {dailyRunBoard?.prev && (
           <View style={styles.compareStrip}>
             <Text style={styles.compareStripTitle}>ÖNCEKİ GÜN İLE KARŞILAŞTIRMA</Text>
             {dailyRunBoard.overallAccuracy > dailyRunBoard.prev.overallAccuracy + 0.03 ? (
               <Text style={styles.compareStripLine}>
-                Genel isabet ↑ (%{Math.round(dailyRunBoard.prev.overallAccuracy * 100)} → %{overallAccuracy})
+                Genel akış daha net (%{Math.round(dailyRunBoard.prev.overallAccuracy * 100)} → %{overallAccuracy})
               </Text>
             ) : dailyRunBoard.overallAccuracy + 0.03 < dailyRunBoard.prev.overallAccuracy ? (
-              <Text style={styles.compareStripLine}>Genel isabet ↓ — bir tur daha, telafi et.</Text>
+              <Text style={styles.compareStripLine}>Bugün biraz daha zorlandı; bir sonraki provada tek odağa dön.</Text>
             ) : (
               <Text style={styles.compareStripLine}>
-                Önceki günlük koşuya yakın seviyedesin — küçük hamleyle geçersin.
+                Önceki provaya yakınsın; küçük bir odak değişimi yeter.
               </Text>
             )}
             {dailyRunBoard.maxCombo > (dailyRunBoard.prev.maxCombo ?? 0) ? (
               <Text style={styles.compareStripLine}>
-                Combo ↑ ({dailyRunBoard.prev.maxCombo ?? 0} → {dailyRunBoard.maxCombo})
+                Kesintisiz doğal cevap arttı ({dailyRunBoard.prev.maxCombo ?? 0} → {dailyRunBoard.maxCombo})
               </Text>
             ) : null}
             <Text style={styles.challengeStrip}>
               {overallAccuracy < 80
-                ? 'Bugünkü prova neredeyse temizdi — yarın düzelt.'
+                ? 'Bugünkü prova neredeyse temizdi; yarın tek bir anı yumuşat.'
                 : 'Kişisel hedef: bir sonraki sahneyi daha temiz prova et.'}
             </Text>
           </View>
         )}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>PERFORMANS</Text>
-          <Text style={styles.metric}>Genel isabet: %{overallAccuracy}</Text>
-          <Text style={styles.metric}>En yüksek combo: {maxCombo}</Text>
+          <Text style={styles.cardTitle}>SAHNE ÖZETİ</Text>
+          <Text style={styles.metric}>Genel akış: %{overallAccuracy}</Text>
+          <Text style={styles.metric}>Kesintisiz doğal cevap: {maxCombo}</Text>
           {scene?.flowPath && (
             <Text style={styles.metricSmall}>
-              Sahne hattı: {scene.flowPath === 'smooth' ? '✨ Temiz' : '⚡ Gergin'}
+              Sahne hattı: {scene.flowPath === 'smooth' ? 'Temiz' : 'Gergin'}
             </Text>
           )}
         </View>
 
         {!!scene?.nativePhrase && (
           <View style={styles.phraseCard}>
-            <Text style={styles.phraseLabel}>ÖNE ÇIKAN İFADE</Text>
+          <Text style={styles.phraseLabel}>GERÇEK HAYATA HAZIR CÜMLE</Text>
             <Text style={styles.phraseText}>"{scene.nativePhrase}"</Text>
           </View>
         )}
@@ -121,7 +120,7 @@ export default function RunResultScreen({ results, onExit, onReplay, dailyRunBoa
           <Text style={styles.btnPrimaryText}>İlerlemeye dön →</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.btnSecondary} onPress={onReplay}>
-          <Text style={styles.btnSecondaryText}>Aynı loop'u tekrar prova et</Text>
+          <Text style={styles.btnSecondaryText}>Bu anı tekrar çalış</Text>
         </TouchableOpacity>
         <Text style={styles.footerHint}>
           Yarın Roleo seni yine seçili sahne, kısa ısınma ve net odakla karşılar.

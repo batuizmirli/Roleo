@@ -44,15 +44,26 @@ import FlashPickScreen from './src/screens/FlashPickScreen';
 import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
 import RunResultScreen from './src/screens/RunResultScreen';
 import ScenarioPrepModal from './src/components/ScenarioPrepModal';
+import RoleoPlusPaywall from './src/components/RoleoPlusPaywall';
 import { ModuleResult, UserProfile } from './src/types';
 import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario, scenarios } from './src/data/scenarios';
 import { getProgress } from './src/services/progress';
 import { getDailyRunSnapshot, saveDailyRunSnapshot, type DailyRunSnapshot } from './src/services/runHook';
+import { saveSceneSession } from './src/services/sessionMemory';
+import {
+  getSceneLimitState,
+  markPostValuePaywallSeen,
+  recordSceneRehearsalUse,
+  setMockSubscriptionPlan,
+  shouldShowPostValuePaywall,
+  type SceneLimitState,
+} from './src/services/subscription';
 import { trackEvent } from './src/services/telemetry';
 import type { SceneFlowPath } from './src/types';
 import { computeChallengeOutcome, parseChallengeLink } from './src/services/challengeShare';
 import { colors } from './src/theme/colors';
 import { createTranslator, getUiLanguageFromProfile } from './src/i18n';
+import { getScenarioPlusGateCopy, isAdvancedTravelScenario, PLUS_GATE_COPY } from './src/data/plus';
 
 type Screen =
   | 'intro'
@@ -106,6 +117,10 @@ export default function App() {
   const [runType, setRunType] = useState<'normal' | 'first' | 'daily-mission' | 'onboarding-preview'>('normal');
   const [onboardingAfterPreview, setOnboardingAfterPreview] = useState(false);
   const [showPrepModal, setShowPrepModal] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<string | undefined>(undefined);
+  const [paywallContext, setPaywallContext] = useState<'default' | 'post_value'>('default');
+  const [sceneLimit, setSceneLimit] = useState<SceneLimitState | null>(null);
   const [prepBonus, setPrepBonus] = useState(0);
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [currentPlayCount, setCurrentPlayCount] = useState(0);
@@ -131,8 +146,80 @@ export default function App() {
   const dailyRunExitRef = useRef<'home' | 'practice-hub'>('practice-hub');
   const t = createTranslator(getUiLanguageFromProfile(currentProfile));
 
+  const refreshSceneLimit = async () => {
+    const next = await getSceneLimitState();
+    setSceneLimit(next);
+    return next;
+  };
+
+  const openPaywall = async (reason?: string, context: 'default' | 'post_value' = 'default') => {
+    const next = await refreshSceneLimit();
+    setPaywallReason(reason);
+    setPaywallContext(context);
+    setSceneLimit(next);
+    setPaywallVisible(true);
+  };
+
+  const closePaywall = () => {
+    setPaywallVisible(false);
+    setPaywallReason(undefined);
+    setPaywallContext('default');
+  };
+
+  const upgradeMockPlan = async () => {
+    await setMockSubscriptionPlan('plus');
+    await refreshSceneLimit();
+    closePaywall();
+    await trackEvent('plus_mock_upgrade_selected', { source: 'paywall' });
+  };
+
+  const ensureCanStartScene = async (reason = PLUS_GATE_COPY.dailyLimit) => {
+    const limit = await refreshSceneLimit();
+    if (limit.canStartScene) return true;
+    await openPaywall(reason);
+    await trackEvent('paywall_shown', { source: 'scene_limit', usedToday: limit.usedToday });
+    return false;
+  };
+
+  const enterScenario = async (reason?: string) => {
+    const allowed = await ensureCanStartScene(reason);
+    if (!allowed) return;
+    goTo('scenario');
+  };
+
+  const requiresPlusPack = (scenario: Scenario) => {
+    const stageType = scenario.stageType ?? '';
+    if (stageType === 'business' || stageType === 'survival') return true;
+    if (stageType !== 'travel') return false;
+    return isAdvancedTravelScenario(scenario);
+  };
+
+  const plusPackReasonFor = (scenario: Scenario) => getScenarioPlusGateCopy(scenario);
+
+  const ensurePremiumFeature = async (reason: string) => {
+    const limit = await refreshSceneLimit();
+    if (limit.isPremium) return true;
+    await openPaywall(reason);
+    await trackEvent('paywall_shown', { source: 'premium_feature' });
+    return false;
+  };
+
+  const openPremiumTool = async (tool: Screen, reason: string) => {
+    const allowed = await ensurePremiumFeature(reason);
+    if (!allowed) return;
+    openToolScreen(tool);
+  };
+
+  const revealPostValuePaywallIfNeeded = async () => {
+    if (!(await shouldShowPostValuePaywall())) return;
+    await markPostValuePaywallSeen();
+    await openPaywall(undefined, 'post_value');
+    await trackEvent('paywall_shown', { source: 'post_first_value' });
+  };
+
   useEffect(() => {
     const bootstrap = async () => {
+      await refreshSceneLimit();
       const p = await AsyncStorage.getItem('userProfile');
       if (!p) {
         setScreen('intro');
@@ -167,7 +254,7 @@ export default function App() {
       setSelectedScenario(scenario);
       setRunType('normal');
       setActiveChallenge(challenge);
-      goTo('scenario');
+      await enterScenario('Arkadaş challenge sahneleri günlük free rehearsal hakkını kullanır. Sınırsız challenge provası Roleo Plus ile açılır.');
       void trackEvent('friend_challenge_opened', {
         scenarioId: challenge.scenarioId,
         challenger: challenge.challengerName,
@@ -229,7 +316,7 @@ export default function App() {
       language: languageCode,
       runType: 'first',
     });
-    goTo('scenario');
+    await enterScenario();
   };
 
   const startDailyMission = async (returnTo: 'home' | 'practice-hub' = 'home') => {
@@ -239,6 +326,10 @@ export default function App() {
     setCurrentProfile(profile);
     const languageCode = profile?.language?.code ?? 'es';
     const missionScenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    if (requiresPlusPack(missionScenario)) {
+      const allowed = await ensurePremiumFeature(plusPackReasonFor(missionScenario));
+      if (!allowed) return;
+    }
     const progress = await getProgress();
     setCurrentPlayCount(progress.scenarioPlayCounts?.[missionScenario.id] ?? 0);
 
@@ -250,7 +341,7 @@ export default function App() {
       language: languageCode,
       runType: 'daily-mission',
     });
-    goTo('scenario');
+    await enterScenario('Daily mission sahnesi günlük free rehearsal hakkını kullanır. Sınırsız sahne provası Roleo Plus ile açılır.');
   };
 
   const startDailyRun = async (goalId?: string, returnTo: 'home' | 'practice-hub' = 'practice-hub') => {
@@ -263,9 +354,21 @@ export default function App() {
     setCurrentProfile(profile);
     const languageCode = profile?.language?.code ?? 'es';
     const scenario = getTodaysMissionScenario(languageCode, profile?.identity, profile?.completedScenarios ?? []);
+    if (requiresPlusPack(scenario)) {
+      const allowed = await ensurePremiumFeature(plusPackReasonFor(scenario));
+      if (!allowed) {
+        resetRun();
+        return;
+      }
+    }
     const progress = await getProgress();
     setCurrentPlayCount(progress.scenarioPlayCounts?.[scenario.id] ?? 0);
     setRunScenario(scenario);
+    const allowed = await ensureCanStartScene('Daily run içindeki sahne provası günlük free hakkını kullanır. Sınırsız günlük run sahneleri Roleo Plus ile açılır.');
+    if (!allowed) {
+      resetRun();
+      return;
+    }
     setRunState('briefing');
     await trackEvent('run_started', { source: returnTo, goalId: goalId ?? 'none', scenarioId: scenario.id });
   };
@@ -314,6 +417,45 @@ export default function App() {
     });
     setRunResults(next);
     setRunState('complete');
+    if (runScenario) {
+      const profileRaw = await AsyncStorage.getItem('userProfile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : null;
+      const flowPath = result.flowPath ?? 'smooth';
+      await saveSceneSession({
+        sessionId: `daily-run-${runScenario.id}-${Date.now().toString(36)}`,
+        timestamp: new Date().toISOString(),
+        source: 'daily_run',
+        scenarioId: runScenario.id,
+        scenarioTitle: runScenario.title,
+        stageType: runScenario.stageType ?? 'social',
+        language: profile?.language?.code ?? runScenario.language,
+        npcPersona: 'Daily Run',
+        difficulty: result.accuracy >= 0.7 ? 'advanced' : result.accuracy >= 0.4 ? 'intermediate' : 'beginner',
+        userGoal: profile?.goalDescription ?? undefined,
+        identityGoal: profile?.identity?.goal ?? undefined,
+        selectedChoices: [],
+        score: {
+          accuracy: result.accuracy,
+          comboMax: result.comboMax ?? 0,
+          xpEarned: 0,
+          flowPath,
+          goodTurns: Math.round(result.accuracy * 6),
+          awkwardTurns: flowPath === 'friction' ? 1 : 0,
+          timedOutTurns: 0,
+        },
+        voiceAttempts: result.voiceAttempts,
+        bestLine: result.nativePhrase,
+        awkwardMoment: flowPath === 'friction'
+          ? 'Daily run sahnesinde akış bir noktada gerildi.'
+          : 'Daily run sahnesinde büyük bir kopuş kaydedilmedi.',
+        nextFocus: flowPath === 'friction'
+          ? 'Bir sonraki provada aynı sahnede daha yumuşak geçiş kur.'
+          : 'Bir sonraki provada aynı sakin ritmi koru.',
+        dramaticBeat: 'Daily run içinde tamamlanan sahne provası',
+      });
+    }
+    await recordSceneRehearsalUse();
+    await revealPostValuePaywallIfNeeded();
     await trackEvent('module_completed', { module: 'scene', accuracy: result.accuracy, comboMax: result.comboMax });
     await trackEvent('run_completed', {
       moduleCount: 3,
@@ -387,7 +529,7 @@ export default function App() {
     }
 
     if (runState === 'truefake') {
-      return <TrueOrFakeScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleTrueFakeComplete} />;
+      return <TrueOrFakeScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleTrueFakeComplete} scenario={runScenario ?? undefined} />;
     }
 
     if (runState === 'scene') {
@@ -467,7 +609,7 @@ export default function App() {
               stageType: previewScenario.stageType ?? 'cafe',
               runType: 'onboarding-preview',
             });
-            goTo('scenario');
+            await enterScenario();
           }}
           onComplete={async () => {
             await AsyncStorage.setItem('firstSessionState', onboardingAfterPreview ? 'done' : 'pending');
@@ -555,8 +697,8 @@ export default function App() {
                 toolReturnScreenRef.current = 'learn-hub';
                 goTo('vocab');
               }}
-              onOpenPronunciation={() => openToolScreen('pronunciation')}
-              onOpenInstantLearn={() => openToolScreen('instant-learn')}
+              onOpenPronunciation={() => openPremiumTool('pronunciation', PLUS_GATE_COPY.voice)}
+              onOpenInstantLearn={() => openPremiumTool('instant-learn', PLUS_GATE_COPY.customScene)}
               onOpenGrammar={() => openGrammarFrom('learn-hub')}
               onOpenPhrasebook={() => openToolScreen('phrasebook')}
               onOpenStories={() => openToolScreen('stories')}
@@ -632,6 +774,10 @@ export default function App() {
             const profileRaw = await AsyncStorage.getItem('userProfile');
             const profile = profileRaw ? JSON.parse(profileRaw) : null;
             setCurrentProfile(profile);
+            if (requiresPlusPack(s)) {
+              const allowed = await ensurePremiumFeature(plusPackReasonFor(s));
+              if (!allowed) return;
+            }
             setSelectedScenario(s);
             setRunType('normal');
             setActiveChallenge(null);
@@ -692,12 +838,14 @@ export default function App() {
             if (runType === 'daily-mission') {
               await trackEvent('daily_mission_completed', { scenarioId: finalResult.scenarioId });
             }
+            await recordSceneRehearsalUse();
             if (runType === 'first') {
               await AsyncStorage.setItem('firstSessionState', 'done');
             }
             setStageResult(withChallenge);
             setActiveChallenge(null);
             goTo('stage-result');
+            await revealPostValuePaywallIfNeeded();
           }}
         />
       );
@@ -731,13 +879,17 @@ export default function App() {
               goTo('scenarios');
               return;
             }
+            if ((replayScenario.replayTwists?.length ?? 0) > 0) {
+              const allowed = await ensurePremiumFeature(PLUS_GATE_COPY.replayTwist);
+              if (!allowed) return;
+            }
             const progress = await getProgress();
             setSelectedScenario(replayScenario);
             setCurrentPlayCount(progress.scenarioPlayCounts?.[replayScenario.id] ?? 0);
             setPrepBonus(0);
             setActiveChallenge(null);
             setRunType('normal');
-            goTo('scenario');
+            await enterScenario('Replay with twist ve sınırsız tekrarlar Roleo Plus ile açılır. Free planda bugünkü hakkın dolduysa yeni sahne için Plus gerekir.');
           }}
           onOpenVocab={() => goTo('vocab')}
           onOpenGrammar={openGrammarFromStageResult}
@@ -760,6 +912,7 @@ export default function App() {
           onBack={() => goTo(grammarBackTarget)}
           scenarioTitle={fromStage ? stageResult?.scenarioTitle : undefined}
           stageType={fromStage ? stageResult?.stageType : undefined}
+          scenario={fromStage ? scenarios.find(s => s.id === stageResult?.scenarioId) : undefined}
         />
       );
     }
@@ -793,7 +946,7 @@ export default function App() {
             style={fabStyles.fab}
             onPress={() => {
               toolReturnScreenRef.current = screen;
-              goTo('instant-learn');
+              void openPremiumTool('instant-learn', PLUS_GATE_COPY.customScene);
             }}
             activeOpacity={0.85}
           >
@@ -806,10 +959,19 @@ export default function App() {
             scenario={selectedScenario}
             profile={currentProfile}
             playCount={currentPlayCount}
-            onSkip={() => { setShowPrepModal(false); goTo('scenario'); }}
-            onEnter={(bonus) => { setPrepBonus(bonus); setShowPrepModal(false); goTo('scenario'); }}
+            onSkip={async () => { setShowPrepModal(false); await enterScenario(); }}
+            onEnter={async (bonus) => { setPrepBonus(bonus); setShowPrepModal(false); await enterScenario(); }}
           />
         )}
+        <RoleoPlusPaywall
+          visible={paywallVisible}
+          context={paywallContext}
+          uiLanguage={getUiLanguageFromProfile(currentProfile)}
+          reason={paywallReason}
+          remainingDailyScenes={sceneLimit?.remainingDailyScenes}
+          onClose={closePaywall}
+          onUpgrade={upgradeMockPlan}
+        />
       </View>
     </SafeAreaProvider>
   );

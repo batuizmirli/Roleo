@@ -130,7 +130,7 @@ Return ONLY valid JSON array:
 
               <TouchableOpacity style={styles.prepBtn} onPress={startPrep}>
                 <Text style={styles.prepBtnTitle}>30 sn sahne hazırlığı</Text>
-                <Text style={styles.prepBtnSub}>3 pratik soru · +10 XP</Text>
+                <Text style={styles.prepBtnSub}>3 kısa karar · gerçek hayata hazır cümle</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.backBtn} onPress={handleSkip}>
@@ -171,21 +171,21 @@ Return ONLY valid JSON array:
                       disabled={selected !== null}
                     >
                       <Text style={styles.optionText}>{opt}</Text>
-                      {isCorrect && <Text style={styles.tick}>✓</Text>}
-                      {isWrong && <Text style={styles.cross}>✗</Text>}
+                      {isCorrect && <Text style={styles.tick}>Doğal</Text>}
+                      {isWrong && <Text style={styles.cross}>Şöyle de denenebilir</Text>}
                     </TouchableOpacity>
                   );
                 })}
               </View>
               {selected !== null && (
                 <View style={styles.tipBox}>
-                  <Text style={styles.tipText}>💡 {currentQ.tip}</Text>
+                  <Text style={styles.tipText}>{currentQ.tip}</Text>
                 </View>
               )}
               {selected !== null && (
                 <TouchableOpacity style={styles.primaryBtn} onPress={handleNext}>
                   <Text style={styles.primaryBtnText}>
-                    {qIndex + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}
+                    {qIndex + 1 >= questions.length ? 'Sahne odağını gör →' : 'Sonraki →'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -194,7 +194,7 @@ Return ONLY valid JSON array:
 
           {phase === 'result' && (
             <>
-              <Text style={styles.resultTitle}>Isınma tamamlandı 🔥</Text>
+              <Text style={styles.resultTitle}>Isınma tamamlandı</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{accuracy}%</Text>
@@ -206,12 +206,12 @@ Return ONLY valid JSON array:
                 </View>
                 <View style={styles.statBox}>
                   <Text style={[styles.statValue, { color: colors.accentWarm }]}>+{prepBonus}</Text>
-                  <Text style={styles.statLabel}>XP bonus</Text>
+                  <Text style={styles.statLabel}>Hazırlık katkısı</Text>
                 </View>
               </View>
               {!!lastTip && (
                 <View style={styles.tipBox}>
-                  <Text style={styles.tipText}>💡 {lastTip}</Text>
+                  <Text style={styles.tipText}>{lastTip}</Text>
                 </View>
               )}
               <TouchableOpacity style={styles.primaryBtn} onPress={() => { reset(); onEnter(prepBonus); }}>

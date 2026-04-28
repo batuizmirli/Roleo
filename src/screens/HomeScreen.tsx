@@ -9,9 +9,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import NotificationsSheet from '../components/NotificationsSheet';
 import { tryParseJson } from '../services/json';
-import { getProgress, getLevelFromXp } from '../services/progress';
+import { getProgress, getLevelFromXp, getUnlockState } from '../services/progress';
 import { getTodaysMissionScenario } from '../data/scenarios';
 import { ALL_PRACTICE_TARGETS, defaultPracticeTarget } from '../data/practiceGoals';
+import { getLastSceneSession } from '../services/sessionMemory';
+import type { SceneSession } from '../types';
+import { PLUS_SOFT_UPSELL } from '../data/plus';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { useAppTranslation } from '../i18n';
@@ -36,6 +39,8 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [smartSuggestion, setSmartSuggestion] = useState('Bugün sahnede daha doğal cevaplara odaklan.');
+  const [lastSession, setLastSession] = useState<SceneSession | null>(null);
+  const [nextUnlock, setNextUnlock] = useState('');
 
   // Entrance animation
   const entrance = useRef(new Animated.Value(0)).current;
@@ -57,6 +62,8 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
     const progress = await getProgress();
     setXp(progress.xp);
     setStreak(progress.streak);
+    const unlockState = getUnlockState(progress);
+    setNextUnlock(unlockState.nextFeature ? `Seviye ${unlockState.nextFeature.level}: ${unlockState.nextFeature.title}` : 'Tüm ana sahne özellikleri açık');
 
     const mission = getTodaysMissionScenario(
       parsed.language?.code ?? 'es',
@@ -75,6 +82,9 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         ? t('home.suggestionPlayed')
         : t('home.suggestionFresh')
     );
+
+    const session = await getLastSceneSession();
+    setLastSession(session);
   };
 
   useEffect(() => { loadProfile(); }, [t]);
@@ -189,6 +199,51 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         <View style={styles.suggestionCard}>
           <Feather name="coffee" size={13} color={colors.accentWarmSoft} />
           <Text style={styles.suggestionText} numberOfLines={2}>{smartSuggestion}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.unlockCard} onPress={onOpenProgress} activeOpacity={0.78} disabled={!onOpenProgress}>
+          <View style={styles.unlockIcon}>
+            <Feather name="unlock" size={13} color={colors.accentWarm} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.unlockEyebrow}>SIRADAKİ AÇILIM</Text>
+            <Text style={styles.unlockText} numberOfLines={1}>{nextUnlock}</Text>
+          </View>
+          <Feather name="chevron-right" size={15} color={colors.inkTertiary} />
+        </TouchableOpacity>
+
+        {/* Last scene session memory */}
+        {lastSession && (
+          <View style={styles.lastSessionCard}>
+            <View style={styles.lastSessionHeader}>
+              <Text style={styles.lastSessionEyebrow}>SON PROVA</Text>
+              <Text style={styles.lastSessionScenario} numberOfLines={1}>
+                {lastSession.scenarioTitle}
+                {lastSession.npcPersona ? ` · ${lastSession.npcPersona}` : ''}
+              </Text>
+            </View>
+            {lastSession.bestLine ? (
+              <Text style={styles.lastSessionBestLine} numberOfLines={2}>
+                "{lastSession.bestLine}"
+              </Text>
+            ) : null}
+            {lastSession.nextFocus ? (
+              <View style={styles.lastSessionFocusRow}>
+                <Feather name="arrow-right" size={11} color={colors.inkTertiary} />
+                <Text style={styles.lastSessionFocus} numberOfLines={2}>
+                  {lastSession.nextFocus}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        <View style={styles.plusMemoryCard}>
+          <Feather name="archive" size={13} color={colors.accentWarmSoft} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.plusMemoryTitle}>{PLUS_SOFT_UPSELL.title}</Text>
+            <Text style={styles.plusMemorySub}>{PLUS_SOFT_UPSELL.subtitle}</Text>
+          </View>
         </View>
       </Animated.View>
 
@@ -400,5 +455,104 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.inkSecondary,
     lineHeight: 19,
+  },
+  unlockCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(232,181,118,0.07)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  unlockIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.bgMid,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockEyebrow: {
+    ...typography.eyebrow,
+    color: colors.accentWarm,
+    fontSize: 8.5,
+    marginBottom: 2,
+  },
+  unlockText: {
+    ...typography.bodyMedium,
+    color: colors.inkSecondary,
+    fontSize: 12.5,
+  },
+
+  // Last session memory card
+  lastSessionCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  lastSessionHeader: {
+    gap: 3,
+  },
+  lastSessionEyebrow: {
+    ...typography.eyebrow,
+    color: colors.inkTertiary,
+    fontSize: 9,
+  },
+  lastSessionScenario: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 12.5,
+    color: colors.inkSecondary,
+  },
+  lastSessionBestLine: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 13,
+    color: colors.inkPrimary,
+    lineHeight: 19,
+    letterSpacing: -0.2,
+  },
+  lastSessionFocusRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  lastSessionFocus: {
+    flex: 1,
+    ...typography.body,
+    fontSize: 11.5,
+    color: colors.inkTertiary,
+    lineHeight: 16,
+  },
+  plusMemoryCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  plusMemoryTitle: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 12.5,
+    color: colors.inkSecondary,
+    marginBottom: 3,
+  },
+  plusMemorySub: {
+    ...typography.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: colors.inkTertiary,
   },
 });

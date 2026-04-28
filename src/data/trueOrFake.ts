@@ -351,3 +351,70 @@ export const buildTrueFakeSet = (
   const pool = bank.filter(i => byDifficulty(difficulty, i));
   return shuffle(pool).slice(0, Math.min(targetCount, pool.length));
 };
+
+// Extract double-quoted phrases from a string.
+const extractQuotes = (text: string): string[] =>
+  Array.from(text.matchAll(/"([^"]{3,70})"/g)).map(m => m[1]);
+
+// Checks if a phrase looks like it's in a target language (not purely Turkish explanation).
+// A phrase that contains a Latin word or is short enough to be a sentence fragment is valid.
+const looksLikeTargetPhrase = (phrase: string) =>
+  phrase.length >= 3 && phrase.length <= 80;
+
+/**
+ * Build scene-contextual True-or-Fake items from scenario enrichment fields.
+ * Returns an empty array when the scenario has no enrichment data.
+ * Caller should merge with generic items to reach the desired count.
+ */
+export const buildScenarioTrueFakeItems = (
+  usefulPhrases: Array<{ phrase: string; context: string }> | undefined,
+  likelyMisunderstandings: string[] | undefined,
+): SentenceItem[] => {
+  const items: SentenceItem[] = [];
+
+  // Real items — up to 4 from usefulPhrases
+  const phrases = usefulPhrases ?? [];
+  phrases.slice(0, 4).forEach((up, i) => {
+    if (!looksLikeTargetPhrase(up.phrase)) return;
+    items.push({
+      id: `scene-real-${i}`,
+      text: up.phrase,
+      isReal: true,
+      explanation: up.context,
+      type: 'natural_usage',
+    });
+  });
+
+  // Fake items — parsed from likelyMisunderstandings
+  const misunderstandings = likelyMisunderstandings ?? [];
+  misunderstandings.forEach((mu, i) => {
+    const quotes = extractQuotes(mu);
+    if (quotes.length === 0) return;
+
+    // Heuristic: if the misunderstanding contains contrasting words, first quote is the wrong one
+    const firstIsWrong =
+      mu.includes(' yerine') ||
+      mu.includes('değil') ||
+      mu.includes('direkt') ||
+      mu.includes('kaba') ||
+      mu.includes('blunt') ||
+      mu.includes('direct') ||
+      (quotes.length >= 2 && mu.indexOf('"' + quotes[0] + '"') < mu.indexOf('"' + quotes[1] + '"'));
+
+    const fakePhrase = firstIsWrong ? quotes[0] : quotes[quotes.length - 1];
+    const correction = firstIsWrong && quotes.length >= 2 ? quotes[1] : undefined;
+
+    if (!looksLikeTargetPhrase(fakePhrase)) return;
+
+    items.push({
+      id: `scene-fake-${i}`,
+      text: fakePhrase,
+      isReal: false,
+      correction,
+      explanation: mu,
+      type: 'awkward_but_understandable',
+    });
+  });
+
+  return items;
+};

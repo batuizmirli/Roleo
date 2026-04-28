@@ -23,6 +23,8 @@ export type TelemetryEventName =
   | 'first_session_next_mission_clicked'
   | 'scene_failed'
   | 'scene_answer_timeout'
+  | 'paywall_shown'
+  | 'plus_mock_upgrade_selected'
   | 'friend_challenge_opened'
   | 'friend_challenge_shared';
 

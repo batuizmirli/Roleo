@@ -1,14 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserProfile } from '../types';
+import { Scenario, UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
 import { parseModelJson, tryParseJson } from '../services/json';
 import { colors } from '../theme/colors';
 import { useAppTranslation } from '../i18n';
 
 type GrammarLesson = { title: string; rule: string; examples: { sentence: string; translation: string; }[]; tip: string; };
-type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; };
+type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; scenario?: Scenario; };
+
+const firstPhrase = (scenario: Scenario | undefined, fallback: string) =>
+  scenario?.usefulPhrases?.[0]?.phrase ?? fallback;
+
+const secondPhrase = (scenario: Scenario | undefined, fallback: string) =>
+  scenario?.usefulPhrases?.[1]?.phrase ?? fallback;
+
+const buildScenarioOfflineLessons = (scenario: Scenario, langName: string): GrammarLesson[] => {
+  const stageType = scenario.stageType ?? 'social';
+  const phraseA = firstPhrase(scenario, langName === 'English' ? 'Could I get a coffee, please?' : scenario.openingMessage);
+  const phraseB = secondPhrase(scenario, langName === 'English' ? 'I see your point, but I need a little more context.' : phraseA);
+  const beat = scenario.dramaticBeats?.[0] ?? scenario.baseSituation ?? scenario.mission ?? scenario.title;
+  const vocab = scenario.vocabularyFocus ?? scenario.vocabHints?.map(v => v.word).slice(0, 3).join(', ') ?? 'sahne kelimeleri';
+
+  if (stageType === 'business') {
+    return [
+      {
+        title: 'Yumuşak itiraz kur',
+        rule: 'İş sahnesinde direkt karşı çıkmak yerine önce karşı tarafı duyduğunu göster, sonra kendi noktana geç.',
+        examples: [
+          { sentence: phraseB, translation: 'Fikrini daha yumuşak bir geçişle savun.' },
+          { sentence: 'I see your point, but I’d suggest one change.', translation: 'Ne demek istediğini anlıyorum ama bir değişiklik önereceğim.' },
+        ],
+        tip: `${beat} anında önce kabul sinyali ver, sonra önerini ekle.`,
+      },
+      {
+        title: 'Gerekçe ekle',
+        rule: 'Profesyonel cevaplar tek cümlede kalınca sert duyulabilir. Çünkü/örnek/sonuç eklemek tonu dengeler.',
+        examples: [
+          { sentence: phraseA, translation: 'Sahnede kullanacağın ana cümle.' },
+          { sentence: 'The reason is that the timeline is tight.', translation: 'Sebebi takvimin sıkışık olması.' },
+        ],
+        tip: `Odak kelimeler: ${vocab}. Birini gerekçeye bağla.`,
+      },
+    ];
+  }
+
+  if (stageType === 'travel' || stageType === 'survival') {
+    return [
+      {
+        title: 'Yön ve yardım sorusu',
+        rule: 'Seyahat sahnesinde kısa emir yerine nazik soru kalıbı kullan. Bu hem anlaşılır hem güvenli duyulur.',
+        examples: [
+          { sentence: phraseA, translation: 'Sahnedeki temel yardım cümlesi.' },
+          { sentence: 'How do I get to the station?', translation: 'İstasyona nasıl giderim?' },
+        ],
+        tip: `${beat} anında konumu, hedefi ve ricayı aynı cümlede tut.`,
+      },
+      {
+        title: 'Teyit al',
+        rule: 'Yanlış anlamayı azaltmak için cevabı duyduktan sonra kısa bir teyit cümlesi kur.',
+        examples: [
+          { sentence: phraseB, translation: 'Teyit veya devam cümlesi.' },
+          { sentence: 'So I should take this line, right?', translation: 'Yani bu hattı kullanmalıyım, doğru mu?' },
+        ],
+        tip: `Odak kelimeler: ${vocab}. Teyit cümlesinde birini kullan.`,
+      },
+    ];
+  }
+
+  if (stageType === 'cafe') {
+    return [
+      {
+        title: 'Nazik istek',
+        rule: 'Kafe sahnesinde “istiyorum” anlaşılır ama “rica ederim / alabilir miyim” daha doğal duyulur.',
+        examples: [
+          { sentence: phraseA, translation: 'Sipariş verirken kullanacağın doğal cümle.' },
+          { sentence: 'Could I get a coffee, please?', translation: 'Bir kahve alabilir miyim, lütfen?' },
+        ],
+        tip: `${beat} anında isteği kısa tut, sona nezaket ekle.`,
+      },
+      {
+        title: 'Ek soru cevapla',
+        rule: 'Barista ek soru sorduğunda tek kelime yerine kısa tercih cümlesi kurmak akışı temizler.',
+        examples: [
+          { sentence: phraseB, translation: 'Tercih belirtme cümlesi.' },
+          { sentence: 'With milk, please.', translation: 'Sütlü olsun, lütfen.' },
+        ],
+        tip: `Odak kelimeler: ${vocab}. Tercihi net ve sakin söyle.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      title: 'Sahneye uygun ton',
+      rule: 'Bu sahnede amaç doğru çeviri değil; karşı tarafla ilişkiye uygun cümle kurmak.',
+      examples: [
+        { sentence: phraseA, translation: 'Bu sahnede kullanabileceğin doğal cümle.' },
+        { sentence: phraseB, translation: 'Aynı akışı sürdüren ikinci cümle.' },
+      ],
+      tip: `${beat} anında önce akışı koru, sonra detay ekle.`,
+    },
+    {
+      title: 'Kısa cevap yerine bağla',
+      rule: 'Tek kelimelik cevaplar konuşmayı durdurur. Bir neden, tercih veya takip sorusu ekle.',
+      examples: [
+        { sentence: phraseB, translation: 'Konuşmayı ileri taşıyan cümle.' },
+        { sentence: 'Can you tell me a little more?', translation: 'Biraz daha anlatabilir misiniz?' },
+      ],
+      tip: `Odak kelimeler: ${vocab}. Cevaba bir tanesini doğalca bağla.`,
+    },
+  ];
+};
 
 const buildOfflineLessons = (langName: string): GrammarLesson[] => {
   const l = langName.toLowerCase();
@@ -249,7 +353,7 @@ const buildOfflineLessons = (langName: string): GrammarLesson[] => {
   ];
 };
 
-export default function GrammarScreen({ onBack, scenarioTitle, stageType }: Props) {
+export default function GrammarScreen({ onBack, scenarioTitle, stageType, scenario }: Props) {
   const t = useAppTranslation();
   const [lessons, setLessons] = useState<GrammarLesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,7 +381,11 @@ export default function GrammarScreen({ onBack, scenarioTitle, stageType }: Prop
       const langName = p.language?.name ?? 'English';
       const goalDesc = p.goalDescription ?? '';
 
-      const scenarioSlug = scenarioTitle ? `_${scenarioTitle.replace(/\s+/g, '-').toLowerCase()}` : '';
+      const activeScenarioTitle = scenario?.title ?? scenarioTitle;
+      const scenarioVersion = scenario
+        ? `${scenario.id}_${scenario.grammarFocus ?? 'no-focus'}_${scenario.vocabularyFocus ?? 'no-vocab'}`
+        : activeScenarioTitle?.replace(/\s+/g, '-').toLowerCase();
+      const scenarioSlug = scenarioVersion ? `_${scenarioVersion}` : '';
       const cacheKey = `grammar_${p.language?.code}_${new Date().toDateString()}${scenarioSlug}`;
       const cached = await AsyncStorage.getItem(cacheKey);
       if (cached) {
@@ -290,10 +398,23 @@ export default function GrammarScreen({ onBack, scenarioTitle, stageType }: Prop
         await AsyncStorage.removeItem(cacheKey);
       }
 
-      const sceneContext = scenarioTitle ? `Focus on grammar patterns used in a "${scenarioTitle}" scene (${stageType ?? 'general'} context).` : 'Make lessons practical and scenario-based.';
-      const prompt = `Create 4 beginner grammar lessons for ${langName} learners.
+      const activeTitle = scenario?.title ?? scenarioTitle;
+      const activeStageType = scenario?.stageType ?? stageType;
+      const grammarFocus = scenario?.grammarFocus;
+      const vocabFocus = scenario?.vocabularyFocus;
+      const usefulPhrases = scenario?.usefulPhrases?.slice(0, 3).map(p => `"${p.phrase}" (${p.context})`).join('; ') ?? '';
+
+      let sceneContext = activeTitle
+        ? `Focus on grammar patterns used in a "${activeTitle}" scene (${activeStageType ?? 'general'} context).`
+        : 'Make lessons practical and scenario-based.';
+      if (grammarFocus) sceneContext += `\nPrioritise this grammar focus: ${grammarFocus}.`;
+      if (vocabFocus) sceneContext += `\nKey vocabulary area: ${vocabFocus}.`;
+      if (usefulPhrases) sceneContext += `\nScene phrases to anchor lessons around: ${usefulPhrases}.`;
+
+      const prompt = `Create 4 grammar lessons for ${langName} learners focused on real conversation scenarios.
 Context: user goal is "${goalDesc}". Explain in ${nativeLang}.
 ${sceneContext}
+Each lesson should feel like rehearsing a real moment, not studying. Teach the difference between what sounds natural and what sounds awkward or overly direct.
 Return ONLY valid JSON array:
 [{"title":"...","rule":"(explanation in ${nativeLang})","examples":[{"sentence":"(${langName})","translation":"(${nativeLang})"},{"sentence":"...","translation":"..."}],"tip":"(practical tip in ${nativeLang})"}]`;
 
@@ -303,11 +424,17 @@ Return ONLY valid JSON array:
         setLessons(parsed);
         await AsyncStorage.setItem(cacheKey, JSON.stringify(parsed));
       } else {
-        setError(t('common.retry'));
+        setLessons(scenario ? buildScenarioOfflineLessons(scenario, langName) : buildOfflineLessons(langName));
+        setError('');
       }
     } catch (e: any) {
       const msg = String(e?.message ?? 'Bilinmeyen hata');
-      if (msg.includes('EXPO_PUBLIC_ANTHROPIC_API_KEY')) {
+      if (scenario) {
+        const profileData = await AsyncStorage.getItem('userProfile');
+        const p = profileData ? tryParseJson<UserProfile>(profileData) : null;
+        setLessons(buildScenarioOfflineLessons(scenario, p?.language?.name ?? 'English'));
+        setError('');
+      } else if (msg.includes('EXPO_PUBLIC_ANTHROPIC_API_KEY')) {
         const profileData = await AsyncStorage.getItem('userProfile');
         const p = profileData ? tryParseJson<UserProfile>(profileData) : null;
         setLessons(buildOfflineLessons(p?.language?.name ?? 'English'));
@@ -326,10 +453,16 @@ Return ONLY valid JSON array:
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>📚 {t('learn.patterns')}</Text>
+        <Text style={styles.title}>
+          {scenario ? 'Bu sahnede işine yarayacak yapı' : `📚 ${t('learn.patterns')}`}
+        </Text>
       </View>
       <Text style={styles.subtitle}>
-        {scenarioTitle ? `"${scenarioTitle}" sahnesi · ` : 'Kural + örnek mini dersler · '}
+        {scenario
+          ? `"${scenario.title}" · ${scenario.grammarFocus ? scenario.grammarFocus.split(' — ')[0] : 'Sahne kalıpları'} · `
+          : scenarioTitle
+            ? `"${scenarioTitle}" sahnesi · `
+            : 'Kural + örnek mini dersler · '}
         {profile?.language?.flag} {profile?.language?.name}
       </Text>
 
@@ -380,7 +513,11 @@ Return ONLY valid JSON array:
       {lessons.length > 0 && (
         <TouchableOpacity style={styles.refreshBtn} onPress={async () => {
           if (profile) {
-            const slug = scenarioTitle ? `_${scenarioTitle.replace(/\s+/g, '-').toLowerCase()}` : '';
+            const activeT = scenario?.title ?? scenarioTitle;
+            const version = scenario
+              ? `${scenario.id}_${scenario.grammarFocus ?? 'no-focus'}_${scenario.vocabularyFocus ?? 'no-vocab'}`
+              : activeT?.replace(/\s+/g, '-').toLowerCase();
+            const slug = version ? `_${version}` : '';
             await AsyncStorage.removeItem(`grammar_${profile.language?.code}_${new Date().toDateString()}${slug}`);
           }
           loadGrammar();

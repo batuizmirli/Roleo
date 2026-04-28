@@ -22,13 +22,6 @@ type Props = {
 const NEXT_DELAY_CORRECT_MS = 420;
 const NEXT_DELAY_WRONG_MS = 1200;
 
-const comboBadge = (combo: number) => {
-  if (combo >= 5) return '🚀';
-  if (combo >= 3) return '⚡';
-  if (combo >= 2) return '🔥';
-  return '';
-};
-
 export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle, onComplete }: Props) {
   const t = useAppTranslation();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
@@ -38,9 +31,9 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
 
   const [questions, setQuestions] = useState<FlashQuestion[]>([]);
   const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [combo, setCombo] = useState(0);
-  const [maxCombo, setMaxCombo] = useState(0);
+  const [practiceScore, setPracticeScore] = useState(0);
+  const [practiceRun, setPracticeRun] = useState(0);
+  const [bestPracticeRun, setBestPracticeRun] = useState(0);
   const [lives, setLives] = useState(3);
   const [timeLeft, setTimeLeft] = useState(6);
   const [correctCount, setCorrectCount] = useState(0);
@@ -98,9 +91,9 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
     setDifficulty(nextDifficulty);
     setQuestions(qs);
     setIndex(0);
-    setScore(0);
-    setCombo(0);
-    setMaxCombo(0);
+    setPracticeScore(0);
+    setPracticeRun(0);
+    setBestPracticeRun(0);
     setLives(c.lives);
     setTimeLeft(c.seconds);
     setCorrectCount(0);
@@ -111,7 +104,7 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
   };
 
   const finishGame = async () => {
-    const xp = Math.max(6, Math.min(28, Math.floor(score / 10) + Math.floor(maxCombo / 2)));
+    const xp = Math.max(6, Math.min(28, Math.floor(practiceScore / 10) + Math.floor(bestPracticeRun / 2)));
     await awardActivityXP(xp);
     setPhase('result');
   };
@@ -130,7 +123,7 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
   const applyWrong = async () => {
     const nextLives = Math.max(0, lives - 1);
     setSelectedId('__locked__');
-    setCombo(0);
+    setPracticeRun(0);
     setLives(nextLives);
     setLastResult('wrong');
     if (current && !wrongWords.includes(current.prompt)) {
@@ -149,11 +142,11 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
     const isCorrect = optionId === current.correctOptionId;
 
     if (isCorrect) {
-      const nextCombo = combo + 1;
-      const comboBonus = nextCombo >= 5 ? 6 : nextCombo >= 3 ? 4 : nextCombo >= 2 ? 2 : 0;
-      setScore(s => s + 10 + comboBonus);
-      setCombo(nextCombo);
-      setMaxCombo(m => Math.max(m, nextCombo));
+      const nextPracticeRun = practiceRun + 1;
+      const runBonus = nextPracticeRun >= 5 ? 6 : nextPracticeRun >= 3 ? 4 : nextPracticeRun >= 2 ? 2 : 0;
+      setPracticeScore(s => s + 10 + runBonus);
+      setPracticeRun(nextPracticeRun);
+      setBestPracticeRun(m => Math.max(m, nextPracticeRun));
       setCorrectCount(v => v + 1);
       setLastResult('correct');
       setTimeout(() => {
@@ -310,11 +303,10 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
 
   if (phase === 'result') {
     const totalAnswered = Math.max(index, 1);
-    const badge = comboBadge(maxCombo);
     const result: ModuleResult = {
       module: 'flash',
       accuracy: correctCount / totalAnswered,
-      comboMax: maxCombo,
+      comboMax: bestPracticeRun,
       speed: 1 / Math.max(DIFFICULTY_CONFIG[difficulty].seconds, 1),
     };
 
@@ -324,14 +316,14 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{runMode ? t('mini.flashWarmup') : '⚡ Flash Pick'}</Text>
+          <Text style={styles.title}>{runMode ? t('mini.flashWarmup') : 'Kelime ısınması'}</Text>
         </View>
 
         <View style={styles.resultCard}>
-          <Text style={styles.resultEmoji}>{score >= 120 ? '🏆' : '🎯'}</Text>
           <Text style={styles.resultTitle}>{runMode ? t('mini.flashReady') : t('mini.runDone')}</Text>
-          <Text style={styles.resultScore}>{score} puan</Text>
-          <Text style={styles.resultMeta}>Max combo: {maxCombo} {badge}</Text>
+          <Text style={styles.resultScore}>%{Math.round((correctCount / totalAnswered) * 100)}</Text>
+          <Text style={styles.resultMeta}>Kelime refleksi</Text>
+          <Text style={styles.resultMeta}>Kesintisiz doğru seçim: {bestPracticeRun}</Text>
           <Text style={styles.resultMeta}>{t('mini.accuracy', { value: Math.round((correctCount / totalAnswered) * 100) })}</Text>
 
           {wrongWords.length > 0 && (
@@ -364,14 +356,14 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{runMode ? t('mini.flashWarmup') : '⚡ Flash Pick'}</Text>
-        <Text style={styles.scoreMini}>Skor {score}</Text>
+        <Text style={styles.title}>{runMode ? t('mini.flashWarmup') : 'Kelime ısınması'}</Text>
+        <Text style={styles.scoreMini}>{index + 1}/{questions.length}</Text>
       </View>
 
       <View style={styles.statsRow}>
-        <Text style={styles.stat}>❤️ {lives}</Text>
-        <Text style={styles.stat}>Combo {combo} {comboBadge(combo)}</Text>
-        <Text style={styles.stat}>#{index + 1}/{questions.length}</Text>
+        <Text style={styles.stat}>Hak {lives}</Text>
+        <Text style={styles.stat}>Akış {practiceRun}</Text>
+        <Text style={styles.stat}>Kalan {Math.ceil(timeLeft)}s</Text>
       </View>
 
       <View style={styles.timerBarBg}>

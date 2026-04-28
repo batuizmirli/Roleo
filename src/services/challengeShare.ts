@@ -57,7 +57,7 @@ export const parseChallengeLink = (url: string): FriendChallengeTarget | null =>
     challengerAccuracy: payload.a ?? 0,
     challengerFlow: payload.f,
     challengerAwkward: payload.w,
-    taunt: payload.q || 'Can you beat me?',
+    taunt: payload.q || 'Aynı sahneyi sen de prova et.',
   };
 };
 
@@ -90,21 +90,21 @@ export const computeChallengeOutcome = (
   const won = diff >= 0;
 
   const diffLine = won
-    ? `You: combo ${myCombo}, ${myAccPct}% vs ${target.challengerName}: combo ${target.challengerCombo}, ${theirAccPct}%.`
-    : `${target.challengerName} stays ahead: combo ${target.challengerCombo}, ${theirAccPct}% vs your combo ${myCombo}, ${myAccPct}%.`;
+    ? `Sen: doğal akış ${myCombo}, ${myAccPct}% · ${target.challengerName}: doğal akış ${target.challengerCombo}, ${theirAccPct}%.`
+    : `${target.challengerName}: doğal akış ${target.challengerCombo}, ${theirAccPct}% · sen: doğal akış ${myCombo}, ${myAccPct}%.`;
 
   if (won) {
     return {
       won: true,
-      summary: `You beat ${target.challengerName}.`,
+      summary: `${target.challengerName} ile aynı sahneyi daha temiz prova ettin.`,
       diffLine,
-      replayLine: 'You beat them — can you do it again?',
+      replayLine: 'Aynı anı bir kez daha doğal kur.',
     };
   }
   return {
     won: false,
-    summary: `You almost beat ${target.challengerName}.`,
+    summary: `${target.challengerName} ile aynı sahnede çok yakındın.`,
     diffLine,
-    replayLine: 'Try again and win this time.',
+    replayLine: 'Bu anı tekrar çalış; tek odağı yumuşat.',
   };
 };

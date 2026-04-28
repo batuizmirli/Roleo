@@ -60,7 +60,7 @@ export const deriveSuccessHook = (prev: SceneRunSnapshot | null, cur: SceneRunSn
 export const sceneReplayPrimaryLabel = (hook: ReplayHookKind, nearMiss?: boolean): string => {
   if (hook === 'fix_mistake' || nearMiss) return 'Son garip cevabı düzelt →';
   if (hook === 'keep_flow') return 'Bu kez sahne akışını koru →';
-  if (hook === 'beat_combo') return 'Son combo’nu geç →';
+  if (hook === 'beat_combo') return 'Son doğal akışı bir tur ileri taşı →';
   if (hook === 'perfect_run') return 'Daha temiz bir prova yap →';
   return '🔁 Aynı sahneyi yeniden oyna';
 };
@@ -98,7 +98,7 @@ export const buildStageReplayCta = (result: StageResult): string => {
   if (cur?.nearMiss && awk === 1) return 'O tek cevabı şimdi düzelt →';
 
   if (cur?.hookKind === 'keep_flow' || result.flowPath === 'friction') return 'Akışı 3 tur daha koru →';
-  if (cur?.hookKind === 'beat_combo' && prev) return `Combo ${prev.comboMax}’i geç (bugün ${cur.comboMax}) →`;
+  if (cur?.hookKind === 'beat_combo' && prev) return `Doğal akışı ilerlet (${prev.comboMax} → ${cur.comboMax}) →`;
   if (cur?.hookKind === 'perfect_run') return 'Aynı anı bir kez daha temiz prova et →';
   if (prev?.failed && !cur?.failed) return 'Daha temiz bir tekrar yap →';
 
@@ -129,8 +129,8 @@ export const getMotivationHero = (result: StageResult): { title: string; subtitl
   }
   if (cur?.hookKind === 'beat_combo' && prev) {
     return {
-      title: `YOUR HIGH COMBO IS ${prev.comboMax}`,
-      subtitle: `Bugün ${cur.comboMax} yaptın — aynı sahneyi tekrar prova edip ritmi yükselt.`,
+      title: `DOĞAL AKIŞIN ${cur.comboMax} TURA ULAŞTI`,
+      subtitle: `Önceki provada ${prev.comboMax} turdu; aynı sahneyi tekrar prova edip ritmi güçlendir.`,
     };
   }
   if (cur?.hookKind === 'keep_flow' || result.flowPath === 'friction') {
@@ -161,7 +161,7 @@ export const oneLineRunDelta = (result: StageResult): string | null => {
   const prev = result.runCompare?.previous;
   const cur = result.runCompare?.current;
   if (!prev || !cur) return null;
-  if (cur.comboMax > prev.comboMax) return `Combo up: ${prev.comboMax} → ${cur.comboMax}.`;
+  if (cur.comboMax > prev.comboMax) return `Doğal akış arttı: ${prev.comboMax} → ${cur.comboMax}.`;
   if (cur.accuracy > prev.accuracy + 0.04) return `Son provaya göre daha temiz cevaplar seçtin.`;
   if (prev.failed && !cur.failed) return `Geçen sefer kopan sahneyi bu kez tamamladın.`;
   return null;

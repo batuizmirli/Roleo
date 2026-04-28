@@ -18,13 +18,37 @@ export type UnlockState = {
   unlockedStageTypes: Array<'cafe' | 'travel' | 'business' | 'social' | 'story' | 'survival'>;
   stageCounts: Record<'cafe' | 'travel' | 'business' | 'social' | 'story' | 'survival', number>;
   nextGoal: string;
+  level: number;
+  unlockedFeatureIds: ProgressionFeatureId[];
+  progressionUnlocks: ProgressionUnlock[];
+  nextFeature: ProgressionUnlock | null;
 };
 
 export type StageCompletionSummary = {
   progress: ProgressState;
   unlockState: UnlockState;
   newlyUnlocked: string[];
+  newlyUnlockedFeatures: ProgressionUnlock[];
   appliedXp: number;
+};
+
+export type ProgressionFeatureId =
+  | 'friendly_npc'
+  | 'basic_scenes'
+  | 'busy_npc'
+  | 'realistic_pace'
+  | 'replay_twists'
+  | 'voice_repeat_step'
+  | 'hard_mode'
+  | 'work_scenes'
+  | 'free_conversation';
+
+export type ProgressionUnlock = {
+  id: ProgressionFeatureId;
+  level: number;
+  title: string;
+  description: string;
+  unlocked: boolean;
 };
 
 const PROGRESS_KEY = 'roleoProgress';
@@ -51,6 +75,63 @@ const COMPLETED_RESULT_CAP = 30;
 const MEMORY_MISTAKE_CAP = 8;
 const MEMORY_WEAKNESS_CAP = 4;
 const MEMORY_PHRASE_CAP = 8;
+
+export const PROGRESSION_UNLOCKS: Array<Omit<ProgressionUnlock, 'unlocked'>> = [
+  {
+    id: 'friendly_npc',
+    level: 1,
+    title: 'Friendly NPC',
+    description: 'Sahneler sabırlı, açıklayıcı ve düşük baskılı başlar.',
+  },
+  {
+    id: 'basic_scenes',
+    level: 1,
+    title: 'Basic scenes',
+    description: 'Kafe, seyahat, sosyal ve hikaye sahneleri açık.',
+  },
+  {
+    id: 'busy_npc',
+    level: 2,
+    title: 'Busy NPC',
+    description: 'Bazı karakterler daha aceleci davranır; cevapların daha net olmalı.',
+  },
+  {
+    id: 'realistic_pace',
+    level: 2,
+    title: 'Daha gerçekçi tempo',
+    description: 'Sahnelerde zaman baskısı ve daha doğal konuşma ritmi belirginleşir.',
+  },
+  {
+    id: 'replay_twists',
+    level: 3,
+    title: 'Replay with twist',
+    description: 'Aynı sahneyi farklı bir problemle tekrar prova edebilirsin.',
+  },
+  {
+    id: 'voice_repeat_step',
+    level: 4,
+    title: 'Voice repeat step',
+    description: 'Cevabını sesli tekrar etme adımı prova akışına eklenir.',
+  },
+  {
+    id: 'hard_mode',
+    level: 5,
+    title: 'Hard mode',
+    description: 'Daha az ipucu, daha hızlı NPC ve daha nüanslı cevaplar açılır.',
+  },
+  {
+    id: 'work_scenes',
+    level: 7,
+    title: 'Work scenes',
+    description: 'İş görüşmesi, toplantı ve profesyonel sahneler açılır.',
+  },
+  {
+    id: 'free_conversation',
+    level: 10,
+    title: 'Free conversation mode',
+    description: 'Serbest konuşma modu için yer hazırlanır.',
+  },
+];
 
 const appendUniqueCapped = (list: string[], value: string, cap: number) => {
   const normalized = value.trim();
@@ -182,27 +263,43 @@ const getCompletedStageCounts = (completedScenarioIds: string[]) => {
 
 export const getUnlockState = (progress: ProgressState): UnlockState => {
   const counts = getCompletedStageCounts(progress.completedScenarioIds);
-  const unlocked = new Set<UnlockState['unlockedStageTypes'][number]>(['cafe', 'social', 'story']);
+  const level = getLevelFromXp(progress.xp);
+  const progressionUnlocks = getProgressionUnlocks(level);
+  const unlockedFeatureIds = progressionUnlocks.filter(u => u.unlocked).map(u => u.id);
+  const unlocked = new Set<UnlockState['unlockedStageTypes'][number]>(['cafe', 'travel', 'social', 'story']);
 
-  if (counts.cafe >= 3) unlocked.add('travel');
-  if (counts.travel >= 2) unlocked.add('survival');
-  if (counts.social >= 2) unlocked.add('business');
+  if (level >= 2) unlocked.add('survival');
+  if (level >= 7) unlocked.add('business');
 
-  let nextGoal = '3 cafe stage tamamla → Travel aç';
-  if (unlocked.has('travel') && !unlocked.has('survival')) {
-    nextGoal = '2 travel stage tamamla → Survival aç';
-  } else if (unlocked.has('travel') && !unlocked.has('business')) {
-    nextGoal = '2 social stage tamamla → Business aç';
-  } else if (unlocked.has('travel') && unlocked.has('survival') && unlocked.has('business')) {
-    nextGoal = 'Tüm ana stage tipleri açık. Streak koru!';
-  }
+  const nextFeature = getNextProgressionUnlock(level);
+  const nextGoal = nextFeature
+    ? `Seviye ${nextFeature.level}: ${nextFeature.title} açılır. ${nextFeature.description}`
+    : 'Ana progression açık. Streak koru ve sahne repertuvarını genişlet.';
 
   return {
     unlockedStageTypes: Array.from(unlocked),
     stageCounts: counts,
     nextGoal,
+    level,
+    unlockedFeatureIds,
+    progressionUnlocks,
+    nextFeature,
   };
 };
+
+export const getProgressionUnlocks = (level: number): ProgressionUnlock[] =>
+  PROGRESSION_UNLOCKS.map(unlock => ({
+    ...unlock,
+    unlocked: level >= unlock.level,
+  }));
+
+export const getNextProgressionUnlock = (level: number): ProgressionUnlock | null =>
+  getProgressionUnlocks(level).find(unlock => !unlock.unlocked) ?? null;
+
+export const getNewlyUnlockedProgression = (fromLevel: number, toLevel: number): ProgressionUnlock[] =>
+  PROGRESSION_UNLOCKS
+    .filter(unlock => unlock.level > fromLevel && unlock.level <= toLevel)
+    .map(unlock => ({ ...unlock, unlocked: true }));
 
 export const getProgress = async (): Promise<ProgressState> => {
   const raw = await AsyncStorage.getItem(PROGRESS_KEY);
@@ -243,6 +340,7 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
       progress,
       unlockState: unlock,
       newlyUnlocked: [],
+      newlyUnlockedFeatures: [],
       appliedXp: 0,
     };
   }
@@ -258,7 +356,9 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
   }
 
   progress.lastPlayedDate = todayStr;
+  const previousLevel = getLevelFromXp(progress.xp);
   progress.xp += result.xpEarned;
+  const nextLevel = getLevelFromXp(progress.xp);
   if (!progress.dailyXpLog) progress.dailyXpLog = {};
   progress.dailyXpLog[todayStr] = (progress.dailyXpLog[todayStr] ?? 0) + result.xpEarned;
 
@@ -291,12 +391,14 @@ export const completeStage = async (result: StageResult): Promise<StageCompletio
   }
 
   const afterUnlock = getUnlockState(progress);
-  const newlyUnlocked = afterUnlock.unlockedStageTypes.filter(s => !beforeUnlock.unlockedStageTypes.includes(s));
+  const newlyUnlockedStageTypes = afterUnlock.unlockedStageTypes.filter(s => !beforeUnlock.unlockedStageTypes.includes(s));
+  const newlyUnlockedFeatures = getNewlyUnlockedProgression(previousLevel, nextLevel);
 
   return {
     progress,
     unlockState: afterUnlock,
-    newlyUnlocked,
+    newlyUnlocked: newlyUnlockedStageTypes,
+    newlyUnlockedFeatures,
     appliedXp: result.xpEarned,
   };
 };

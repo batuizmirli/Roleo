@@ -1,4 +1,5 @@
 import { Scenario, UserIdentity } from '../types';
+import { SCENARIO_ENRICHMENTS } from './scenarioEnrichments';
 
 export type ScenePrepPlan = {
   reasonLine: string;
@@ -1446,6 +1447,7 @@ const curatedImageForScenario = (scenario: Scenario) =>
 export const scenarios: Scenario[] = scenarioDefinitions.map(scenario => ({
   ...scenario,
   backgroundImage: curatedImageForScenario(scenario),
+  ...(SCENARIO_ENRICHMENTS[scenario.id] ?? {}),
 }));
 
 const FALLBACK_SCENARIO: Scenario = {

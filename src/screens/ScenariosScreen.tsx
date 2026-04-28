@@ -45,12 +45,19 @@ const FALLBACK_STAGE_IMAGES: Record<string, string> = {
 const imageForScenario = (scenario: Scenario) =>
   scenario.backgroundImage || FALLBACK_STAGE_IMAGES[scenario.stageType ?? 'social'] || FALLBACK_STAGE_IMAGES.social;
 
+const lockedStageReason = (stageType: string) => {
+  if (stageType === 'business') return 'Seviye 7: Work scenes açıldığında profesyonel sahneler gelir.';
+  if (stageType === 'survival') return 'Seviye 2: daha gerçekçi tempo açıldığında survival sahneleri gelir.';
+  if (stageType === 'travel') return 'Temel seyahat sahneleri açık. Gelişmiş seyahat provası Plus ile açılır.';
+  return 'Bu sahne tipi progression içinde biraz daha prova sonrası açılır.';
+};
+
 export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
   const t = useAppTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [unlockedTypes, setUnlockedTypes] = useState<string[]>(['cafe', 'social', 'story']);
+  const [unlockedTypes, setUnlockedTypes] = useState<string[]>(['cafe', 'travel', 'social', 'story']);
   const [nextGoal, setNextGoal] = useState('');
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
@@ -144,7 +151,7 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
               {!isUnlocked ? (
                 <View style={styles.lockedCard}>
                   <Text style={styles.lockedText}>
-                    {nextGoal || t('scenarios.locked')}
+                    {lockedStageReason(group.key)}
                   </Text>
                 </View>
               ) : (

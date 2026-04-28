@@ -22,6 +22,16 @@ export type VocabHint = {
   meaning: string;
 };
 
+export type ScenarioUsefulPhrase = {
+  phrase: string;
+  context: string;
+};
+
+export type ScenarioDifficultyVariant = {
+  systemPromptSuffix?: string;
+  openingMessageOverride?: string;
+};
+
 export type Scenario = {
   id: string;
   title: string;
@@ -39,6 +49,21 @@ export type Scenario = {
   openingMessage: string;
   vocabHints?: VocabHint[];
   backgroundImage?: string;
+
+  // Dramatic enrichment fields — all optional, safe to ignore in legacy screens
+  baseSituation?: string;
+  dramaticBeats?: string[];
+  likelyMisunderstandings?: string[];
+  socialRisk?: string;
+  usefulPhrases?: ScenarioUsefulPhrase[];
+  difficultyVariants?: {
+    easy?: ScenarioDifficultyVariant;
+    medium?: ScenarioDifficultyVariant;
+    hard?: ScenarioDifficultyVariant;
+  };
+  replayTwists?: string[];
+  grammarFocus?: string;
+  vocabularyFocus?: string;
 };
 
 export type UserLevel = 'beginner' | 'intermediate' | 'advanced' | 'fluent';
@@ -129,6 +154,19 @@ export type StageLearningSummary = {
   nextFocus?: string;
 };
 
+export type VoiceAttempt = {
+  id: string;
+  targetText: string;
+  transcript?: string;
+  confidence?: number;
+  feedback?: string;
+  meaningClear?: boolean;
+  missingKeywords?: string[];
+  createdAt: string;
+  scenarioId?: string;
+  language?: string;
+};
+
 export type LearningMemoryCategoryStat = {
   plays: number;
   improvedRuns: number;
@@ -168,6 +206,7 @@ export type StageResult = {
   runCompare?: RunComparePayload;
   turnReviews?: StageTurnReview[];
   learningSummary?: StageLearningSummary;
+  voiceAttempts?: VoiceAttempt[];
   challengeTarget?: FriendChallengeTarget;
   challengeOutcome?: FriendChallengeOutcome;
 };
@@ -179,6 +218,7 @@ export type ModuleResult = {
   speed?: number;
   flowPath?: SceneFlowPath;
   nativePhrase?: string;
+  voiceAttempts?: VoiceAttempt[];
 };
 
 export type GameMode = {
@@ -187,4 +227,44 @@ export type GameMode = {
   description: string;
   emoji: string;
   color: string;
+};
+
+export type SceneSessionChoice = {
+  turn: number;
+  npcMessage: string;
+  selectedText: string;
+  quality: 'good' | 'ok' | 'awkward';
+  goodOption: string;
+};
+
+export type SceneSessionScore = {
+  accuracy: number;
+  comboMax: number;
+  xpEarned: number;
+  flowPath: SceneFlowPath;
+  goodTurns: number;
+  awkwardTurns: number;
+  timedOutTurns: number;
+};
+
+export type SceneSession = {
+  sessionId: string;
+  timestamp: string;
+  source?: 'stage_result' | 'daily_run';
+  scenarioId: string;
+  scenarioTitle: string;
+  stageType: string;
+  language: string;
+  npcPersona: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  userGoal?: string;
+  identityGoal?: string;
+  selectedChoices: SceneSessionChoice[];
+  score: SceneSessionScore;
+  bestLine?: string;
+  awkwardMoment?: string;
+  betterAlternative?: string;
+  nextFocus?: string;
+  dramaticBeat?: string;
+  voiceAttempts?: VoiceAttempt[];
 };

@@ -6,7 +6,7 @@ import {
   getProgress, getUnlockState, getLevelFromXp, getLevelProgress,
   getWeeklyXp, ProgressState, UnlockState, DailyXpEntry,
 } from '../services/progress';
-import { getDailyLeaderboard, LeaderboardEntry } from '../services/leaderboard';
+import { PLUS_SOFT_UPSELL } from '../data/plus';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -28,7 +28,6 @@ export default function ProgressScreen({ onBack }: Props) {
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [unlockState, setUnlockState] = useState<UnlockState | null>(null);
   const [weeklyXp, setWeeklyXp] = useState<DailyXpEntry[]>([]);
-  const [leaderboard, setLeaderboard] = useState<(LeaderboardEntry & { rank: number })[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -36,7 +35,6 @@ export default function ProgressScreen({ onBack }: Props) {
       setProgress(p);
       setUnlockState(getUnlockState(p));
       setWeeklyXp(getWeeklyXp(p.dailyXpLog ?? {}));
-      setLeaderboard(await getDailyLeaderboard());
     })();
   }, []);
 
@@ -74,7 +72,7 @@ export default function ProgressScreen({ onBack }: Props) {
           </Text>
         </View>
 
-        {/* XP + Level card */}
+        {/* Scene level card */}
         <View style={styles.xpCard}>
           <LinearGradient
             colors={['rgba(40,30,22,0.6)', 'rgba(18,24,34,0.8)']}
@@ -91,8 +89,8 @@ export default function ProgressScreen({ onBack }: Props) {
               <Text style={styles.xpLevel}>{level}</Text>
             </View>
             <View style={styles.xpRight}>
-              <Text style={styles.xpTotal}>{xp} XP</Text>
-              <Text style={styles.xpNext}>{100 - (xp % 100)} XP sonraki seviye</Text>
+              <Text style={styles.xpTotal}>Sahne hafızası büyüyor</Text>
+              <Text style={styles.xpNext}>{100 - (xp % 100)} prova puanı sonra yeni deneyim</Text>
             </View>
           </View>
           {/* Progress bar */}
@@ -100,6 +98,44 @@ export default function ProgressScreen({ onBack }: Props) {
             <View style={[styles.levelBarFill, { width: `${levelPct}%` }]} />
           </View>
           <Text style={styles.levelPct}>%{levelPct}</Text>
+        </View>
+
+        {/* Progression unlocks */}
+        <Text style={styles.sectionTitle}>AÇILAN SAHNE DENEYİMLERİ</Text>
+        <View style={styles.unlockCard}>
+          {unlockState.progressionUnlocks.map((unlock, index) => (
+            <View
+              key={unlock.id}
+              style={[
+                styles.unlockRow,
+                index < unlockState.progressionUnlocks.length - 1 && styles.unlockRowBorder,
+                !unlock.unlocked && styles.unlockRowLocked,
+              ]}
+            >
+              <View style={[styles.unlockLevelBadge, unlock.unlocked ? styles.unlockLevelBadgeOpen : styles.unlockLevelBadgeLocked]}>
+                <Text style={[styles.unlockLevelText, !unlock.unlocked && styles.unlockLevelTextLocked]}>
+                  {unlock.level}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.unlockTitle, !unlock.unlocked && styles.unlockTitleLocked]}>{unlock.title}</Text>
+                <Text style={styles.unlockDesc}>{unlock.description}</Text>
+              </View>
+              <Feather
+                name={unlock.unlocked ? 'check-circle' : 'lock'}
+                size={16}
+                color={unlock.unlocked ? colors.successDs : colors.inkTertiary}
+              />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.plusMemoryCard}>
+          <Feather name="archive" size={14} color={colors.accentWarmSoft} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.plusMemoryTitle}>{PLUS_SOFT_UPSELL.title}</Text>
+            <Text style={styles.plusMemorySub}>{PLUS_SOFT_UPSELL.subtitle}</Text>
+          </View>
         </View>
 
         {/* Stats row */}
@@ -122,7 +158,7 @@ export default function ProgressScreen({ onBack }: Props) {
         </View>
 
         {/* Weekly chart */}
-        <Text style={styles.sectionTitle}>HAFTALIK XP</Text>
+        <Text style={styles.sectionTitle}>HAFTALIK PROVA RİTMİ</Text>
         <View style={styles.chartCard}>
           <View style={styles.chartRow}>
             {weeklyXp.map((day, i) => {
@@ -149,7 +185,7 @@ export default function ProgressScreen({ onBack }: Props) {
             })}
           </View>
           <Text style={styles.chartTotal}>
-            Toplam: {weeklyXp.reduce((s, d) => s + d.xp, 0)} XP
+            Toplam prova puanı: {weeklyXp.reduce((s, d) => s + d.xp, 0)}
           </Text>
         </View>
 
@@ -186,31 +222,6 @@ export default function ProgressScreen({ onBack }: Props) {
             );
           })}
         </View>
-
-        {/* Leaderboard */}
-        {leaderboard.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>GÜNLÜK ARENA</Text>
-            <View style={styles.lbCard}>
-              <Text style={styles.lbHint}>Bugünkü sahne skorları</Text>
-              {leaderboard.slice(0, 6).map(row => (
-                <View
-                  key={row.id}
-                  style={[styles.lbRow, row.isSelf && styles.lbRowSelf]}
-                >
-                  <Text style={styles.lbRank}>#{row.rank}</Text>
-                  <Text
-                    style={[styles.lbName, row.isSelf && styles.lbNameSelf]}
-                    numberOfLines={1}
-                  >
-                    {row.name}{row.isSelf ? ' (sen)' : ''}
-                  </Text>
-                  <Text style={styles.lbScore}>{row.score}</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
 
         {/* Next goal */}
         {!!unlockState.nextGoal && (
@@ -327,6 +338,91 @@ const styles = StyleSheet.create({
   },
   levelPct: { ...typography.body, fontSize: 11, color: colors.inkTertiary, textAlign: 'right' },
 
+  unlockCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    marginBottom: 28,
+    overflow: 'hidden',
+  },
+  unlockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+  },
+  unlockRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
+  },
+  unlockRowLocked: {
+    opacity: 0.62,
+  },
+  unlockLevelBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  unlockLevelBadgeOpen: {
+    backgroundColor: 'rgba(232,181,118,0.10)',
+    borderColor: colors.accentGlow,
+  },
+  unlockLevelBadgeLocked: {
+    backgroundColor: colors.bgSoft,
+    borderColor: colors.hairline,
+  },
+  unlockLevelText: {
+    ...typography.bodyMedium,
+    color: colors.accentWarm,
+    fontSize: 13,
+  },
+  unlockLevelTextLocked: {
+    color: colors.inkTertiary,
+  },
+  unlockTitle: {
+    ...typography.bodyMedium,
+    color: colors.inkPrimary,
+    fontSize: 14,
+    marginBottom: 3,
+  },
+  unlockTitleLocked: {
+    color: colors.inkSecondary,
+  },
+  unlockDesc: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  plusMemoryCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: 14,
+    marginTop: -16,
+    marginBottom: 28,
+  },
+  plusMemoryTitle: {
+    ...typography.bodyMedium,
+    color: colors.inkSecondary,
+    fontSize: 13,
+    marginBottom: 3,
+  },
+  plusMemorySub: {
+    ...typography.body,
+    color: colors.inkTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
   // Stats row
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
   statCard: {
@@ -404,7 +500,7 @@ const styles = StyleSheet.create({
   stageDone: { ...typography.body, fontSize: 12, color: colors.successDs },
   stageEmpty: { ...typography.body, fontSize: 12, color: colors.inkTertiary },
 
-  // Leaderboard
+  // Legacy ranking styles are unused while progress stays scene-focused.
   lbCard: {
     backgroundColor: colors.bgMid,
     borderRadius: 18,
