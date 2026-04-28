@@ -17,7 +17,7 @@ export type ScenePrepPlan = {
   };
 };
 
-export const scenarios: Scenario[] = [
+const scenarioDefinitions: Scenario[] = [
   // SPANISH
   {
     id: 'cafe-barcelona',
@@ -1374,11 +1374,86 @@ export const scenarios: Scenario[] = [
   },
 ];
 
+const unsplash = (photoId: string) =>
+  `https://images.unsplash.com/${photoId}?w=900&h=560&fit=crop&crop=entropy&auto=format&q=82`;
+
+const CURATED_STAGE_IMAGES: Record<NonNullable<Scenario['stageType']>, string> = {
+  cafe: unsplash('photo-1501339847302-ac426a4a7cbb'),
+  travel: unsplash('photo-1474487548417-781cb71495f3'),
+  business: unsplash('photo-1552664730-d307ca884978'),
+  social: unsplash('photo-1529156069898-49953e39b3ac'),
+  story: unsplash('photo-1519682337058-a94d519337bc'),
+  survival: unsplash('photo-1587854692152-cbe660dbde88'),
+};
+
+const CURATED_SCENE_IMAGES: Record<string, string> = {
+  'cafe-barcelona': unsplash('photo-1521017432531-fbd92d768814'),
+  'metro-madrid': unsplash('photo-1544620347-c4fd4a3d5957'),
+  'meeting-madrid': unsplash('photo-1556761175-b413da4baf72'),
+  'concert-madrid': unsplash('photo-1470229722913-7c0e2dbbafd3'),
+  'paris-cafe': unsplash('photo-1502602898657-3e91760cbb34'),
+  'paris-metro': unsplash('photo-1558618666-fcd25c85cd64'),
+  'paris-shopping': unsplash('photo-1441986300917-64674bd600d8'),
+  'berlin-market': unsplash('photo-1488459716781-31db52582fe9'),
+  'berlin-cafe': unsplash('photo-1560969184-10fe8719e047'),
+  'berlin-office': unsplash('photo-1497366216548-37526070297c'),
+  'rome-cafe': unsplash('photo-1552832230-c0197dd311b5'),
+  'rome-restaurant': unsplash('photo-1517248135467-4c7edcad34c4'),
+  'madrid-party': unsplash('photo-1527529482837-4698179dc6ce'),
+  'barcelona-hotel': unsplash('photo-1566073771259-6a8506099945'),
+  'paris-office': unsplash('photo-1556761175-b413da4baf72'),
+  'nice-beach': unsplash('photo-1507525428034-b723cf961d3e'),
+  'munich-party': unsplash('photo-1517457373958-b7bdd4587205'),
+  'frankfurt-airport': unsplash('photo-1436491865332-7a61a109cc05'),
+  'rome-metro': unsplash('photo-1544620347-c4fd4a3d5957'),
+  'milan-office': unsplash('photo-1542744173-8e7e53415bb0'),
+  'florence-social': unsplash('photo-1529156069898-49953e39b3ac'),
+  'london-cafe': unsplash('photo-1525610553991-2bede1a236e2'),
+  'london-office': unsplash('photo-1497366754035-f200968a677a'),
+  'london-underground': unsplash('photo-1516939884455-1445c8652f83'),
+  'london-pub': unsplash('photo-1525268323446-0505b6fe7778'),
+  'nyc-diner': unsplash('photo-1555992336-03a23c7b20ee'),
+  'airport-checkin': unsplash('photo-1436491865332-7a61a109cc05'),
+  'hotel-checkin': unsplash('photo-1551882547-ff40c4a49b6b'),
+  'job-interview': unsplash('photo-1553877522-43269d4ea984'),
+  'flatmate-conflict': unsplash('photo-1502672260266-1c1ef2d93688'),
+  'gym-small-talk': unsplash('photo-1534438327276-14e5300c3a48'),
+  'doctors-appointment': unsplash('photo-1579684385127-1ef15d508118'),
+  'coffee-chat-colleague': unsplash('photo-1495474472287-4d71bcdd2085'),
+  'supermarket-queue': unsplash('photo-1542838132-92c53300491e'),
+  'presentation-feedback': unsplash('photo-1552664730-d307ca884978'),
+  'lost-in-city': unsplash('photo-1519501025264-65ba15a82390'),
+  'phone-call-complaint': unsplash('photo-1423666639041-f56000c27a9a'),
+  'first-date-coffee': unsplash('photo-1511988617509-a57c8a288659'),
+  'networking-event': unsplash('photo-1540575467063-178a50c2df87'),
+  'flatshare-viewing': unsplash('photo-1560448204-e02f11c3d0e2'),
+  'pub-quiz-night': unsplash('photo-1546726747-421c6d69c929'),
+  'emergency-pharmacy': unsplash('photo-1587854692152-cbe660dbde88'),
+  'catching-up-old-friend': unsplash('photo-1529156069898-49953e39b3ac'),
+  'conference-room-debate': unsplash('photo-1542744173-8e7e53415bb0'),
+  'train-delay': unsplash('photo-1474487548417-781cb71495f3'),
+  'lisbon-cafe': unsplash('photo-1554118811-1e0d58224f24'),
+  'lisbon-metro': unsplash('photo-1544620347-c4fd4a3d5957'),
+  'sao-paulo-meeting': unsplash('photo-1556761175-b413da4baf72'),
+  'rio-party': unsplash('photo-1517457373958-b7bdd4587205'),
+  'porto-pharmacy': unsplash('photo-1587854692152-cbe660dbde88'),
+};
+
+const curatedImageForScenario = (scenario: Scenario) =>
+  CURATED_SCENE_IMAGES[scenario.id] ??
+  CURATED_STAGE_IMAGES[scenario.stageType ?? 'social'];
+
+export const scenarios: Scenario[] = scenarioDefinitions.map(scenario => ({
+  ...scenario,
+  backgroundImage: curatedImageForScenario(scenario),
+}));
+
 const FALLBACK_SCENARIO: Scenario = {
   id: 'fallback-scene',
   title: 'Quick Daily Scene',
   location: 'Everyday Conversation',
   emoji: '💬',
+  backgroundImage: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=400&fit=crop&q=70',
   difficulty: 'beginner',
   language: 'en',
   stageType: 'social',

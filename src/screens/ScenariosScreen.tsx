@@ -33,6 +33,18 @@ const STAGE_META: Record<string, { icon: string; labelKey: string }> = {
 
 const STAGE_ORDER = ['cafe', 'social', 'story', 'travel', 'business', 'survival'];
 
+const FALLBACK_STAGE_IMAGES: Record<string, string> = {
+  cafe: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop&q=70',
+  social: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=400&fit=crop&q=70',
+  story: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=600&h=400&fit=crop&q=70',
+  travel: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=600&h=400&fit=crop&q=70',
+  business: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop&q=70',
+  survival: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=600&h=400&fit=crop&q=70',
+};
+
+const imageForScenario = (scenario: Scenario) =>
+  scenario.backgroundImage || FALLBACK_STAGE_IMAGES[scenario.stageType ?? 'social'] || FALLBACK_STAGE_IMAGES.social;
+
 export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
   const t = useAppTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -147,37 +159,12 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
                       onPress={() => onScenarioSelect(variant)}
                       delay={index * 40}
                     >
-                      {/* Photo header */}
-                      {!!scenario.backgroundImage && (
-                        <ImageBackground
-                          source={{ uri: scenario.backgroundImage }}
-                          style={styles.cardPhoto}
-                          resizeMode="cover"
-                          imageStyle={{ borderRadius: 0 }}
-                        >
-                          <LinearGradient
-                            colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.72)']}
-                            style={StyleSheet.absoluteFill}
-                          />
-                          {/* Badges over photo */}
-                          <View style={styles.cardPhotoOverlay}>
-                            <Text style={styles.cardEmoji}>{scenario.emoji}</Text>
-                            <View style={styles.cardBadgeRow}>
-                              {isDone && (
-                                <View style={styles.doneBadge}>
-                                  <Feather name="check" size={10} color={colors.successDs} />
-                                  <Text style={styles.doneBadgeText}>{t('scenarios.completed')}</Text>
-                                </View>
-                              )}
-                              <View style={styles.diffBadge}>
-                                <Text style={[styles.diffBadgeText, { color: diffColor(scenario.difficulty) }]}>
-                                  {diffLabel(scenario.difficulty)}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        </ImageBackground>
-                      )}
+                      <ScenarioCardPhoto
+                        scenario={variant}
+                        imageUri={imageForScenario(variant)}
+                        isDone={isDone}
+                        completedLabel={t('scenarios.completed')}
+                      />
 
                       {/* Text content */}
                       <View style={styles.cardBody}>
@@ -216,6 +203,58 @@ const diffColor = (d: string) =>
   d === 'beginner' ? colors.successDs : d === 'intermediate' ? colors.accentWarm : colors.errorDs;
 const diffLabel = (d: string) =>
   d === 'beginner' ? 'Başlangıç' : d === 'intermediate' ? 'Orta' : 'İleri';
+
+function ScenarioCardPhoto({
+  scenario,
+  imageUri,
+  isDone,
+  completedLabel,
+}: {
+  scenario: Scenario;
+  imageUri: string;
+  isDone: boolean;
+  completedLabel: string;
+}) {
+  const [uri, setUri] = useState(imageUri);
+  const fallbackUri = imageForScenario({ ...scenario, backgroundImage: undefined });
+
+  useEffect(() => {
+    setUri(imageUri);
+  }, [imageUri]);
+
+  return (
+    <ImageBackground
+      source={{ uri }}
+      style={styles.cardPhoto}
+      resizeMode="cover"
+      imageStyle={{ borderRadius: 0 }}
+      onError={() => {
+        if (uri !== fallbackUri) setUri(fallbackUri);
+      }}
+    >
+      <LinearGradient
+        colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.72)']}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.cardPhotoOverlay}>
+        <Text style={styles.cardEmoji}>{scenario.emoji}</Text>
+        <View style={styles.cardBadgeRow}>
+          {isDone && (
+            <View style={styles.doneBadge}>
+              <Feather name="check" size={10} color={colors.successDs} />
+              <Text style={styles.doneBadgeText}>{completedLabel}</Text>
+            </View>
+          )}
+          <View style={styles.diffBadge}>
+            <Text style={[styles.diffBadgeText, { color: diffColor(scenario.difficulty) }]}>
+              {diffLabel(scenario.difficulty)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </ImageBackground>
+  );
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgDeep },
