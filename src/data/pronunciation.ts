@@ -1,4 +1,4 @@
-export type PronunciationCategory = 'letters' | 'words' | 'numbers';
+export type PronunciationCategory = 'sounds' | 'words' | 'sentences' | 'details';
 
 export type WordTopic =
   | 'basics'
@@ -10,7 +10,7 @@ export type WordTopic =
   | 'travel'
   | 'food';
 
-export type NumberRange = '0-100' | '101-200' | '201-300' | '301-400';
+export type DetailTopic = 'time' | 'prices' | 'places' | 'codes';
 
 export type PronunciationItem = {
   id: string;
@@ -23,6 +23,13 @@ type WordEntry = {
   text: string;
   meaningEn: string;
   meaningTr: string;
+};
+
+type LocalizedPronunciationEntry = {
+  text: Record<string, string>;
+  meaningEn: string;
+  meaningTr: string;
+  speakText?: Record<string, string>;
 };
 
 const SPEECH_LOCALES: Record<string, string> = {
@@ -43,6 +50,100 @@ const TOPIC_TITLES: Record<WordTopic, { tr: string; en: string }> = {
   conversation: { tr: 'Sohbet', en: 'Conversation' },
   travel: { tr: 'Seyahat', en: 'Travel' },
   food: { tr: 'Yemek', en: 'Food' },
+};
+
+const DETAIL_TITLES: Record<DetailTopic, { tr: string; en: string }> = {
+  time: { tr: 'Saat', en: 'Time' },
+  prices: { tr: 'Fiyat', en: 'Prices' },
+  places: { tr: 'Yer', en: 'Places' },
+  codes: { tr: 'Kodlar', en: 'Codes' },
+};
+
+const SOUND_ITEMS_BY_LANG: Record<string, LocalizedPronunciationEntry[]> = {
+  es: [
+    { text: { es: 'rr / r' }, meaningEn: 'rolled r in perro / caro', meaningTr: 'perro / caro içindeki r sesi' },
+    { text: { es: 'j' }, meaningEn: 'throaty j in jamón', meaningTr: 'jamón kelimesindeki hırıltılı j' },
+    { text: { es: 'ñ' }, meaningEn: 'ny sound in mañana', meaningTr: 'mañana içindeki ny sesi' },
+    { text: { es: 'll' }, meaningEn: 'soft y sound in calle', meaningTr: 'calle içindeki yumuşak y sesi' },
+    { text: { es: 'tilde' }, meaningEn: 'word stress in café / perdón', meaningTr: 'café / perdón kelime vurgusu' },
+  ],
+  fr: [
+    { text: { fr: 'r' }, meaningEn: 'French r in rue', meaningTr: 'rue kelimesindeki Fransızca r' },
+    { text: { fr: 'an / en' }, meaningEn: 'nasal sound in restaurant', meaningTr: 'restaurant içindeki burun sesi' },
+    { text: { fr: 'on' }, meaningEn: 'nasal sound in bonjour', meaningTr: 'bonjour içindeki burun sesi' },
+    { text: { fr: 'u' }, meaningEn: 'tight u in tu', meaningTr: 'tu kelimesindeki dar u sesi' },
+    { text: { fr: 'liaison' }, meaningEn: 'linking in vous avez', meaningTr: 'vous avez gibi kelime bağlama' },
+  ],
+  de: [
+    { text: { de: 'ch' }, meaningEn: 'ch sound in ich / nach', meaningTr: 'ich / nach içindeki ch sesi' },
+    { text: { de: 'ü' }, meaningEn: 'rounded ü in München', meaningTr: 'München içindeki ü sesi' },
+    { text: { de: 'ö' }, meaningEn: 'rounded ö in schön', meaningTr: 'schön içindeki ö sesi' },
+    { text: { de: 'ä' }, meaningEn: 'open ä in spät', meaningTr: 'spät içindeki ä sesi' },
+    { text: { de: 'z' }, meaningEn: 'ts sound in Zimmer', meaningTr: 'Zimmer içindeki ts sesi' },
+  ],
+  en: [
+    { text: { en: 'th' }, meaningEn: 'th in thanks / this', meaningTr: 'thanks / this içindeki th sesi' },
+    { text: { en: 'r / l' }, meaningEn: 'clear r and l contrast', meaningTr: 'r ve l ayrımı' },
+    { text: { en: 'v / w' }, meaningEn: 'v and w contrast', meaningTr: 'v ve w ayrımı' },
+    { text: { en: 'word stress' }, meaningEn: 'stress in reservation', meaningTr: 'reservation kelime vurgusu' },
+    { text: { en: 'linking' }, meaningEn: 'linking in could I', meaningTr: 'could I gibi kelime bağlama' },
+  ],
+};
+
+const SENTENCE_ITEMS: LocalizedPronunciationEntry[] = [
+  {
+    text: { es: 'Tengo una reserva.', fr: "J'ai une réservation.", de: 'Ich habe eine Reservierung.', it: 'Ho una prenotazione.', pt: 'Tenho uma reserva.', en: 'I have a reservation.' },
+    meaningEn: 'I have a reservation.',
+    meaningTr: 'Bir rezervasyonum var.',
+  },
+  {
+    text: { es: '¿Puede repetir, por favor?', fr: 'Vous pouvez répéter, s’il vous plaît ?', de: 'Können Sie das bitte wiederholen?', it: 'Può ripetere, per favore?', pt: 'Pode repetir, por favor?', en: 'Could you repeat that, please?' },
+    meaningEn: 'Could you repeat that, please?',
+    meaningTr: 'Tekrar eder misiniz?',
+  },
+  {
+    text: { es: '¿Puede hablar más despacio?', fr: 'Vous pouvez parler plus lentement ?', de: 'Können Sie langsamer sprechen?', it: 'Può parlare più lentamente?', pt: 'Pode falar mais devagar?', en: 'Could you speak more slowly?' },
+    meaningEn: 'Could you speak more slowly?',
+    meaningTr: 'Biraz daha yavaş söyler misiniz?',
+  },
+  {
+    text: { es: '¿Me puede ayudar?', fr: 'Vous pouvez m’aider ?', de: 'Können Sie mir helfen?', it: 'Può aiutarmi?', pt: 'Pode me ajudar?', en: 'Could you help me?' },
+    meaningEn: 'Could you help me?',
+    meaningTr: 'Bana yardımcı olur musunuz?',
+  },
+  {
+    text: { es: 'Solo quiero confirmar.', fr: 'Je veux juste confirmer.', de: 'Ich möchte nur kurz bestätigen.', it: 'Voglio solo confermare.', pt: 'Só quero confirmar.', en: 'I just want to confirm.' },
+    meaningEn: 'I just want to confirm.',
+    meaningTr: 'Sadece teyit etmek istiyorum.',
+  },
+  {
+    text: { es: 'La cuenta, por favor.', fr: "L'addition, s'il vous plaît.", de: 'Die Rechnung, bitte.', it: 'Il conto, per favore.', pt: 'A conta, por favor.', en: 'The bill, please.' },
+    meaningEn: 'The bill, please.',
+    meaningTr: 'Hesabı alabilir miyim?',
+  },
+];
+
+const DETAIL_ITEMS_BY_TOPIC: Record<DetailTopic, LocalizedPronunciationEntry[]> = {
+  time: [
+    { text: { es: 'a las siete y media', fr: 'à sept heures et demie', de: 'um halb acht', it: 'alle sette e mezza', pt: 'às sete e meia', en: 'at seven thirty' }, meaningEn: 'at 7:30', meaningTr: 'saat 7:30’da' },
+    { text: { es: 'mañana por la mañana', fr: 'demain matin', de: 'morgen früh', it: 'domani mattina', pt: 'amanhã de manhã', en: 'tomorrow morning' }, meaningEn: 'tomorrow morning', meaningTr: 'yarın sabah' },
+    { text: { es: 'dentro de diez minutos', fr: 'dans dix minutes', de: 'in zehn Minuten', it: 'tra dieci minuti', pt: 'em dez minutos', en: 'in ten minutes' }, meaningEn: 'in ten minutes', meaningTr: 'on dakika içinde' },
+  ],
+  prices: [
+    { text: { es: 'doce euros con cincuenta', fr: 'douze euros cinquante', de: 'zwölf Euro fünfzig', it: 'dodici euro e cinquanta', pt: 'doze euros e cinquenta', en: 'twelve fifty' }, meaningEn: '12.50 euros', meaningTr: '12,50 euro' },
+    { text: { es: 'cuarenta euros', fr: 'quarante euros', de: 'vierzig Euro', it: 'quaranta euro', pt: 'quarenta euros', en: 'forty euros' }, meaningEn: '40 euros', meaningTr: '40 euro' },
+    { text: { es: '¿cuánto cuesta?', fr: 'combien ça coûte ?', de: 'wie viel kostet das?', it: 'quanto costa?', pt: 'quanto custa?', en: 'how much is it?' }, meaningEn: 'how much is it?', meaningTr: 'ne kadar?' },
+  ],
+  places: [
+    { text: { es: 'habitación doscientos cuatro', fr: 'chambre deux cent quatre', de: 'Zimmer zweihundertvier', it: 'camera duecentoquattro', pt: 'quarto duzentos e quatro', en: 'room two oh four' }, meaningEn: 'room 204', meaningTr: '204 numaralı oda' },
+    { text: { es: 'puerta B doce', fr: 'porte B douze', de: 'Gate B zwölf', it: 'uscita B dodici', pt: 'portão B doze', en: 'gate B twelve' }, meaningEn: 'gate B12', meaningTr: 'B12 kapısı' },
+    { text: { es: 'andén tres', fr: 'quai trois', de: 'Gleis drei', it: 'binario tre', pt: 'plataforma três', en: 'platform three' }, meaningEn: 'platform 3', meaningTr: '3. peron' },
+  ],
+  codes: [
+    { text: { es: 'código de reserva A siete dos', fr: 'code de réservation A sept deux', de: 'Buchungscode A sieben zwei', it: 'codice di prenotazione A sette due', pt: 'código de reserva A sete dois', en: 'booking code A seven two' }, meaningEn: 'booking code A72', meaningTr: 'rezervasyon kodu A72' },
+    { text: { es: 'mesa número cinco', fr: 'table numéro cinq', de: 'Tisch Nummer fünf', it: 'tavolo numero cinque', pt: 'mesa número cinco', en: 'table number five' }, meaningEn: 'table number 5', meaningTr: '5 numaralı masa' },
+    { text: { es: 'mi teléfono es...', fr: 'mon numéro est...', de: 'meine Telefonnummer ist...', it: 'il mio numero è...', pt: 'meu telefone é...', en: 'my phone number is...' }, meaningEn: 'my phone number is...', meaningTr: 'telefon numaram...' },
+  ],
 };
 
 const WORDS_BY_TOPIC: Record<WordTopic, WordEntry[]> = {
@@ -247,7 +348,7 @@ const WORD_TRANSLATIONS_BY_LANG: Record<string, Record<string, string>> = {
   },
 };
 
-const RANGE_OPTIONS: NumberRange[] = ['0-100', '101-200', '201-300', '301-400'];
+const DETAIL_OPTIONS: DetailTopic[] = ['time', 'prices', 'places', 'codes'];
 
 const pickMeaning = (nativeCode: string, en: string, tr: string) => (nativeCode === 'tr' ? tr : en);
 const pickTargetWord = (targetCode: string, text: string) => WORD_TRANSLATIONS_BY_LANG[targetCode]?.[text] ?? text;
@@ -261,17 +362,34 @@ export const getWordTopics = (nativeCode: string): Array<{ id: WordTopic; title:
   }));
 };
 
-export const getNumberRanges = (): Array<{ id: NumberRange; title: string }> => {
-  return RANGE_OPTIONS.map((id) => ({ id, title: id }));
+export const getDetailTopics = (nativeCode: string): Array<{ id: DetailTopic; title: string }> => {
+  return DETAIL_OPTIONS.map((id) => ({
+    id,
+    title: nativeCode === 'tr' ? DETAIL_TITLES[id].tr : DETAIL_TITLES[id].en,
+  }));
 };
 
-export const getLetterItems = (nativeCode: string): PronunciationItem[] => {
-  return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => ({
-    id: `letter-${letter}`,
-    text: letter,
-    meaning: nativeCode === 'tr' ? `${letter} harfi` : `letter ${letter}`,
-    speakText: letter.toLowerCase(),
-  }));
+const pickLocalizedText = (entry: LocalizedPronunciationEntry, targetCode: string) =>
+  entry.text[targetCode] ?? entry.text.en ?? Object.values(entry.text)[0] ?? '';
+
+const pickLocalizedSpeakText = (entry: LocalizedPronunciationEntry, targetCode: string) =>
+  entry.speakText?.[targetCode] ?? pickLocalizedText(entry, targetCode);
+
+const mapLocalizedEntries = (
+  entries: LocalizedPronunciationEntry[],
+  targetCode: string,
+  nativeCode: string,
+  prefix: string,
+): PronunciationItem[] => entries.map((entry, idx) => ({
+  id: `${prefix}-${idx}`,
+  text: pickLocalizedText(entry, targetCode),
+  meaning: pickMeaning(nativeCode, entry.meaningEn, entry.meaningTr),
+  speakText: pickLocalizedSpeakText(entry, targetCode),
+}));
+
+export const getSoundItems = (targetCode: string, nativeCode: string): PronunciationItem[] => {
+  const entries = SOUND_ITEMS_BY_LANG[targetCode] ?? SOUND_ITEMS_BY_LANG.en;
+  return mapLocalizedEntries(entries, targetCode, nativeCode, 'sound');
 };
 
 export const getWordItems = (targetCode: string, nativeCode: string, topic: WordTopic): PronunciationItem[] => {
@@ -284,21 +402,10 @@ export const getWordItems = (targetCode: string, nativeCode: string, topic: Word
   }));
 };
 
-const buildNumberValues = (range: NumberRange): number[] => {
-  const [fromRaw, toRaw] = range.split('-');
-  const from = Number(fromRaw);
-  const to = Number(toRaw);
-  const list: number[] = [];
-  for (let i = from; i <= to; i += 1) list.push(i);
-  return list;
+export const getSentenceItems = (targetCode: string, nativeCode: string): PronunciationItem[] => {
+  return mapLocalizedEntries(SENTENCE_ITEMS, targetCode, nativeCode, 'sentence');
 };
 
-export const getNumberItems = (nativeCode: string, range: NumberRange): PronunciationItem[] => {
-  const values = buildNumberValues(range);
-  return values.map((n) => ({
-    id: `number-${range}-${n}`,
-    text: String(n),
-    meaning: nativeCode === 'tr' ? `${n} sayısı` : `number ${n}`,
-    speakText: String(n),
-  }));
+export const getDetailItems = (targetCode: string, nativeCode: string, topic: DetailTopic): PronunciationItem[] => {
+  return mapLocalizedEntries(DETAIL_ITEMS_BY_TOPIC[topic] ?? DETAIL_ITEMS_BY_TOPIC.time, targetCode, nativeCode, `detail-${topic}`);
 };

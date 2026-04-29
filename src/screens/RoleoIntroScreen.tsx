@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -21,6 +21,7 @@ type Props = { onFinish: () => void };
 
 type Slide = {
   id: string;
+  variant?: 'welcome';
   eyebrow: string;
   heading: string;
   headingItalic: string;
@@ -30,8 +31,21 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
+    id: 'hello',
+    variant: 'welcome',
+    eyebrow: 'ROLEO',
+    heading: "Roleo'ya",
+    headingItalic: 'hoş geldin.',
+    lead: 'Konuşman gereken gerçek anları, o an gelmeden önce birlikte prova edeceğiz.',
+    features: [
+      { icon: 'map-pin', title: 'Sahneni Bulacağız', sub: 'Kafe, otel, iş, seyahat veya sosyal an. Ne gerekiyorsa o sahneyi açacağız.' },
+      { icon: 'message-circle', title: 'Ne Diyeceğini Çalışacağız', sub: 'Hazır kalıp değil; o anda kulağa doğal gelen cevabı birlikte seçeceğiz.' },
+      { icon: 'mic', title: 'Sesini Hazırlayacağız', sub: 'İstersen cevabı konuşarak verecek, sahneyi iki taraflı sesle ilerleteceksin.' },
+    ],
+  },
+  {
     id: 'welcome',
-    eyebrow: '01 / 04',
+    eyebrow: '02 / 05',
     heading: 'Konuşmadan önce',
     headingItalic: 'prova yap.',
     lead: 'Gerçek hayat sahnelerini yaşamadan önce dene. Müfredat değil, an.',
@@ -43,7 +57,7 @@ const SLIDES: Slide[] = [
   },
   {
     id: 'speak',
-    eyebrow: '02 / 04',
+    eyebrow: '03 / 05',
     heading: 'Gerçek anı',
     headingItalic: 'oyun gibi prova et.',
     lead: '3 cevap seçeneği, ton farkı, sahne akışı. Hepsini konuşmadan önce.',
@@ -55,19 +69,19 @@ const SLIDES: Slide[] = [
   },
   {
     id: 'arcade',
-    eyebrow: '03 / 04',
+    eyebrow: '04 / 05',
     heading: 'Sahneye girmeden',
     headingItalic: 'önce ısın.',
     lead: 'Kelime ve ton refleksini kısa oyunlarla hazırla.',
     features: [
       { icon: 'zap',          title: 'Flash Pick',    sub: 'Sahnede işine yarayacak kelime refleksi' },
-      { icon: 'check-circle', title: 'True or Fake',  sub: 'Doğal mı garip mi, hızlı ayırt et' },
+      { icon: 'check-circle', title: 'True or False',  sub: 'Doğal mı yanlış mı, hızlı ayırt et' },
       { icon: 'trending-up',  title: 'Combo Sistemi', sub: 'Temiz cevapları üst üste getir' },
     ],
   },
   {
     id: 'value',
-    eyebrow: '04 / 04',
+    eyebrow: '05 / 05',
     heading: 'Söylemeden önce',
     headingItalic: 'dene.',
     lead: "Gerçek hayatta yanlış kelimeyi söylemek yerine Roleo'da dene.",
@@ -157,7 +171,7 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
                 scrollEventThrottle={16}
                 contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16 }}
               >
-                <SlideBody slide={slide} />
+                {slide.variant === 'welcome' ? <WelcomeSlideBody slide={slide} /> : <SlideBody slide={slide} />}
               </ScrollView>
             </View>
           ))}
@@ -171,6 +185,49 @@ export default function RoleoIntroScreen({ onFinish }: Props) {
           <Feather name="arrow-right" size={16} color={colors.bgDeep} />
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
+
+function WelcomeSlideBody({ slide }: { slide: Slide }) {
+  const entrance = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 780,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [entrance]);
+
+  const titleY = entrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] });
+  const cardsY = entrance.interpolate({ inputRange: [0, 1], outputRange: [20, 0] });
+
+  return (
+    <View style={styles.welcomeBody}>
+      <Animated.View style={{ opacity: entrance, transform: [{ translateY: titleY }] }}>
+        <Text style={styles.welcomeHeading}>
+          {slide.heading}{'\n'}
+          <Text style={styles.headingItalic}>{slide.headingItalic}</Text>
+        </Text>
+        <Text style={styles.welcomeLead}>{slide.lead}</Text>
+      </Animated.View>
+
+      <Animated.View style={[styles.welcomePlan, { opacity: entrance, transform: [{ translateY: cardsY }] }]}>
+        <Text style={styles.welcomePlanEyebrow}>BIRLIKTE NE YAPACAĞIZ?</Text>
+        {slide.features.map((f, i) => (
+          <View key={i} style={[styles.welcomePlanRow, i < slide.features.length - 1 && styles.featureRowBorder]}>
+            <View style={styles.featureIconCircle}>
+              <Feather name={f.icon as any} size={16} color={colors.accentWarm} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.featureTitle}>{f.title}</Text>
+              <Text style={styles.featureSub}>{f.sub}</Text>
+            </View>
+          </View>
+        ))}
+      </Animated.View>
     </View>
   );
 }
@@ -296,6 +353,14 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 
+  welcomeBody: {
+    minHeight: 500,
+    justifyContent: 'center',
+    paddingTop: 0,
+    paddingBottom: 12,
+    transform: [{ translateY: -18 }],
+  },
+
   eyebrow: {
     fontFamily: 'InterTight_500Medium',
     fontSize: 10,
@@ -316,12 +381,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Fraunces_300Light_Italic',
     color: colors.accentWarm,
   },
+  welcomeHeading: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 40,
+    color: colors.inkPrimary,
+    letterSpacing: -1,
+    lineHeight: 47,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   lead: {
     fontFamily: 'InterTight_400Regular',
     fontSize: 15,
     color: colors.inkSecondary,
     lineHeight: 22,
     marginBottom: 28,
+  },
+  welcomeLead: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 14,
+    color: colors.inkSecondary,
+    lineHeight: 21,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+    marginBottom: 26,
   },
 
   shimmer: {
@@ -331,6 +414,26 @@ const styles = StyleSheet.create({
 
   featureList: {
     gap: 0,
+  },
+  welcomePlan: {
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+  },
+  welcomePlanEyebrow: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 9,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.accentWarmSoft,
+    paddingTop: 0,
+    paddingBottom: 4,
+    textAlign: 'center',
+  },
+  welcomePlanRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 11,
   },
   featureRow: {
     flexDirection: 'row',

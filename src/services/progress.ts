@@ -431,6 +431,16 @@ export const awardActivityXP = async (xp: number): Promise<void> => {
 export const getLevelFromXp = (xp: number) => Math.floor(xp / 100) + 1;
 export const getLevelProgress = (xp: number) => (xp % 100) / 100;
 
+const LEVEL_NAMES: Record<number, string> = {
+  1: 'Seyirci',
+  2: 'Figüran',
+  3: 'Sahnede',
+  4: 'Baş Rol',
+  5: 'Yönetmen',
+};
+export const getLevelName = (level: number): string =>
+  level >= 6 ? 'Usta' : (LEVEL_NAMES[level] ?? 'Seyirci');
+
 const DAY_LABELS = ['Paz', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt'];
 
 export type DailyXpEntry = { date: string; label: string; xp: number };

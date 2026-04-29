@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ImageBackground, Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { awardActivityXP } from '../services/progress';
 import { colors } from '../theme/colors';
@@ -41,6 +42,8 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
   const rafRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
   const timeoutHandledRef = useRef(false);
+  const questionTransition = useRef(new Animated.Value(1)).current;
+  const phaseTransition = useRef(new Animated.Value(1)).current;
 
   const config = TRUE_FAKE_CONFIG[difficulty];
   const current = items[index];
@@ -60,6 +63,27 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
     timeoutHandledRef.current = false;
   };
 
+  const transitionPhase = (nextPhase: typeof phase, beforeChange?: () => void) => {
+    Animated.timing(phaseTransition, {
+      toValue: 0,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      beforeChange?.();
+      setPhase(nextPhase);
+      phaseTransition.setValue(0);
+      requestAnimationFrame(() => {
+        Animated.timing(phaseTransition, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }).start();
+      });
+    });
+  };
+
   const startGame = (d: TrueFakeDifficulty) => {
     // Build scene-specific items first; fill remaining slots with generic bank
     const sceneItems = scenario
@@ -71,24 +95,26 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
     const sceneHead = sceneItems.slice(0, Math.min(3, sceneItems.length));
     const tail = [...sceneItems.slice(3), ...genericItems].sort(() => Math.random() - 0.5);
     const set = [...sceneHead, ...tail].slice(0, questionCount);
-    setDifficulty(d);
-    setItems(set);
-    setIndex(0);
-    setClarityScore(0);
-    setPracticeRun(0);
-    setBestPracticeRun(0);
-    setNaturalRun(0);
-    setCorrectCount(0);
-    setMistakes([]);
-    setTimeLeft(TRUE_FAKE_CONFIG[d].seconds);
-    resetQuestion();
-    setPhase('playing');
+    transitionPhase('playing', () => {
+      setDifficulty(d);
+      setItems(set);
+      setIndex(0);
+      setClarityScore(0);
+      setPracticeRun(0);
+      setBestPracticeRun(0);
+      setNaturalRun(0);
+      setCorrectCount(0);
+      setMistakes([]);
+      setTimeLeft(TRUE_FAKE_CONFIG[d].seconds);
+      questionTransition.setValue(1);
+      resetQuestion();
+    });
   };
 
   const finishGame = async () => {
     const xp = Math.max(6, Math.min(30, Math.floor(clarityScore / 12) + Math.floor(bestPracticeRun / 2)));
     await awardActivityXP(xp);
-    setPhase('result');
+    transitionPhase('result');
   };
 
   const next = async () => {
@@ -97,9 +123,25 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
       await finishGame();
       return;
     }
-    setIndex(i => i + 1);
-    setTimeLeft(config.seconds);
-    resetQuestion();
+    Animated.timing(questionTransition, {
+      toValue: 0,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIndex(i => i + 1);
+      setTimeLeft(config.seconds);
+      resetQuestion();
+      questionTransition.setValue(0);
+      requestAnimationFrame(() => {
+        Animated.timing(questionTransition, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }).start();
+      });
+    });
   };
 
   const buildCorrectionText = (item: SentenceItem) => {
@@ -124,7 +166,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
       setCorrectCount(c => c + 1);
       setFeedback({
         correct: true,
-        text: current.isReal ? 'Doğal geliyor' : 'Garipliği yakaladın',
+        text: current.isReal ? 'Doğal geliyor' : 'Yanlışı yakaladın',
         correction: current.isReal ? current.text : (current.correction ?? current.text),
         explanation: current.explanation,
       });
@@ -137,7 +179,7 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
       }
       setFeedback({
         correct: false,
-        text: current.isReal ? 'Aslında doğal bir cümleydi' : 'Bu kullanım sahnede garip kaçar',
+        text: current.isReal ? 'Aslında doğal bir cümleydi' : 'Bu kullanım sahnede yanlış kaçar',
         correction: buildCorrectionText(current),
         explanation: current.explanation,
       });
@@ -183,9 +225,40 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
     };
   }, [phase, current, selected]);
 
-  if (phase === 'setup') {
-    return (
+  const bgImage = scenario?.backgroundImage;
+  const renderContainer = (children: React.ReactNode) =>
+    bgImage ? (
+      <ImageBackground source={{ uri: bgImage }} style={styles.container} imageStyle={{ opacity: 0.45 }}>
+        <LinearGradient colors={['rgba(10,14,20,0.65)', 'rgba(10,14,20,0.97)']} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <Animated.View
+          style={{
+            opacity: phaseTransition,
+            transform: [{
+              translateY: phaseTransition.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+            }],
+          }}
+        >
+          {children}
+        </Animated.View>
+      </ImageBackground>
+    ) : (
       <View style={styles.container}>
+        <Animated.View
+          style={{
+            opacity: phaseTransition,
+            transform: [{
+              translateY: phaseTransition.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+            }],
+          }}
+        >
+          {children}
+        </Animated.View>
+      </View>
+    );
+
+  if (phase === 'setup') {
+    return renderContainer(
+      <>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
@@ -199,13 +272,13 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
               ? 'Şimdi doğal tonu ayır'
               : scenario
                 ? `${scenario.title} · ton provası`
-                : 'Doğal mı, garip mi?'}
+                : 'Doğal mı, yanlış mı?'}
           </Text>
           <Text style={styles.cardSub}>
             {runMode
-              ? `${runSceneTitle ?? scenario?.title ?? 'Bugünkü sahne'} başlamadan önce kulağını aç: hangi cümle gerçek hayatta doğal, hangisi sahneyi garipleştirir?`
+                ? `${runSceneTitle ?? scenario?.title ?? 'Bugünkü sahne'} başlamadan önce kulağını aç: hangi cümle gerçek hayatta doğal, hangisi yanlış tonda?`
               : scenario
-                ? `Bu sahnede seni zorlayacak tonlar — hangisi doğal, hangisi fazla direkt ya da yanlış bağlamda?`
+                ? `Bu sahnede seni zorlayacak tonlar — hangisi doğal, hangisi yanlış bağlamda?`
                 : 'Bugünkü sahnede doğal kalmak için cümleyi gör, doğru tonu hızlı seç.'}
           </Text>
 
@@ -265,13 +338,14 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
             <Text style={styles.startBtnText}>{runMode ? t('mini.toneStart') : t('mini.start')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </>
     );
   }
 
   if (phase === 'result') {
     const total = Math.max(items.length, 1);
     const accuracy = Math.round((correctCount / total) * 100);
+    const isReadyForScene = accuracy >= 60;
     const result: ModuleResult = {
       module: 'truefake',
       accuracy: correctCount / total,
@@ -279,8 +353,18 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
       speed: 1 / Math.max(TRUE_FAKE_CONFIG[difficulty].seconds, 1),
     };
 
-    return (
-      <View style={styles.container}>
+    const resultTitle = runMode
+      ? isReadyForScene
+        ? 'Sahne için hazırsın'
+        : 'Bir prova daha fark yaratır'
+      : 'Ton provası tamamlandı';
+
+    const resultHint = runMode && !isReadyForScene
+      ? `Doğallık oranın %${accuracy} kaldı. Sahneye girmeden önce bir kez daha dönmek ister misin?`
+      : `Bir sonraki prova için ${mistakes.length > 0 ? 'garip kaçan cümleleri yumuşat' : 'aynı sakin ritmi koru'}.`;
+
+    return renderContainer(
+      <>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
@@ -289,10 +373,10 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
         </View>
 
         <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>{runMode ? 'Sahne için hazırsın' : 'Ton provası tamamlandı'}</Text>
+          <Text style={styles.resultTitle}>{resultTitle}</Text>
           <Text style={styles.resultScore}>%{accuracy}</Text>
           <Text style={styles.resultMeta}>Doğal seçim oranı</Text>
-          <Text style={styles.resultMeta}>Bir sonraki prova için {mistakes.length > 0 ? 'garip kaçan cümleleri yumuşat' : 'aynı sakin ritmi koru'}.</Text>
+          <Text style={styles.resultMeta}>{resultHint}</Text>
 
           {mistakes.length > 0 && (
             <View style={styles.mistakeBox}>
@@ -301,24 +385,35 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
             </View>
           )}
 
-          {runMode && onComplete ? (
+          {runMode && !isReadyForScene ? (
+            <>
+              <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
+                <Text style={styles.startBtnText}>Bir kez daha dene →</Text>
+              </TouchableOpacity>
+              {onComplete && (
+                <TouchableOpacity style={styles.skipBtn} onPress={() => onComplete(result)}>
+                  <Text style={styles.skipBtnText}>Yine de sahneye gir</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : runMode && onComplete ? (
             <TouchableOpacity style={styles.startBtn} onPress={() => onComplete(result)}>
               <Text style={styles.startBtnText}>Bugünkü sahneye gir →</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
-              <Text style={styles.startBtnText}>Bu anı tekrar çalış</Text>
+              <Text style={styles.startBtnText}>Tonu tekrar dene →</Text>
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </>
     );
   }
 
   const timerPct = Math.max(0, Math.min((timeLeft / config.seconds) * 100, 100));
 
-  return (
-    <View style={styles.container}>
+  return renderContainer(
+    <>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -337,43 +432,52 @@ export default function TrueOrFakeScreen({ onBack, runMode = false, runSceneTitl
         <View style={[styles.timerFill, { width: `${timerPct}%` }]} />
       </View>
 
-      <View style={styles.sentenceCard}>
-        <Text style={styles.sentenceText}>{current?.text}</Text>
-      </View>
-
-      <View style={styles.buttonsRow}>
-        <TouchableOpacity
-          style={[styles.pickBtn, styles.realBtn, selected !== null && selected !== true && styles.pickDim]}
-          onPress={() => evaluate(true)}
-          disabled={selected !== null}
-        >
-          <Text style={styles.pickText}>Doğal</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.pickBtn, styles.fakeBtn, selected !== null && selected !== false && styles.pickDim]}
-          onPress={() => evaluate(false)}
-          disabled={selected !== null}
-        >
-          <Text style={styles.pickText}>Garip</Text>
-        </TouchableOpacity>
-      </View>
-
-      {feedback && (
-        <View style={[styles.feedbackBox, feedback.correct ? styles.feedbackGood : styles.feedbackBad]}>
-          <Text style={styles.feedbackMain}>{feedback.text}</Text>
-          {!feedback.correct && (
-            <Text style={styles.feedbackCorrection}>{t('mini.corrected', { text: feedback.correction })}</Text>
-          )}
-          <Text style={styles.feedbackExplain}>{feedback.explanation}</Text>
-          {!feedback.correct && awaitingManualNext && (
-            <TouchableOpacity style={styles.nextBtn} onPress={next}>
-              <Text style={styles.nextBtnText}>Sıradaki →</Text>
-            </TouchableOpacity>
-          )}
+      <Animated.View
+        style={{
+          opacity: questionTransition,
+          transform: [{
+            translateY: questionTransition.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }),
+          }],
+        }}
+      >
+        <View style={styles.sentenceCard}>
+          <Text style={styles.sentenceText}>{current?.text}</Text>
         </View>
-      )}
-    </View>
+
+        <View style={styles.buttonsRow}>
+          <TouchableOpacity
+            style={[styles.pickBtn, styles.realBtn, selected !== null && selected !== true && styles.pickDim]}
+            onPress={() => evaluate(true)}
+            disabled={selected !== null}
+          >
+            <Text style={styles.pickTextReal}>Doğal</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pickBtn, styles.fakeBtn, selected !== null && selected !== false && styles.pickDim]}
+            onPress={() => evaluate(false)}
+            disabled={selected !== null}
+          >
+            <Text style={styles.pickText}>Yanlış</Text>
+          </TouchableOpacity>
+        </View>
+
+        {feedback && (
+          <View style={[styles.feedbackBox, feedback.correct ? styles.feedbackGood : styles.feedbackBad]}>
+            <Text style={styles.feedbackMain}>{feedback.text}</Text>
+            {!feedback.correct && (
+              <Text style={styles.feedbackCorrection}>{t('mini.corrected', { text: feedback.correction })}</Text>
+            )}
+            <Text style={styles.feedbackExplain}>{feedback.explanation}</Text>
+            {!feedback.correct && awaitingManualNext && (
+              <TouchableOpacity style={styles.nextBtn} onPress={next}>
+                <Text style={styles.nextBtnText}>Sıradaki →</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </Animated.View>
+    </>
   );
 }
 
@@ -406,8 +510,8 @@ const styles = StyleSheet.create({
   runWhyBox: { backgroundColor: colors.bgSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: spacing.lg },
   runWhyTitle: { color: colors.accentWarm, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
   runWhyText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
-  startBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
-  startBtnText: { color: colors.bgDeep, fontWeight: typography.weight.black, fontSize: typography.size.md },
+  startBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: spacing.md, alignSelf: 'stretch' },
+  startBtnText: { color: colors.bgDeep, fontFamily: 'InterTight_600SemiBold', fontSize: 15 },
 
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   topStat: { color: colors.inkSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
@@ -419,14 +523,15 @@ const styles = StyleSheet.create({
 
   buttonsRow: { flexDirection: 'row', gap: spacing.sm },
   pickBtn: { flex: 1, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1 },
-  realBtn: { backgroundColor: colors.successSoft, borderColor: colors.success },
-  fakeBtn: { backgroundColor: 'rgba(201,122,106,0.15)', borderColor: colors.errorDs },
-  pickText: { color: colors.inkPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
-  pickDim: { opacity: 0.45 },
+  realBtn: { backgroundColor: colors.successDsSoft, borderColor: colors.successDs },
+  fakeBtn: { backgroundColor: colors.errorDsSoft, borderColor: colors.errorDs },
+  pickText: { color: colors.inkPrimary, fontSize: typography.size.md, fontFamily: 'InterTight_600SemiBold' },
+  pickTextReal: { color: colors.inkPrimary, fontSize: typography.size.md, fontFamily: 'InterTight_600SemiBold' },
+  pickDim: { opacity: 0.38 },
 
   feedbackBox: { marginTop: spacing.md, borderRadius: 12, padding: spacing.md, borderWidth: 1 },
-  feedbackGood: { backgroundColor: colors.successSoft, borderColor: colors.success },
-  feedbackBad: { backgroundColor: 'rgba(201,122,106,0.15)', borderColor: colors.errorDs },
+  feedbackGood: { backgroundColor: colors.successDsSoft, borderColor: colors.successDs },
+  feedbackBad: { backgroundColor: colors.errorDsSoft, borderColor: colors.errorDs },
   feedbackMain: { color: colors.inkPrimary, fontSize: typography.size.md, fontWeight: typography.weight.black },
   feedbackCorrection: { color: colors.accentWarm, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginTop: spacing.xs },
   feedbackExplain: { color: colors.inkSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
@@ -441,4 +546,6 @@ const styles = StyleSheet.create({
   mistakeBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.bgSoft, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.hairline },
   mistakeTitle: { color: colors.accentWarm, fontSize: typography.size.sm, fontWeight: typography.weight.bold, marginBottom: spacing.xs },
   mistakeText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20 },
+  skipBtn: { marginTop: spacing.sm, paddingVertical: 12, alignItems: 'center', alignSelf: 'stretch' },
+  skipBtnText: { color: colors.inkTertiary, fontSize: typography.size.sm, fontFamily: 'InterTight_400Regular' },
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform,
+  ScrollView, ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
@@ -9,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import NotificationsSheet from '../components/NotificationsSheet';
 import { tryParseJson } from '../services/json';
-import { getProgress, getLevelFromXp, getUnlockState } from '../services/progress';
+import { getProgress, getLevelFromXp, getLevelProgress, getLevelName, getUnlockState } from '../services/progress';
 import { getTodaysMissionScenario } from '../data/scenarios';
 import { ALL_PRACTICE_TARGETS, defaultPracticeTarget } from '../data/practiceGoals';
 import { getLastSceneSession } from '../services/sessionMemory';
@@ -36,6 +37,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
   const [todaySceneTitle, setTodaySceneTitle] = useState(t('home.defaultTitle'));
   const [todaySceneMeta, setTodaySceneMeta] = useState(t('home.defaultMeta'));
   const [todaySceneGoal, setTodaySceneGoal] = useState(t('home.defaultGoal'));
+  const [todaySceneBg, setTodaySceneBg] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [smartSuggestion, setSmartSuggestion] = useState('Bugün sahnede daha doğal cevaplara odaklan.');
@@ -77,6 +79,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
     setTodaySceneTitle(mission.title);
     setTodaySceneMeta(`${mission.location} · ~${minutes} min${playCount > 0 ? ` · ${t('home.played', { count: playCount })}` : ''}`);
     setTodaySceneGoal(t('home.turnGoal', { turns: turnGoal, awkward: awkwardCap }));
+    setTodaySceneBg(mission.backgroundImage ?? null);
     setSmartSuggestion(
       progress.lastPlayedDate === new Date().toISOString().slice(0, 10)
         ? t('home.suggestionPlayed')
@@ -90,6 +93,8 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
   useEffect(() => { loadProfile(); }, [t]);
 
   const level = getLevelFromXp(xp);
+  const levelName = getLevelName(level);
+  const xpProgress = getLevelProgress(xp);
   const bottomPad = Math.max(insets.bottom, 12) + 56;
   const topPad = insets.top + 12;
 
@@ -127,11 +132,16 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
       {/* Main content */}
       <Animated.View
         style={[
-          styles.body,
-          { paddingBottom: bottomPad, opacity: entrance,
+          styles.bodyWrap,
+          { opacity: entrance,
             transform: [{ translateY: entrance.interpolate({ inputRange: [0,1], outputRange: [16,0] }) }] },
         ]}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Eyebrow */}
         <Text style={styles.eyebrow}>{t('home.eyebrow')}</Text>
 
@@ -141,9 +151,13 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         </Text>
 
         {/* Today's scene card */}
-        <View style={styles.sceneCard}>
+        <ImageBackground
+          source={todaySceneBg ? { uri: todaySceneBg } : undefined}
+          style={styles.sceneCard}
+          imageStyle={{ opacity: 0.4, borderRadius: 20 }}
+        >
           <LinearGradient
-            colors={['rgba(40,30,22,0.70)', 'rgba(18,24,34,0.90)']}
+            colors={['rgba(40,30,22,0.60)', 'rgba(18,24,34,0.92)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.sceneCardGradient}
@@ -162,7 +176,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
             <Feather name="target" size={11} color={colors.accentWarm} />
             <Text style={styles.sceneCardGoal}>{todaySceneGoal}</Text>
           </View>
-        </View>
+        </ImageBackground>
 
         {/* CTA */}
         <TouchableOpacity
@@ -174,25 +188,31 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
           <Feather name="arrow-right" size={16} color={colors.bgDeep} />
         </TouchableOpacity>
 
-        {/* Progress pill */}
+        {/* Progress block */}
         <TouchableOpacity
-          style={styles.progressPill}
+          style={styles.progressBlock}
           onPress={onOpenProgress}
           activeOpacity={0.7}
           disabled={!onOpenProgress}
         >
-          <View style={styles.progressPillItem}>
-            <Feather name="zap" size={11} color={colors.accentWarm} />
-            <Text style={styles.progressPillText}>{t('home.streak', { count: streak })}</Text>
+          <View style={styles.progressBlockTop}>
+            <View style={styles.progressBlockLeft}>
+              <Text style={styles.progressLevelName}>{levelName}</Text>
+              <Text style={styles.progressLevelSub}>{xp} XP · Seviye {level}</Text>
+            </View>
+            <View style={styles.progressBlockRight}>
+              <Feather name="zap" size={11} color={colors.accentWarm} />
+              <Text style={styles.progressStreakText}>{t('home.streak', { count: streak })}</Text>
+            </View>
           </View>
-          <View style={styles.progressPillDivider} />
-          <View style={styles.progressPillItem}>
-            <Text style={styles.progressPillText}>{xp} XP</Text>
+          <View style={styles.xpTrack}>
+            <LinearGradient
+              colors={[colors.accentWarmSoft, colors.accentWarm]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.xpFill, { width: `${Math.round(xpProgress * 100)}%` as any }]}
+            />
           </View>
-          <View style={styles.progressPillDivider} />
-          <View style={styles.progressPillItem}>
-            <Text style={styles.progressPillText}>{t('home.level', { level })}</Text>
-          </View>
+          <Text style={styles.xpNextLabel}>{100 - (xp % 100)} XP → {getLevelName(level + 1)}</Text>
         </TouchableOpacity>
 
         {/* Suggestion */}
@@ -245,6 +265,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
             <Text style={styles.plusMemorySub}>{PLUS_SOFT_UPSELL.subtitle}</Text>
           </View>
         </View>
+        </ScrollView>
       </Animated.View>
 
       <NotificationsSheet visible={notifOpen} onClose={() => setNotifOpen(false)} />
@@ -311,8 +332,9 @@ const styles = StyleSheet.create({
   },
 
   // Body
+  bodyWrap: { flex: 1 },
+  scroll: { flex: 1 },
   body: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingTop: 16,
     gap: 16,
@@ -406,33 +428,55 @@ const styles = StyleSheet.create({
     color: colors.bgDeep,
   },
 
-  // Progress pill
-  progressPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Progress block
+  progressBlock: {
     backgroundColor: colors.bgMid,
-    borderRadius: 999,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    gap: 12,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 10,
   },
-  progressPillItem: {
+  progressBlockTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  progressBlockLeft: { gap: 2 },
+  progressBlockRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  progressPillText: {
+  progressLevelName: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 18,
+    color: colors.inkPrimary,
+    letterSpacing: -0.3,
+  },
+  progressLevelSub: {
+    ...typography.body,
+    fontSize: 11,
+    color: colors.inkTertiary,
+  },
+  progressStreakText: {
     ...typography.bodyMedium,
     fontSize: 12,
     color: colors.inkSecondary,
   },
-  progressPillDivider: {
-    width: 1,
-    height: 12,
+  xpTrack: {
+    height: 3,
+    borderRadius: 2,
     backgroundColor: colors.hairlineStrong,
+    overflow: 'hidden',
+  },
+  xpFill: { height: 3, borderRadius: 2 },
+  xpNextLabel: {
+    ...typography.body,
+    fontSize: 10,
+    color: colors.inkTertiary,
   },
 
   // Suggestion

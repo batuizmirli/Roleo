@@ -2,6 +2,7 @@
 
 > Bu dosya Roleo projesinin **iki katmanlı kılavuzudur**: tasarım dili (Bölüm A) ve teknik mimari (Bölüm B).
 > Cursor veya başka bir AI ile çalışırken bu dosyaya referans ver. Her yeni ekran, bileşen veya feature **bu sistemin içinde kalmalı**.
+> Kalıcı ürün kararları ve agent çalışma kuralları için ayrıca `ROLEO_RULES.md` ve `.cursor/rules/*.mdc` dosyalarını takip et.
 
 ---
 
@@ -275,19 +276,21 @@ Identity-driven dil öğrenme uygulaması. Kullanıcının hayali/hedefi onboard
 - `userProfile` → UserProfile { language, nativeLanguage, goal, goalDescription, identity: {goal, context, emotion}, streak, xp, completedScenarios[] }
 - `roleoProgress` → ProgressState { xp, streak, lastPlayedDate (ISO YYYY-MM-DD), completedScenarioIds[] }
 - `firstSessionState` → 'pending' | 'done'
-- `phrasebook_{langCode}` → cache
+- `subscriptionState` → Roleo Plus mock subscription state
+- `voicePracticeUsage` → free/plus voice practice limit tracking
 
 ## B4. Core Learning Loop
 
-ScenarioPrepModal (opsiyonel story bağlam +5 XP) → ScenarioScreen (AI konuşma) → StageResultScreen (XP/level/streak) → ProgressScreen
+Daily warm-up / prep tools → ScenarioScreen (AI sahne konuşması) → StageResultScreen (sahne geri bildirimi + sakin progression) → ProgressScreen
 
 ## B5. ScenarioScreen AI Prompt Yapısı
 
-3 katman: basePrompt (persona) + scenarioPrompt (sahne) + runtimePrompt (level, identity, micro feedback direktifi)
+3 katman: basePrompt (persona) + scenarioPrompt (sahne) + runtimePrompt (level, identity, memory, micro feedback direktifi)
 
 - Her AI yanıtı `✨ ` ile micro feedback ile başlar
 - Hata varsa `💡 Düzeltme:` eklenir
 - Her 3 mesajda identity goal öne çıkar
+- AI yoksa scene-aware fallback çalışır; boş veya kırık sahne kabul edilmez
 
 ## B6. XP Sistemi
 
@@ -312,30 +315,32 @@ ScenarioPrepModal (opsiyonel story bağlam +5 XP) → ScenarioScreen (AI konuşm
 |-------|----------|
 | OnboardingScreen | native/language/goal/dream/context/emotion adımları |
 | HomeScreen | FAB (⚡ InstantLearn), dreamCard, XP bar, modlar |
-| ScenariosScreen | Unlock'a göre filtrelenmiş senaryo listesi, completed göstergesi |
-| ScenarioScreen | AI chat, quick phrases panel (💬), micro feedback |
-| StageResultScreen | XP, level-up tespiti, identity bağlantısı, unlock |
+| ScenariosScreen | Kategori + konu sekmeleriyle filtrelenmiş sahne listesi |
+| ScenarioScreen | AI sahne konuşması, çeviri kartı, zamanlı seçim, voice repeat |
+| StageResultScreen | Sahne odaklı konuşma geri bildirimi, sakin progression |
 | ProgressScreen | Tam XP/streak/stage breakdown |
 | InstantLearnScreen | Anında kelime/ifade açıklama, her yerden FAB ile açılır |
 | StoriesScreen | AI hikaye okuma + quiz, XP bağlı |
-| PhrasebookScreen | AI phrase listesi, cache'li |
+| PronunciationScreen | Sesler / Kelimeler / Cümleler / Detaylar |
+| GrammarScreen | Kalıplar, işe yarayan ifadeler ve kurtarıcı cümleler |
 | ScenarioPrepModal | Sahne öncesi story context modal |
 
 ## B9. Önemli Kararlar
 
 1. Dream/identity prompt'a inject edilmiş — ScenarioScreen runtimePrompt'ta goal+context+emotion kullanılıyor
-2. Phrasebook ayrı mod değil — ScenarioScreen içi 💬 paneli
+2. Phrasebook ayrı mod değil — sahne kalıpları ve kurtarıcı cümleler GrammarScreen içinde
 3. Story modu sahne hazırlığı — ScenarioPrepModal ile senaryo girişine bağlı
 4. Streak tarihleri ISO 8601 (YYYY-MM-DD) — `toDateString()` değil
 5. Global InstantLearn FAB — App.tsx overlay, focus ekranlarında gizli
+6. Görünür tüm geçişler animasyonlu olmalı — detay için `.cursor/rules/roleo-animation-standards.mdc`
 
 ## B10. Bilinen Eksikler / Sıradaki İşler
 
-- Senaryo sayısı az (14), çeşitlilik artırılabilir
+- Senaryo sayısı ve kategori çeşitliliği artırılabilir
 - Daily Mission: getTodaysMissionScenario artık identity + completedScenarios'a göre seçiyor
 - Push notification yok
 - Conversation history persist edilmiyor (uygulama kapanınca sıfırlanıyor)
-- **Tasarım sistemi entegrasyonu:** Mevcut ekranların yeni tasarım sistemi (Bölüm A) ile yeniden ele alınması gerekiyor. Onboarding ve ScenarioScreen önceliklidir.
+- **Tasarım sistemi entegrasyonu:** Yeni ekranlar Roleo sinematik sistemi ve animasyon standartlarıyla başlamalı; eski ekranlarda düzeltme yapılırken aynı standart korunmalı.
 
 ---
 
@@ -343,18 +348,19 @@ ScenarioPrepModal (opsiyonel story bağlam +5 XP) → ScenarioScreen (AI konuşm
 
 ## C1. Yeni bir ekran/feature eklerken
 
-1. **Önce Bölüm A'yı oku** — tasarım kararlarına aykırı bir şey yapma.
+1. **Önce Bölüm A'yı ve `ROLEO_RULES.md` dosyasını oku** — tasarım ve ürün kararlarına aykırı bir şey yapma.
 2. **Bölüm B'deki ilgili servisi bul** — yeni ekran XP, identity, AI ile etkileşiyorsa mevcut wrapper'ları kullan, paralel sistem yazma.
 3. **Renkleri theme/colors.ts üzerinden kullan**, asla hardcode hex.
 4. **Display + body font'u sabit:** Fraunces + Inter Tight. Başka font getirme.
 5. **Tek ekranda 1-2 akcent kullanımı.** Daha fazlası kıymet azaltır.
-6. **Yeni component pattern eklenirse Bölüm A6'yı güncelle.**
+6. **Her görünür geçişi animasyonlu tasarla.** Geri/iptal/skip/başlat/sonraki dahil.
+7. **Yeni component pattern eklenirse Bölüm A6'yı veya `ROLEO_RULES.md` dosyasını güncelle.**
 
 ## C2. React Native özel notları
 
 - Frosted glass: `expo-blur` (`<BlurView />`)
 - Gradient: `expo-linear-gradient`
-- Animasyon: `react-native-reanimated` — staggered entrance için `withDelay + withTiming`
+- Animasyon: mevcut kodda çoğunlukla React Native `Animated` API kullanılır; yeni işte mevcut ekran pattern'ını takip et
 - Font yükleme: `expo-font` ile Fraunces ve Inter Tight'ı `useFonts` hook'unda
 - Fotoğraf: `expo-image` (cache + blurhash placeholder için)
 

@@ -40,6 +40,8 @@ export type Scenario = {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   language: string;
   stageType?: 'cafe' | 'travel' | 'business' | 'social' | 'story' | 'survival';
+  sceneCategory?: 'daily' | 'travel' | 'work' | 'social' | 'sports' | 'food' | 'survival';
+  sceneTopic?: string;
   modeType?: 'normal' | 'challenge' | 'survival' | 'story';
   estimatedMinutes?: number;
   levelRange?: Array<'beginner' | 'intermediate' | 'advanced'>;
@@ -222,7 +224,7 @@ export type ModuleResult = {
 };
 
 export type GameMode = {
-  id: 'scenarios' | 'grammar' | 'vocab' | 'quiz' | 'stories' | 'phrasebook';
+  id: 'scenarios' | 'grammar' | 'vocab' | 'quiz' | 'stories';
   title: string;
   description: string;
   emoji: string;

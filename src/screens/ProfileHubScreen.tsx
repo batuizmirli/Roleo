@@ -94,9 +94,15 @@ export default function ProfileHubScreen({ onOpenAccount, onOpenProgress }: Prop
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <View style={styles.topLeft}>
-          <View style={styles.avatarCircle}>
+          <TouchableOpacity
+            style={styles.avatarCircle}
+            onPress={onOpenAccount}
+            activeOpacity={0.78}
+            accessibilityRole="button"
+            accessibilityLabel="Profil ayarlarını aç"
+          >
             <Text style={styles.avatarInitial}>{avatarInitial}</Text>
-          </View>
+          </TouchableOpacity>
           <View>
             <Text style={styles.eyebrow}>PROFİL</Text>
             <Text style={styles.screenTitle}>

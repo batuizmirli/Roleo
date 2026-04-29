@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as ExpoLinking from 'expo-linking';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Feather from '@expo/vector-icons/Feather';
 import {
   Poppins_400Regular,
   Poppins_500Medium,
@@ -31,13 +32,13 @@ import VocabScreen from './src/screens/VocabScreen';
 import GrammarScreen from './src/screens/GrammarScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuotesScreen from './src/screens/QuotesScreen';
-import PhrasebookScreen from './src/screens/PhrasebookScreen';
 import StageResultScreen from './src/screens/StageResultScreen';
 import FirstSessionReadyScreen from './src/screens/FirstSessionReadyScreen';
 import FirstSessionNextScreen from './src/screens/FirstSessionNextScreen';
 import DebugPanelScreen from './src/screens/DebugPanelScreen';
 import InstantLearnScreen from './src/screens/InstantLearnScreen';
 import PronunciationScreen from './src/screens/PronunciationScreen';
+import ListeningScreen from './src/screens/ListeningScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import FlashPickScreen from './src/screens/FlashPickScreen';
@@ -79,7 +80,6 @@ type Screen =
   | 'grammar'
   | 'quiz'
   | 'stories'
-  | 'phrasebook'
   | 'stage-result'
   | 'first-session-ready'
   | 'first-session-next'
@@ -89,6 +89,7 @@ type Screen =
   | 'true-or-fake'
   | 'progress'
   | 'account'
+  | 'listening'
   | 'debug';
 
 export default function App() {
@@ -135,6 +136,7 @@ export default function App() {
   const [activeChallenge, setActiveChallenge] = useState<FriendChallengeTarget | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const runBriefingExitAnim = useRef(new Animated.Value(1)).current;
   const SW = Dimensions.get('window').width;
   /** Grammar ekranına hangi ekrandan girildiğini ayırt etmek için. */
   const grammarEntryRef = useRef<'home' | 'learn-hub' | 'practice-hub' | 'profile-hub' | 'stage-result'>('stage-result');
@@ -271,6 +273,7 @@ export default function App() {
   }, []);
 
   const animateScreenChange = (next: Screen) => {
+    if (screen === next) return;
     setScreen(next);
     fadeAnim.setValue(0);
     slideAnim.setValue(SW * 0.18);
@@ -280,11 +283,51 @@ export default function App() {
     ]).start();
   };
 
-  const handleModeSelect = (mode: 'scenarios' | 'stories' | 'phrasebook') => {
+  const animateBackChange = (next: Screen, beforeChange?: () => void) => {
+    if (screen === next && !beforeChange) return;
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 130,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      beforeChange?.();
+      setScreen(next);
+      slideAnim.setValue(-SW * 0.04);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          Animated.timing(slideAnim, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        ]).start();
+      });
+    });
+  };
+
+  const handleModeSelect = (mode: 'scenarios' | 'stories') => {
     animateScreenChange(mode === 'scenarios' ? 'scenarios' : (mode as Screen));
   };
 
   const goTo = (next: Screen) => animateScreenChange(next);
+  const backTo = (next: Screen) => animateBackChange(next);
+
+  const animateRunStateChange = (next: RunState) => {
+    if (runState === next) return;
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setRunState(next);
+      slideAnim.setValue(SW * 0.08);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          Animated.timing(slideAnim, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        ]).start();
+      });
+    });
+  };
 
   const openToolScreen = (tool: Screen) => {
     toolReturnScreenRef.current = screen;
@@ -369,13 +412,14 @@ export default function App() {
       resetRun();
       return;
     }
-    setRunState('briefing');
+    runBriefingExitAnim.setValue(1);
+    animateRunStateChange('briefing');
     await trackEvent('run_started', { source: returnTo, goalId: goalId ?? 'none', scenarioId: scenario.id });
   };
 
   const handleFlashComplete = async (result: ModuleResult) => {
     setRunResults(r => [...r, result]);
-    setRunState('truefake');
+    animateRunStateChange('truefake');
     await trackEvent('module_completed', { module: 'flash', accuracy: result.accuracy, comboMax: result.comboMax });
   };
 
@@ -392,7 +436,7 @@ export default function App() {
       setRunScenario(scenario);
     }
 
-    setRunState('scene');
+    animateRunStateChange('scene');
     await trackEvent('module_completed', { module: 'truefake', accuracy: result.accuracy, comboMax: result.comboMax });
   };
 
@@ -416,7 +460,7 @@ export default function App() {
       sceneFlow: result.flowPath,
     });
     setRunResults(next);
-    setRunState('complete');
+    animateRunStateChange('complete');
     if (runScenario) {
       const profileRaw = await AsyncStorage.getItem('userProfile');
       const profile = profileRaw ? JSON.parse(profileRaw) : null;
@@ -468,7 +512,24 @@ export default function App() {
     setRunScenario(null);
     setRunGoalId(undefined);
     setDailyRunBoard(null);
+    runBriefingExitAnim.setValue(1);
     setRunState('idle');
+  };
+
+  const resetRunWithBackTransition = (nextScreen: Screen = dailyRunExitRef.current) => {
+    animateBackChange(nextScreen, resetRun);
+  };
+
+  const closeDailyRunBriefing = () => {
+    Animated.timing(runBriefingExitAnim, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      animateBackChange(dailyRunExitRef.current, resetRun);
+    });
   };
 
   const renderDailyRunBriefing = () => {
@@ -479,7 +540,37 @@ export default function App() {
         <View style={runBriefingStyles.glowWarm} pointerEvents="none" />
         <View style={runBriefingStyles.glowCool} pointerEvents="none" />
         <View style={runBriefingStyles.grain} pointerEvents="none" />
-        <View style={runBriefingStyles.card}>
+        <Animated.View
+          style={[
+            runBriefingStyles.card,
+            {
+              opacity: runBriefingExitAnim,
+              transform: [
+                {
+                  scale: runBriefingExitAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.97, 1],
+                  }),
+                },
+                {
+                  translateY: runBriefingExitAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [18, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={runBriefingStyles.closeBtn}
+            onPress={closeDailyRunBriefing}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={t('run.exit')}
+          >
+            <Feather name="x" size={18} color={colors.inkTertiary} />
+          </TouchableOpacity>
           <Text style={runBriefingStyles.eyebrow}>{t('run.eyebrow')}</Text>
           <Text style={runBriefingStyles.title}>
             {t('run.title.before')} <Text style={runBriefingStyles.titleAccent}>{t('run.title.accent')}</Text>,{'\n'}{t('run.title.after')}
@@ -508,13 +599,13 @@ export default function App() {
             ))}
           </View>
 
-          <TouchableOpacity style={runBriefingStyles.primaryBtn} onPress={() => setRunState('flash')} activeOpacity={0.9}>
+          <TouchableOpacity style={runBriefingStyles.primaryBtn} onPress={() => animateRunStateChange('flash')} activeOpacity={0.9}>
             <Text style={runBriefingStyles.primaryText}>{t('run.start')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={runBriefingStyles.secondaryBtn} onPress={resetRun} activeOpacity={0.85}>
-            <Text style={runBriefingStyles.secondaryText}>{t('run.exit')}</Text>
+          <TouchableOpacity style={runBriefingStyles.secondaryBtn} onPress={() => animateRunStateChange('scene')} activeOpacity={0.85}>
+            <Text style={runBriefingStyles.secondaryText}>{t('run.skipWarmup')}</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     );
   };
@@ -525,11 +616,11 @@ export default function App() {
     }
 
     if (runState === 'flash') {
-      return <FlashPickScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleFlashComplete} />;
+      return <FlashPickScreen onBack={() => resetRunWithBackTransition()} runMode runSceneTitle={runScenario?.title} onComplete={handleFlashComplete} backgroundImage={runScenario?.backgroundImage} />;
     }
 
     if (runState === 'truefake') {
-      return <TrueOrFakeScreen onBack={resetRun} runMode runSceneTitle={runScenario?.title} onComplete={handleTrueFakeComplete} scenario={runScenario ?? undefined} />;
+      return <TrueOrFakeScreen onBack={() => resetRunWithBackTransition()} runMode runSceneTitle={runScenario?.title} onComplete={handleTrueFakeComplete} scenario={runScenario ?? undefined} />;
     }
 
     if (runState === 'scene') {
@@ -541,7 +632,7 @@ export default function App() {
         <ScenarioScreen
           scenario={runScenario}
           playCount={currentPlayCount}
-          onBack={resetRun}
+          onBack={() => resetRunWithBackTransition()}
           easyStart={easyStart}
           guidedRunMode
           goalId={runGoalId}
@@ -558,7 +649,7 @@ export default function App() {
         <RunResultScreen
           results={runResults}
           dailyRunBoard={dailyRunBoard}
-          onExit={() => { resetRun(); goTo(dailyRunExitRef.current); }}
+          onExit={() => resetRunWithBackTransition(dailyRunExitRef.current)}
           onReplay={() => startDailyRun(runGoalId, dailyRunExitRef.current)}
         />
       );
@@ -646,8 +737,8 @@ export default function App() {
             setCurrentProfile(p ? JSON.parse(p) : null);
             goTo('home');
           }}
-          onReset={() => goTo('onboarding')}
-          onSkip={() => goTo('home')}
+          onReset={() => backTo('onboarding')}
+          onSkip={() => backTo('home')}
         />
       );
     }
@@ -698,10 +789,9 @@ export default function App() {
                 goTo('vocab');
               }}
               onOpenPronunciation={() => openPremiumTool('pronunciation', PLUS_GATE_COPY.voice)}
+              onOpenListening={() => openToolScreen('listening')}
               onOpenInstantLearn={() => openPremiumTool('instant-learn', PLUS_GATE_COPY.customScene)}
               onOpenGrammar={() => openGrammarFrom('learn-hub')}
-              onOpenPhrasebook={() => openToolScreen('phrasebook')}
-              onOpenStories={() => openToolScreen('stories')}
             />
           )}
           {screen === 'practice-hub' && (
@@ -737,7 +827,7 @@ export default function App() {
     if (screen === 'account') {
       return (
         <AccountScreen
-          onBack={() => goTo('profile-hub')}
+          onBack={() => backTo('profile-hub')}
           onOpenScenarios={() => {
             scenariosReturnRef.current = 'account';
             goTo('scenarios');
@@ -752,19 +842,23 @@ export default function App() {
     }
 
     if (screen === 'instant-learn') {
-      return <InstantLearnScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+      return <InstantLearnScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'pronunciation') {
-      return <PronunciationScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+      return <PronunciationScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
+    }
+
+    if (screen === 'listening') {
+      return <ListeningScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'flash-pick') {
-      return <FlashPickScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+      return <FlashPickScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'true-or-fake') {
-      return <TrueOrFakeScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
+      return <TrueOrFakeScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
     }
 
     if (screen === 'scenarios') {
@@ -786,7 +880,7 @@ export default function App() {
             setCurrentPlayCount(progress?.scenarioPlayCounts?.[s.id] ?? 0);
             setShowPrepModal(true);
           }}
-          onBack={() => goTo(scenariosReturnRef.current)}
+          onBack={() => backTo(scenariosReturnRef.current)}
         />
       );
     }
@@ -800,7 +894,7 @@ export default function App() {
           prepBonus={prepBonus}
           challengeTarget={activeChallenge}
           onBack={() =>
-            goTo(
+            backTo(
               runType === 'first'
                 ? 'first-session-ready'
                 : runType === 'onboarding-preview'
@@ -856,7 +950,7 @@ export default function App() {
         <StageResultScreen
           result={stageResult}
           firstSessionMode={runType === 'first' || runType === 'onboarding-preview'}
-          onBackHome={() => goTo(runType === 'onboarding-preview' ? 'onboarding' : 'home')}
+          onBackHome={() => backTo(runType === 'onboarding-preview' ? 'onboarding' : 'home')}
           onGoScenarios={async () => {
             await trackEvent('next_stage_clicked', { source: 'result', runType });
             const wasFirst = runType === 'first';
@@ -900,7 +994,7 @@ export default function App() {
 
     if (screen === 'vocab') {
       const backTarget = stageResult ? 'stage-result' : toolReturnScreenRef.current;
-      return <VocabScreen onBack={() => goTo(backTarget)} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+      return <VocabScreen onBack={() => backTo(backTarget)} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     }
     if (screen === 'grammar') {
       const gOrigin = grammarEntryRef.current;
@@ -909,18 +1003,17 @@ export default function App() {
       const fromStage = gOrigin === 'stage-result';
       return (
         <GrammarScreen
-          onBack={() => goTo(grammarBackTarget)}
+          onBack={() => backTo(grammarBackTarget)}
           scenarioTitle={fromStage ? stageResult?.scenarioTitle : undefined}
           stageType={fromStage ? stageResult?.stageType : undefined}
           scenario={fromStage ? scenarios.find(s => s.id === stageResult?.scenarioId) : undefined}
         />
       );
     }
-    if (screen === 'quiz') return <QuizScreen onBack={() => goTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
-    if (screen === 'stories') return <QuotesScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
-    if (screen === 'phrasebook') return <PhrasebookScreen onBack={() => goTo(toolReturnScreenRef.current)} />;
-    if (screen === 'progress') return <ProgressScreen onBack={() => goTo(progressReturnRef.current)} />;
-    if (screen === 'debug') return <DebugPanelScreen onBack={() => goTo('home')} />;
+    if (screen === 'quiz') return <QuizScreen onBack={() => backTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
+    if (screen === 'stories') return <QuotesScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
+    if (screen === 'progress') return <ProgressScreen onBack={() => backTo(progressReturnRef.current)} />;
+    if (screen === 'debug') return <DebugPanelScreen onBack={() => backTo('home')} />;
 
     return null;
   };
@@ -941,18 +1034,7 @@ export default function App() {
         <Animated.View style={{ flex: 1, backgroundColor: '#0A0E14', opacity: fadeAnim, transform: [{ translateX: slideAnim }] }}>
           {renderScreen()}
         </Animated.View>
-        {showFab && (
-          <TouchableOpacity
-            style={fabStyles.fab}
-            onPress={() => {
-              toolReturnScreenRef.current = screen;
-              void openPremiumTool('instant-learn', PLUS_GATE_COPY.customScene);
-            }}
-            activeOpacity={0.85}
-          >
-            <Text style={fabStyles.fabIcon}>⚡</Text>
-          </TouchableOpacity>
-        )}
+        {/* FAB kaldırıldı — InstantLearn learn-hub'dan erişilebilir */}
         {runState === 'idle' && selectedScenario && (
           <ScenarioPrepModal
             visible={showPrepModal}
@@ -1042,6 +1124,7 @@ const runBriefingStyles = StyleSheet.create({
     backgroundColor: 'rgba(18, 24, 34, 0.86)',
     borderRadius: 28,
     padding: 22,
+    paddingTop: 28,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
     shadowColor: '#000',
@@ -1049,6 +1132,20 @@ const runBriefingStyles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 28,
     elevation: 4,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    zIndex: 2,
   },
   eyebrow: {
     color: colors.accentWarm,
@@ -1131,9 +1228,9 @@ const runBriefingStyles = StyleSheet.create({
     flex: 1,
   },
   primaryBtn: {
-    backgroundColor: colors.inkPrimary,
+    backgroundColor: colors.accentWarm,
     borderRadius: 999,
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
   },
   primaryText: {

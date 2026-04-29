@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Speech from 'expo-speech';
 import { UserProfile } from '../types';
 import { tryParseJson } from '../services/json';
 import { colors } from '../theme/colors';
 import {
-  NumberRange,
+  DetailTopic,
   PronunciationCategory,
   PronunciationItem,
   WordTopic,
-  getLetterItems,
-  getNumberRanges,
-  getNumberItems,
+  getDetailItems,
+  getDetailTopics,
+  getSentenceItems,
   getSpeechLocale,
+  getSoundItems,
   getWordTopics,
   getWordItems,
 } from '../data/pronunciation';
@@ -23,9 +24,10 @@ type Props = {
 };
 
 const TABS: Array<{ id: PronunciationCategory; title: string }> = [
-  { id: 'letters', title: 'Harfler' },
+  { id: 'sounds', title: 'Sesler' },
   { id: 'words', title: 'Kelimeler' },
-  { id: 'numbers', title: 'Sayılar' },
+  { id: 'sentences', title: 'Cümleler' },
+  { id: 'details', title: 'Detaylar' },
 ];
 
 const WORD_TOPIC_ICONS: Record<WordTopic, string> = {
@@ -39,21 +41,23 @@ const WORD_TOPIC_ICONS: Record<WordTopic, string> = {
   food: '🍽️',
 };
 
-const RANGE_ICONS: Record<NumberRange, string> = {
-  '0-100': '🔢',
-  '101-200': '📈',
-  '201-300': '🧠',
-  '301-400': '🚀',
+const DETAIL_TOPIC_ICONS: Record<DetailTopic, string> = {
+  time: '🕰️',
+  prices: '💶',
+  places: '🚪',
+  codes: '🔖',
 };
 
 export default function PronunciationScreen({ onBack }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [tab, setTab] = useState<PronunciationCategory>('letters');
+  const [tab, setTab] = useState<PronunciationCategory>('sounds');
   const [wordTopic, setWordTopic] = useState<WordTopic>('basics');
-  const [numberRange, setNumberRange] = useState<NumberRange>('0-100');
+  const [detailTopic, setDetailTopic] = useState<DetailTopic>('time');
   const [query, setQuery] = useState('');
   const [wordDefinitions, setWordDefinitions] = useState<Record<string, string | null>>({});
   const requestedWordsRef = useRef<Set<string>>(new Set());
+  const subNavEntrance = useRef(new Animated.Value(1)).current;
+  const gridPanelEntrance = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const load = async () => {
@@ -70,13 +74,34 @@ export default function PronunciationScreen({ onBack }: Props) {
   const locale = getSpeechLocale(targetCode);
 
   const topicOptions = useMemo(() => getWordTopics(nativeCode), [nativeCode]);
-  const rangeOptions = useMemo(() => getNumberRanges(), []);
+  const detailOptions = useMemo(() => getDetailTopics(nativeCode), [nativeCode]);
+
+  useEffect(() => {
+    subNavEntrance.setValue(0);
+    Animated.timing(subNavEntrance, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [tab, subNavEntrance]);
+
+  useEffect(() => {
+    gridPanelEntrance.setValue(0);
+    Animated.timing(gridPanelEntrance, {
+      toValue: 1,
+      duration: 520,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [tab, wordTopic, detailTopic, query, gridPanelEntrance]);
 
   const allItems = useMemo<PronunciationItem[]>(() => {
-    if (tab === 'letters') return getLetterItems(nativeCode);
-    if (tab === 'numbers') return getNumberItems(nativeCode, numberRange);
+    if (tab === 'sounds') return getSoundItems(targetCode, nativeCode);
+    if (tab === 'sentences') return getSentenceItems(targetCode, nativeCode);
+    if (tab === 'details') return getDetailItems(targetCode, nativeCode, detailTopic);
     return getWordItems(targetCode, nativeCode, wordTopic);
-  }, [tab, targetCode, nativeCode, numberRange, wordTopic]);
+  }, [tab, targetCode, nativeCode, detailTopic, wordTopic]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
@@ -145,10 +170,6 @@ export default function PronunciationScreen({ onBack }: Props) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onBack} style={styles.fixedBackBtn}>
-        <Text style={styles.fixedBackText}>←</Text>
-      </TouchableOpacity>
-
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text style={styles.title}>Telaffuz</Text>
@@ -167,7 +188,17 @@ export default function PronunciationScreen({ onBack }: Props) {
         </View>
 
         {tab === 'words' ? (
-          <View style={styles.subTabBleed}>
+          <Animated.View
+            style={[
+              styles.subTabBleed,
+              {
+                opacity: subNavEntrance,
+                transform: [{
+                  translateY: subNavEntrance.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+                }],
+              },
+            ]}
+          >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
               {topicOptions.map((topic) => {
                 const active = topic.id === wordTopic;
@@ -184,28 +215,38 @@ export default function PronunciationScreen({ onBack }: Props) {
                 );
               })}
             </ScrollView>
-          </View>
+          </Animated.View>
         ) : null}
 
-        {tab === 'numbers' ? (
-          <View style={styles.subTabBleed}>
+        {tab === 'details' ? (
+          <Animated.View
+            style={[
+              styles.subTabBleed,
+              {
+                opacity: subNavEntrance,
+                transform: [{
+                  translateY: subNavEntrance.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+                }],
+              },
+            ]}
+          >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
-              {rangeOptions.map((range) => {
-                const active = range.id === numberRange;
+              {detailOptions.map((topic) => {
+                const active = topic.id === detailTopic;
                 return (
                   <TouchableOpacity
-                    key={range.id}
-                    onPress={() => setNumberRange(range.id)}
+                    key={topic.id}
+                    onPress={() => setDetailTopic(topic.id)}
                     style={[styles.subTabBtn, active && styles.subTabBtnActive]}
                   >
                     <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
-                      {RANGE_ICONS[range.id]} {range.title}
+                      {DETAIL_TOPIC_ICONS[topic.id]} {topic.title}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-          </View>
+          </Animated.View>
         ) : null}
 
         <TextInput
@@ -218,27 +259,39 @@ export default function PronunciationScreen({ onBack }: Props) {
           autoCorrect={false}
         />
 
-        <View style={styles.grid}>
-          {filtered.map((item) => {
-            const key = toDictionaryKey(item.speakText ?? item.text);
-            const definition = tab === 'words' && key ? wordDefinitions[key] : null;
+        <Animated.View
+          style={[
+            styles.gridPanel,
+            {
+              opacity: gridPanelEntrance,
+              transform: [{
+                translateY: gridPanelEntrance.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }),
+              }],
+            },
+          ]}
+        >
+          <View style={styles.grid}>
+            {filtered.map((item) => {
+              const key = toDictionaryKey(item.speakText ?? item.text);
+              const definition = tab === 'words' && key ? wordDefinitions[key] : null;
 
-            return (
-              <TouchableOpacity key={item.id} style={styles.card} onPress={() => speak(item.speakText ?? item.text)} activeOpacity={0.88}>
-                <Text style={styles.cardText}>{item.text}</Text>
-                <Text style={styles.cardMeaning}>{item.meaning}</Text>
-                {tab === 'words' && definition ? (
-                  <Text style={styles.cardDefinition} numberOfLines={2}>
-                    {definition}
-                  </Text>
-                ) : null}
-                <View style={styles.speakerWrap}>
-                  <Text style={styles.speakerIcon}>🔊</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              return (
+                <TouchableOpacity key={item.id} style={styles.card} onPress={() => speak(item.speakText ?? item.text)} activeOpacity={0.88}>
+                  <Text style={styles.cardText}>{item.text}</Text>
+                  <Text style={styles.cardMeaning}>{item.meaning}</Text>
+                  {tab === 'words' && definition ? (
+                    <Text style={styles.cardDefinition} numberOfLines={2}>
+                      {definition}
+                    </Text>
+                  ) : null}
+                  <View style={styles.speakerWrap}>
+                    <Text style={styles.speakerIcon}>🔊</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
 
         {filtered.length === 0 ? (
           <View style={styles.emptyWrap}>
@@ -248,6 +301,9 @@ export default function PronunciationScreen({ onBack }: Props) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <TouchableOpacity onPress={onBack} style={styles.fixedBackBtn}>
+        <Text style={styles.fixedBackText}>←</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -322,9 +378,18 @@ const styles = StyleSheet.create({
   },
   subTabText: { color: colors.inkSecondary, fontSize: 12, fontFamily: 'InterTight_500Medium' },
   subTabTextActive: { color: colors.accentWarm },
+  gridPanel: {
+    backgroundColor: 'rgba(18,24,34,0.62)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: 10,
+    marginTop: 2,
+    overflow: 'hidden',
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   card: {
-    width: '47%',
+    width: '48%',
     backgroundColor: colors.bgMid,
     borderRadius: 16,
     borderWidth: 1,

@@ -75,6 +75,8 @@ export const colors = {
   hairlineStrong: 'rgba(255, 255, 255, 0.12)',
 
   // Durum (DS versiyonları — mevcut 'success' ve 'danger' korundu)
-  successDs: '#7FB28E',   // DS success — old value '#7D9774' kept as 'success'
-  errorDs: '#C97A6A',     // DS error — yumuşak, asla kırmızı değil
+  successDs: '#7FB28E',               // DS success — old value '#7D9774' kept as 'success'
+  successDsSoft: 'rgba(127, 178, 142, 0.16)',  // DS success tint for dark backgrounds
+  errorDs: '#C97A6A',                 // DS error — yumuşak, asla kırmızı değil
+  errorDsSoft: 'rgba(201, 122, 106, 0.16)',    // DS error tint for dark backgrounds
 } as const;

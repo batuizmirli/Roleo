@@ -54,6 +54,8 @@ type TurnRecord = {
   quality: OptionQuality;
   goodOption: string;
   npcReaction: string;
+  inputMode?: 'written' | 'voice';
+  transcript?: string;
 };
 
 type GameTurn = {
@@ -98,7 +100,11 @@ type Phase = 'init' | 'intro' | 'vocab' | 'resume' | 'game' | 'lost' | 'done';
 const CONV_KEY = (id: string) => `conversation_${id}`;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_TURNS = 6;
-const REACTION_DELAY_MS = 160;
+const REACTION_DELAY_MS = 360;
+const VOICE_REPEAT_SECONDS = 3.2;
+const VOICE_REPLY_SECONDS = 7;
+const GAME_EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
+const GAME_EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const PHOTO_HEIGHT = SCREEN_HEIGHT * 0.60;
@@ -141,6 +147,26 @@ const qColor = (q: OptionQuality) =>
   q === 'good' ? colors.successDs : q === 'ok' ? colors.accentWarmSoft : colors.errorDs;
 const qLabel = (q: OptionQuality) =>
   q === 'good' ? '✨ Çok doğal' : q === 'ok' ? '👍 Anlaşıldı' : '😅 Biraz garip';
+
+const normalizeVoiceText = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const voiceTokensFor = (text: string) =>
+  Array.from(new Set(normalizeVoiceText(text).split(' ').filter(token => token.length > 2)));
+
+const scoreVoiceMatch = (transcript: string, optionText: string) => {
+  const spoken = normalizeVoiceText(transcript);
+  const optionTokens = voiceTokensFor(optionText);
+  if (!spoken || optionTokens.length === 0) return 0;
+  const matched = optionTokens.filter(token => spoken.includes(token)).length;
+  return matched / optionTokens.length;
+};
 
 type ComboTier = {
   hype: string;
@@ -316,11 +342,14 @@ export default function ScenarioScreen({
   const [turnHistory, setTurnHistory] = useState<TurnRecord[]>([]);
   const [sceneComplete, setSceneComplete] = useState(false);
   const [failReaction, setFailReaction] = useState('');
-  const [voiceStep, setVoiceStep] = useState<'idle' | 'ready' | 'recording' | 'review' | 'skipped' | 'locked'>('idle');
+  const [voiceStep, setVoiceStep] = useState<'idle' | 'ready' | 'recording' | 'processing' | 'review' | 'skipped' | 'locked'>('idle');
   const [voiceAttempts, setVoiceAttempts] = useState<VoiceAttempt[]>([]);
   const [currentVoiceAttempt, setCurrentVoiceAttempt] = useState<VoiceAttempt | null>(null);
   const [voiceMessage, setVoiceMessage] = useState('');
   const [voiceTargetText, setVoiceTargetText] = useState('');
+  const [voiceCaptureMode, setVoiceCaptureMode] = useState<'scene' | 'repeat' | null>(null);
+  const [voiceInputMode, setVoiceInputMode] = useState<'hybrid' | 'written'>('hybrid');
+  const [lastVoiceTranscript, setLastVoiceTranscript] = useState('');
 
   // Combo + hint
   const [consecutiveGood, setConsecutiveGood] = useState(0);
@@ -344,7 +373,7 @@ export default function ScenarioScreen({
   const timedOutTurnsRef = useRef(0);
   const failMetricsRef = useRef({ trailingAwk: 0, totalAwk: 0, turns: 0, flowTail: false });
   const handleNextRef = useRef<(() => Promise<void>) | null>(null);
-  const handleSelectRef = useRef<(idx: number, meta?: { timedOut?: boolean }) => void>(() => {});
+  const handleSelectRef = useRef<(idx: number, meta?: { timedOut?: boolean; inputMode?: 'written' | 'voice'; transcript?: string }) => void>(() => {});
   const optionsRef = useRef<DialogOption[] | null>(null);
   const selectedIdxRef = useRef<number | null>(null);
 
@@ -358,20 +387,26 @@ export default function ScenarioScreen({
   const turnCacheRef = useRef<TurnCache>({});
   const comboCardScale = useRef(new Animated.Value(1)).current;
   const lostDimOpacity = useRef(new Animated.Value(0)).current;
-  const timerShake = useRef(new Animated.Value(0)).current;
   const timerGlow = useRef(new Animated.Value(1)).current;
   const doneHeroScale = useRef(new Animated.Value(1)).current;
   const flowPulse = useRef(new Animated.Value(1)).current;
   const rewardOpacity = useRef(new Animated.Value(0)).current;
   const timerProgress = useRef(new Animated.Value(1)).current;
-  const timerShakeLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const npcCardFlip = useRef(new Animated.Value(0)).current;
   const timerGlowLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   // ── Scene editorial UI state ───────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [recordingSecsLeft, setRecordingSecsLeft] = useState(3.2);
+  const [npcCardSide, setNpcCardSide] = useState<'front' | 'translation'>('front');
+  const [npcTranslation, setNpcTranslation] = useState<string | null>(null);
+  const [translationLoading, setTranslationLoading] = useState(false);
   const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingUriRef = useRef<string | undefined>(undefined);
+  const voiceCaptureModeRef = useRef<'scene' | 'repeat' | null>(null);
+  const translationCacheRef = useRef<Record<string, string>>({});
+  const lastSpokenNpcLineRef = useRef('');
 
   // Animation: mic ripple (two concentric rings)
   const micRipple1 = useRef(new Animated.Value(0)).current;
@@ -388,21 +423,28 @@ export default function ScenarioScreen({
   const animateNpcEntrance = () => {
     npcEntrance.setValue(0);
     Animated.parallel([
-      Animated.timing(npcEntrance, { toValue: 1, duration: 320, useNativeDriver: true }),
+      Animated.timing(npcEntrance, { toValue: 1, duration: 560, easing: GAME_EASE_OUT, useNativeDriver: true }),
     ]).start();
   };
 
   const animateNpcReplyEntrance = () => {
     npcReplyEntrance.setValue(0);
-    Animated.timing(npcReplyEntrance, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    Animated.timing(npcReplyEntrance, { toValue: 1, duration: 620, easing: GAME_EASE_OUT, useNativeDriver: true }).start();
+  };
+
+  const resetNpcCardFace = () => {
+    npcCardFlip.setValue(0);
+    setNpcCardSide('front');
+    setNpcTranslation(null);
+    setTranslationLoading(false);
   };
 
   const animateOptionsIn = () => {
     optionsEntrance.setValue(0);
     optionsOpacity.setValue(0);
     Animated.parallel([
-      Animated.timing(optionsEntrance, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(optionsOpacity, { toValue: 1, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(optionsEntrance, { toValue: 1, duration: 520, easing: GAME_EASE_OUT, useNativeDriver: true }),
+      Animated.timing(optionsOpacity, { toValue: 1, duration: 460, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
   };
 
@@ -411,14 +453,14 @@ export default function ScenarioScreen({
       Animated.parallel([
         Animated.timing(optionsEntrance, {
           toValue: 0,
-          duration: 260,
-          easing: Easing.bezier(0.22, 0.8, 0.18, 1),
+          duration: 420,
+          easing: GAME_EASE_IN_OUT,
           useNativeDriver: true,
         }),
         Animated.timing(optionsOpacity, {
           toValue: 0,
-          duration: 220,
-          easing: Easing.inOut(Easing.quad),
+          duration: 360,
+          easing: GAME_EASE_IN_OUT,
           useNativeDriver: true,
         }),
       ]).start(() => resolve());
@@ -463,6 +505,13 @@ export default function ScenarioScreen({
       void stopNpcSpeech();
     };
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'game' || !npcMessage || selectedIdx !== null) return;
+    if (lastSpokenNpcLineRef.current === npcMessage) return;
+    lastSpokenNpcLineRef.current = npcMessage;
+    void speakNpcLine(npcMessage, scenario.language);
+  }, [npcMessage, phase, scenario.language, selectedIdx]);
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
@@ -902,6 +951,59 @@ Return ONLY valid JSON:
     return normalizeAiTurn(parseModelJson<AiTurnPayload>(res, 'object'), openingMsg);
   };
 
+  const translateNpcLine = async (text: string): Promise<string> => {
+    const clean = text.replace(/^["“]|["”]$/g, '').trim();
+    if (!clean) return t('scenario.translationUnavailable');
+    const profile = await getProfile();
+    const nativeLanguage = profile?.nativeLanguage?.name ?? 'Turkish';
+    const cacheKey = `${profile?.nativeLanguage?.code ?? 'tr'}:${clean}`;
+    if (translationCacheRef.current[cacheKey]) return translationCacheRef.current[cacheKey];
+
+    try {
+      const translated = await sendMessage(
+        [{
+          id: `translate-${Date.now()}`,
+          role: 'user',
+          content: `Translate this line into ${nativeLanguage}. Return only the translation, no quotes, no explanation:\n${clean}`,
+          timestamp: new Date(),
+        }],
+        'You are a precise in-app translator for a language learning scene. Preserve the meaning and tone. Return only the translated sentence.',
+        { maxTokens: 80 },
+      );
+      const compact = translated.trim().replace(/^["“]|["”]$/g, '');
+      translationCacheRef.current[cacheKey] = compact || t('scenario.translationUnavailable');
+      return translationCacheRef.current[cacheKey];
+    } catch {
+      return t('scenario.translationUnavailable');
+    }
+  };
+
+  const flipNpcCard = async (text: string) => {
+    const nextSide = npcCardSide === 'front' ? 'translation' : 'front';
+    if (nextSide === 'translation' && !npcTranslation) {
+      setTranslationLoading(true);
+      void translateNpcLine(text).then(translated => {
+        setNpcTranslation(translated);
+        setTranslationLoading(false);
+      });
+    }
+
+    Animated.timing(npcCardFlip, {
+      toValue: 0.5,
+      duration: 135,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      setNpcCardSide(nextSide);
+      Animated.timing(npcCardFlip, {
+        toValue: nextSide === 'translation' ? 1 : 0,
+        duration: 165,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
   const prefetchNextTurns = async (
     history: TurnRecord[],
     openingMsg: string,
@@ -949,6 +1051,7 @@ Return ONLY valid JSON:
     setNpcReaction(null);
     setReactionVisible(false);
     setHintIdx(null);
+    resetNpcCardFace();
 
     if (cached?.options?.length) {
       if (minDelayMs > 0) await wait(minDelayMs);
@@ -995,11 +1098,19 @@ Return ONLY valid JSON:
     setSelectedIdx(null);
     setNpcReaction(null);
     setReactionVisible(false);
+    resetNpcCardFace();
     setVoiceStep('idle');
+    setIsRecording(false);
+    if (countdownInterval.current) { clearInterval(countdownInterval.current); countdownInterval.current = null; }
+    if (recordingTimer.current) { clearTimeout(recordingTimer.current); recordingTimer.current = null; }
     setVoiceAttempts([]);
     setCurrentVoiceAttempt(null);
     setVoiceMessage('');
     setVoiceTargetText('');
+    setVoiceCaptureMode(null);
+    voiceCaptureModeRef.current = null;
+    setVoiceInputMode('hybrid');
+    setLastVoiceTranscript('');
     setSceneComplete(false);
     setConsecutiveGood(0);
     setConsecutiveBad(0);
@@ -1008,7 +1119,7 @@ Return ONLY valid JSON:
     loadTurn(history, msg);
   };
 
-  const handleSelect = (idx: number, _meta?: { timedOut?: boolean }, providedOptions?: DialogOption[]) => {
+  const handleSelect = (idx: number, meta?: { timedOut?: boolean; inputMode?: 'written' | 'voice'; transcript?: string }, providedOptions?: DialogOption[]) => {
     const activeOptions = providedOptions ?? options;
     if (selectedIdxRef.current !== null || optionsLoading || !activeOptions) return;
     const picked = activeOptions[idx];
@@ -1016,25 +1127,36 @@ Return ONLY valid JSON:
     clearAnswerTimer();
     setSelectedIdx(idx);
     setVoiceTargetText(picked.text);
-    setCurrentVoiceAttempt(null);
+    if (meta?.inputMode !== 'voice') setCurrentVoiceAttempt(null);
     setVoiceMessage('');
-    getVoiceRepeatLimitState()
-      .then(limit => {
-        if (limit.canUseVoiceRepeat) {
-          setVoiceStep('ready');
-        } else {
-          setVoiceStep('locked');
-          setVoiceMessage(t('scenario.voiceLocked'));
-        }
-      })
-      .catch(() => setVoiceStep('ready'));
+    setLastVoiceTranscript(meta?.transcript ?? '');
+    if (meta?.inputMode === 'voice') {
+      setVoiceStep('review');
+      setVoiceMessage('Sesli cevabın sahneye işlendi.');
+    } else {
+      getVoiceRepeatLimitState()
+        .then(limit => {
+          if (limit.canUseVoiceRepeat) {
+            setVoiceStep('ready');
+          } else {
+            setVoiceStep('locked');
+            setVoiceMessage(t('scenario.voiceLocked'));
+          }
+        })
+        .catch(() => setVoiceStep('ready'));
+    }
     if (picked.quality === 'good') {
       const tier = getComboTier(consecutiveGood + 1);
       if (tier) setRewardText(tier.hype);
     }
     setReactionVisible(false);
     feedbackEntrance.setValue(0);
-    Animated.timing(feedbackEntrance, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    Animated.timing(feedbackEntrance, {
+      toValue: 1,
+      duration: 560,
+      easing: GAME_EASE_OUT,
+      useNativeDriver: true,
+    }).start();
     // Micro delay before NPC reaction appears
     const reaction = currentReactions?.[picked.quality] ?? picked.feedback ?? null;
     reactionTimer.current = setTimeout(() => {
@@ -1062,7 +1184,7 @@ Return ONLY valid JSON:
     handleSelect(survivalIndex, { timedOut: true }, nextOptions);
     setTimeout(() => {
       void handleNextRef.current?.();
-    }, REACTION_DELAY_MS + 720);
+    }, REACTION_DELAY_MS + 1300);
   };
 
   const handleNext = async () => {
@@ -1076,7 +1198,15 @@ Return ONLY valid JSON:
 
     const newHistory: TurnRecord[] = [
       ...turnHistory,
-      { npcMessage, selectedText: chosen.text, quality: chosen.quality, goodOption, npcReaction: reaction },
+      {
+        npcMessage,
+        selectedText: lastVoiceTranscript || chosen.text,
+        quality: chosen.quality,
+        goodOption,
+        npcReaction: reaction,
+        inputMode: lastVoiceTranscript ? 'voice' : 'written',
+        transcript: lastVoiceTranscript || undefined,
+      },
     ];
     setTurnHistory(newHistory);
     setSelectedIdx(null);
@@ -1086,6 +1216,8 @@ Return ONLY valid JSON:
     setCurrentVoiceAttempt(null);
     setVoiceMessage('');
     setVoiceTargetText('');
+    setVoiceCaptureMode(null);
+    setLastVoiceTranscript('');
     startThinkingCountdown();
 
     // Combo + fail logic
@@ -1387,11 +1519,8 @@ Return ONLY valid JSON:
   }, [phase, doneHeroScale]);
 
   useEffect(() => {
-    timerShakeLoopRef.current?.stop();
     timerGlowLoopRef.current?.stop();
-    timerShake.setValue(0);
     timerGlow.setValue(1);
-    timerShakeLoopRef.current = null;
     timerGlowLoopRef.current = null;
 
     if (phase !== 'game' || selectedIdx !== null || answerTimeLeft === null || answerTimeLeft <= 0) {
@@ -1409,26 +1538,11 @@ Return ONLY valid JSON:
       timerGlowLoopRef.current = glow;
     }
 
-    if (answerTimeLeft <= 3) {
-      const sh = Animated.loop(
-        Animated.sequence([
-          Animated.timing(timerShake, { toValue: 1, duration: 42, useNativeDriver: true }),
-          Animated.timing(timerShake, { toValue: -1, duration: 42, useNativeDriver: true }),
-          Animated.timing(timerShake, { toValue: 1, duration: 42, useNativeDriver: true }),
-          Animated.timing(timerShake, { toValue: 0, duration: 42, useNativeDriver: true }),
-        ]),
-      );
-      sh.start();
-      timerShakeLoopRef.current = sh;
-    }
-
     return () => {
-      timerShakeLoopRef.current?.stop();
       timerGlowLoopRef.current?.stop();
-      timerShakeLoopRef.current = null;
       timerGlowLoopRef.current = null;
     };
-  }, [phase, answerTimeLeft, selectedIdx, timerShake, timerGlow]);
+  }, [phase, answerTimeLeft, selectedIdx, timerGlow]);
 
   useEffect(() => {
     if (phase !== 'done') return;
@@ -1513,6 +1627,43 @@ Return ONLY valid JSON:
     void speakNpcLine(text, scenario.language);
   };
 
+  const beginVoiceRecording = async (mode: 'scene' | 'repeat', seconds: number) => {
+    const allowed = await requestMicrophonePermission();
+    if (!allowed) {
+      setVoiceStep(mode === 'scene' ? 'idle' : 'skipped');
+      setVoiceMessage(t('scenario.voicePermissionDenied'));
+      setVoiceCaptureMode(null);
+      voiceCaptureModeRef.current = null;
+      return;
+    }
+    try {
+      const started = await startVoiceRecording();
+      recordingUriRef.current = started.uri;
+      setVoiceCaptureMode(mode);
+      voiceCaptureModeRef.current = mode;
+      setIsRecording(true);
+      setVoiceStep('recording');
+      setVoiceMessage('');
+      setRecordingSecsLeft(seconds);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+      const startedAt = Date.now();
+      countdownInterval.current = setInterval(() => {
+        const elapsed = (Date.now() - startedAt) / 1000;
+        setRecordingSecsLeft(Math.max(0, +(seconds - elapsed).toFixed(1)));
+      }, 100);
+      if (recordingTimer.current) clearTimeout(recordingTimer.current);
+      recordingTimer.current = setTimeout(() => {
+        void stopRecording();
+      }, seconds * 1000);
+    } catch {
+      setIsRecording(false);
+      setVoiceCaptureMode(null);
+      voiceCaptureModeRef.current = null;
+      setVoiceStep(mode === 'scene' ? 'idle' : 'skipped');
+      setVoiceMessage(t('scenario.voiceUnavailable'));
+    }
+  };
+
   const skipVoiceStep = () => {
     if (isRecording) return;
     setVoiceStep('skipped');
@@ -1521,40 +1672,89 @@ Return ONLY valid JSON:
 
   const startRecording = async () => {
     if (selectedIdx === null || !voiceTargetText || voiceStep === 'locked') return;
-    const allowed = await requestMicrophonePermission();
-    if (!allowed) {
-      setVoiceStep('skipped');
-      setVoiceMessage(t('scenario.voicePermissionDenied'));
+    await beginVoiceRecording('repeat', VOICE_REPEAT_SECONDS);
+  };
+
+  const startSceneVoiceReply = async () => {
+    if (selectedIdx !== null || optionsLoading || !options?.length || isRecording) return;
+    clearAnswerTimer();
+    setVoiceInputMode('hybrid');
+    setCurrentVoiceAttempt(null);
+    setLastVoiceTranscript('');
+    setVoiceTargetText('');
+    await beginVoiceRecording('scene', VOICE_REPLY_SECONDS);
+  };
+
+  const handleSceneVoiceTranscript = async (transcript: string) => {
+    const spoken = transcript.trim();
+    if (!spoken || !optionsRef.current?.length) {
+      setVoiceStep('idle');
+      setVoiceCaptureMode(null);
+      voiceCaptureModeRef.current = null;
+      setVoiceMessage('Ses net alınamadı. İstersen tekrar konuş veya yazılı cevabı seç.');
       return;
     }
-    try {
-      const started = await startVoiceRecording();
-      recordingUriRef.current = started.uri;
-      setIsRecording(true);
-      setVoiceStep('recording');
-      setVoiceMessage('');
-      if (recordingTimer.current) clearTimeout(recordingTimer.current);
-      recordingTimer.current = setTimeout(() => {
-        void stopRecording();
-      }, 3200);
-    } catch {
-      setIsRecording(false);
-      setVoiceStep('skipped');
-      setVoiceMessage(t('scenario.voiceUnavailable'));
-    }
+
+    const activeOptions = optionsRef.current;
+    const scored = activeOptions
+      .map((option, index) => ({ index, option, score: scoreVoiceMatch(spoken, option.text) }))
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0];
+    const quality: OptionQuality = best?.score >= 0.68
+      ? best.option.quality
+      : best?.score >= 0.36
+        ? 'ok'
+        : 'awkward';
+    const voiceOption: DialogOption = {
+      text: spoken,
+      quality,
+      feedback: quality === 'awkward'
+        ? 'Cevabın duyuldu ama sahne için biraz daha net bir cümle gerekebilir.'
+        : 'Sesli cevabın sahneye işlendi.',
+      why: 'voice-transcript',
+    };
+    const nextOptions = [...activeOptions, voiceOption];
+    const voiceIndex = nextOptions.length - 1;
+    optionsRef.current = nextOptions;
+    setOptions(nextOptions);
+    setVoiceTargetText(spoken);
+    setLastVoiceTranscript(spoken);
+    setVoiceMessage('Sesli cevabın sahneye işlendi.');
+    const evaluation = await evaluateVoiceAttempt(best?.option.text ?? spoken, spoken, scenario.language);
+    const attempt = createVoiceAttempt({
+      targetText: best?.option.text ?? spoken,
+      transcript: spoken,
+      evaluation: { ...evaluation, meaningClear: quality !== 'awkward' || evaluation.meaningClear },
+      scenarioId: scenario.id,
+      language: scenario.language,
+    });
+    setVoiceAttempts(prev => [...prev, attempt]);
+    setCurrentVoiceAttempt(attempt);
+    handleSelect(voiceIndex, { inputMode: 'voice', transcript: spoken }, nextOptions);
   };
 
   const stopRecording = async () => {
     if (recordingTimer.current) clearTimeout(recordingTimer.current);
+    if (countdownInterval.current) { clearInterval(countdownInterval.current); countdownInterval.current = null; }
+    const mode = voiceCaptureModeRef.current;
     setIsRecording(false);
-    if (!voiceTargetText) {
-      setVoiceStep('skipped');
-      return;
-    }
+    setVoiceStep('processing');
     try {
       const stopped = await stopVoiceRecording();
       const uri = stopped.uri ?? recordingUriRef.current ?? '';
       const transcription = uri ? await transcribeVoice(uri, scenario.language) : { transcript: '', confidence: undefined };
+      if (mode === 'scene') {
+        await handleSceneVoiceTranscript(transcription.transcript);
+        setVoiceCaptureMode(null);
+        voiceCaptureModeRef.current = null;
+        return;
+      }
+      if (!voiceTargetText) {
+        setVoiceStep('skipped');
+        setVoiceCaptureMode(null);
+        voiceCaptureModeRef.current = null;
+        return;
+      }
       const evaluation = await evaluateVoiceAttempt(voiceTargetText, transcription.transcript, scenario.language);
       const attempt = createVoiceAttempt({
         targetText: voiceTargetText,
@@ -1570,6 +1770,13 @@ Return ONLY valid JSON:
       setVoiceStep('review');
     } catch {
       await cleanupVoiceRecording(recordingUriRef.current);
+      if (mode === 'scene') {
+        setVoiceStep('idle');
+        setVoiceMessage(t('scenario.voiceUnavailable'));
+        setVoiceCaptureMode(null);
+        voiceCaptureModeRef.current = null;
+        return;
+      }
       const evaluation = await evaluateVoiceAttempt(voiceTargetText, '', scenario.language);
       const attempt = createVoiceAttempt({
         targetText: voiceTargetText,
@@ -1582,6 +1789,11 @@ Return ONLY valid JSON:
       setCurrentVoiceAttempt(attempt);
       setVoiceMessage(attempt.feedback ?? t('scenario.voiceUnavailable'));
       setVoiceStep('review');
+    } finally {
+      if (mode !== 'scene') {
+        setVoiceCaptureMode(null);
+        voiceCaptureModeRef.current = null;
+      }
     }
   };
 
@@ -1964,11 +2176,15 @@ Return ONLY valid JSON:
                 </View>
               )}
 
-              <Text style={styles.replayTitle}>TUR ÖZETI</Text>
+              <Text style={styles.replayTitle}>SORULAR KRONOLOJIK SIRADA</Text>
               {turnHistory.map((t, i) => (
                 <View key={i} style={styles.replayItem}>
                   <View style={styles.replayHeader}>
-                    <View style={[styles.replayDot, { backgroundColor: qColor(t.quality) }]} />
+                    <View style={[styles.replayQuestionBadge, { borderColor: qColor(t.quality) }]}>
+                      <Text style={[styles.replayQuestionBadgeText, { color: qColor(t.quality) }]}>
+                        {i + 1}. soru
+                      </Text>
+                    </View>
                     <Text style={styles.replayNpc} numberOfLines={1}>{t.npcMessage}</Text>
                   </View>
                   <Text style={[styles.replayChosen, { color: qColor(t.quality) }]}>
@@ -2003,10 +2219,17 @@ Return ONLY valid JSON:
   const comboTier = getComboTier(consecutiveGood);
   const livePath = computeFlowPath(turnHistory);
 
-  const scenePhoto = SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO;
+  const scenePhoto = scenario.backgroundImage
+    ? { uri: scenario.backgroundImage }
+    : (SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO);
   const npcRoleTr = STAGE_ROLE_TR[stageKey] ?? '';
   const turnLabel = `${String(turnNum).padStart(2, '0')} / ${String(MAX_TURNS).padStart(2, '0')}`;
   const sceneCaptionText = scenario.mission ?? scenario.title;
+  const visibleNpcLine = reactionVisible && npcReaction ? npcReaction : npcMessage;
+  const npcCardRotation = npcCardFlip.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '90deg', '0deg'],
+  });
 
   // Ripple ring scale/opacity for mic button
   const ripple1Scale = micRipple1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
@@ -2106,6 +2329,27 @@ Return ONLY valid JSON:
           </BlurView>
         </Animated.View>
 
+        {/* Timer — kept outside the scroll so it is visible as soon as the scene loads */}
+        {answerTimeLeft !== null && answerTimeTotal > 0 && selectedIdx === null && !!options && (
+          <Animated.View style={[gStyles.timerWrap, { opacity: timerGlow }]}>
+            <View style={gStyles.timerLabelRow}>
+              <Text style={gStyles.timerLabel}>KALAN SÜRE</Text>
+              <Text style={[gStyles.timerValue, answerTimeLeft <= 5 && gStyles.timerValueHot]}>{answerTimeLeft}s</Text>
+            </View>
+            <View style={gStyles.timerTrack}>
+              <Animated.View
+                style={[
+                  gStyles.timerFill,
+                  {
+                    width: timerProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                    backgroundColor: answerTimeLeft <= 3 ? colors.errorDs : colors.accentWarmSoft,
+                  },
+                ]}
+              />
+            </View>
+          </Animated.View>
+        )}
+
         {/* Scrollable dialogue section */}
         <ScrollView
           ref={scrollRef}
@@ -2152,36 +2396,6 @@ Return ONLY valid JSON:
             </Animated.View>
           )}
 
-          {/* Timer */}
-          {answerTimeLeft !== null && answerTimeTotal > 0 && selectedIdx === null && !!options && (
-            <Animated.View
-              style={[
-                gStyles.timerWrap,
-                {
-                  opacity: timerGlow,
-                  transform: [{
-                    translateX: timerShake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-6, 0, 6] }),
-                  }],
-                },
-              ]}
-            >
-              <View style={gStyles.timerTrack}>
-                <Animated.View
-                  style={[
-                    gStyles.timerFill,
-                    {
-                      width: timerProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-                      backgroundColor: answerTimeLeft <= 3 ? colors.errorDs : colors.accentWarmSoft,
-                    },
-                  ]}
-                />
-              </View>
-              {answerTimeLeft <= 5 && (
-                <Text style={gStyles.timerHint}>{answerTimeLeft}s</Text>
-              )}
-            </Animated.View>
-          )}
-
           {/* ── NPC card ─────────────────────────────────────────── */}
           <Animated.View
             style={[
@@ -2189,63 +2403,67 @@ Return ONLY valid JSON:
               isRecording && { opacity: 0.52 },
               {
                 opacity: npcEntrance,
-                transform: [{
-                  translateX: npcEntrance.interpolate({ inputRange: [0, 1], outputRange: [64, 0] }),
-                }],
+                transform: [
+                  { perspective: 900 },
+                  { translateX: npcEntrance.interpolate({ inputRange: [0, 1], outputRange: [64, 0] }) },
+                  { rotateY: npcCardRotation },
+                ],
               },
             ]}
           >
-            {/* Top shimmer line */}
-            <LinearGradient
-              colors={['transparent', colors.accentWarm + '4D', 'transparent']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={gStyles.npcTopLine}
-            />
-            {/* NPC meta row */}
-            <View style={gStyles.npcMeta}>
-              <View style={gStyles.npcAvatar}>
-                <Text style={gStyles.npcAvatarText}>{persona.name[0]}</Text>
-              </View>
-              <Text style={gStyles.npcName}>
-                {persona.name}
-                {npcRoleTr ? <Text style={gStyles.npcRole}> · {npcRoleTr}</Text> : null}
-              </Text>
-              {npcMood !== 'neutral' && (
-                <Text style={gStyles.npcMoodEmoji}>{MOOD_EMOJI[npcMood]}</Text>
-              )}
-              <TouchableOpacity style={gStyles.speakerBtn} onPress={replayNpcLine} activeOpacity={0.72}>
-                <Feather name="volume-2" size={13} color={colors.accentWarm} />
-              </TouchableOpacity>
-            </View>
-
-            {/* NPC speech */}
-            {reactionVisible && npcReaction ? (
-              <>
-                <Animated.View
-                  style={{
-                    opacity: npcReplyEntrance,
-                    transform: [{ translateX: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [32, 0] }) }],
-                  }}
-                >
-                  <Text style={gStyles.npcText}>"{npcReaction}"</Text>
-                </Animated.View>
-                <Text style={gStyles.npcPrevText}>{npcMessage}</Text>
-              </>
-            ) : (
-              <Text style={gStyles.npcText}>"{npcMessage}"</Text>
-            )}
-
-            {/* Translation toggle (hidden by default) */}
             <TouchableOpacity
-              style={gStyles.npcTranslationRow}
-              onPress={() => setShowTranslation(p => !p)}
-              activeOpacity={0.6}
+              activeOpacity={0.88}
+              onPress={() => { void flipNpcCard(visibleNpcLine); }}
             >
-              <Feather name="info" size={11} color={colors.inkTertiary} style={{ marginTop: 1 }} />
-              {showTranslation && npcReaction ? (
-                <Text style={gStyles.npcTranslationText}>{npcReaction}</Text>
+              {/* Top shimmer line */}
+              <LinearGradient
+                colors={['transparent', colors.accentWarm + '4D', 'transparent']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={gStyles.npcTopLine}
+              />
+              {/* NPC meta row */}
+              <View style={gStyles.npcMeta}>
+                <View style={gStyles.npcAvatar}>
+                  <Text style={gStyles.npcAvatarText}>{persona.name[0]}</Text>
+                </View>
+                <Text style={gStyles.npcName}>
+                  {npcCardSide === 'translation' ? t('scenario.translationBack') : persona.name}
+                  {npcCardSide === 'front' && npcRoleTr ? <Text style={gStyles.npcRole}> · {npcRoleTr}</Text> : null}
+                </Text>
+                {npcMood !== 'neutral' && npcCardSide === 'front' && (
+                  <Text style={gStyles.npcMoodEmoji}>{MOOD_EMOJI[npcMood]}</Text>
+                )}
+                <TouchableOpacity style={gStyles.speakerBtn} onPress={replayNpcLine} activeOpacity={0.72}>
+                  <Feather name={npcCardSide === 'translation' ? 'rotate-ccw' : 'volume-2'} size={13} color={colors.accentWarm} />
+                </TouchableOpacity>
+              </View>
+
+              {npcCardSide === 'translation' ? (
+                <View style={gStyles.npcTranslationFace}>
+                  <Text style={gStyles.npcTranslationLabel}>{t('scenario.translationLabel')}</Text>
+                  <Text style={gStyles.npcTranslationText}>
+                    {translationLoading ? t('scenario.translationLoading') : (npcTranslation ?? t('scenario.translationUnavailable'))}
+                  </Text>
+                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTapBack')}</Text>
+                </View>
+              ) : reactionVisible && npcReaction ? (
+                <>
+                  <Animated.View
+                    style={{
+                      opacity: npcReplyEntrance,
+                      transform: [{ translateY: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+                    }}
+                  >
+                    <Text style={gStyles.npcText}>"{npcReaction}"</Text>
+                  </Animated.View>
+                  <Text style={gStyles.npcPrevText}>{npcMessage}</Text>
+                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTap')}</Text>
+                </>
               ) : (
-                <Text style={gStyles.npcTranslationHint}>çeviriyi göster</Text>
+                <>
+                  <Text style={gStyles.npcText}>"{npcMessage}"</Text>
+                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTap')}</Text>
+                </>
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -2267,12 +2485,14 @@ Return ONLY valid JSON:
                   {selectedIdx !== null ? 'CEVABINI VERDİN' : 'SENIN SIRAN'}
                 </Text>
                 {selectedIdx === null && !isRecording && !!scenario.mission && (
-                  <Text style={gStyles.promptHint} numberOfLines={2}>{scenario.mission}</Text>
+                  <Text style={gStyles.promptHint} numberOfLines={2}>
+                    {voiceInputMode === 'written' ? 'Yazılı seçeneklerden birini seçebilirsin.' : scenario.mission}
+                  </Text>
                 )}
               </View>
 
-              {/* Recording state (Variant B) */}
-              {isRecording ? (
+              {/* Recording / voice processing state */}
+              {isRecording || (voiceCaptureMode === 'scene' && voiceStep === 'processing') ? (
                 <View style={gStyles.recordingWrap}>
                   {/* Waveform */}
                   <View style={gStyles.waveform}>
@@ -2286,19 +2506,35 @@ Return ONLY valid JSON:
                       />
                     ))}
                   </View>
-                  <Text style={gStyles.recordingHint}>{t('scenario.listening')}</Text>
-                  {/* Stop button */}
-                  <TouchableOpacity
-                    style={gStyles.stopBtn}
-                    onPress={stopRecording}
-                    activeOpacity={0.8}
-                  >
-                    <View style={gStyles.stopBtnInner} />
-                  </TouchableOpacity>
+                  <Text style={gStyles.recordingHint}>{voiceStep === 'processing' ? 'CEVABIN İŞLENİYOR' : t('scenario.listening')}</Text>
+                  <Text style={gStyles.recordingCountdown}>
+                    {voiceStep === 'processing' ? 'Söylediğin cümle sahneye çevriliyor' : `${recordingSecsLeft.toFixed(1)}s`}
+                  </Text>
+                  {voiceStep === 'processing' ? (
+                    <View style={gStyles.voiceProcessingIndicator}>
+                      <Animated.View style={gStyles.voiceProcessingDot} />
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={gStyles.stopBtn}
+                      onPress={stopRecording}
+                      activeOpacity={0.8}
+                    >
+                      <View style={gStyles.stopBtnInner} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : selectedIdx !== null ? (
                 /* Selected state — show result */
-                <View style={gStyles.selectedWrap}>
+                <Animated.View
+                  style={[
+                    gStyles.selectedWrap,
+                    {
+                      opacity: feedbackEntrance,
+                      transform: [{ translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+                    },
+                  ]}
+                >
                   {(() => {
                     const opt = options?.[selectedIdx];
                     if (!opt) return null;
@@ -2308,22 +2544,23 @@ Return ONLY valid JSON:
                         <Text style={[gStyles.selectedText, { color: c }]}>
                           "{opt.text}"
                         </Text>
-                        <Animated.View
-                          style={{
-                            opacity: feedbackEntrance,
-                            transform: [{ translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
-                          }}
-                        >
+                        <View>
                           <Text style={[gStyles.qualityTag, { color: c }]}>{qLabel(opt.quality)}</Text>
-                        </Animated.View>
+                        </View>
                         {voiceStep !== 'idle' && (
                           <View style={gStyles.voiceRepeatBox}>
                             <Text style={gStyles.voiceRepeatEyebrow}>{t('scenario.voiceEyebrow')}</Text>
                             <Text style={gStyles.voiceRepeatTitle}>{t('scenario.voicePrompt')}</Text>
-                            {voiceStep === 'recording' ? (
+                            {voiceStep === 'processing' ? (
+                              <Text style={gStyles.voiceRepeatSub}>Ses işleniyor…</Text>
+                            ) : voiceStep === 'recording' ? (
                               <Text style={gStyles.voiceRepeatSub}>{t('scenario.voiceRecording')}</Text>
                             ) : currentVoiceAttempt ? (
-                              <Text style={gStyles.voiceRepeatSub}>{currentVoiceAttempt.feedback}</Text>
+                              <Text style={gStyles.voiceRepeatSub}>
+                                {currentVoiceAttempt.transcript
+                                  ? currentVoiceAttempt.feedback
+                                  : 'Ses kaydedildi · Telaffuz değerlendirmesi bu cihazda yapılamadı.'}
+                              </Text>
                             ) : voiceMessage ? (
                               <Text style={gStyles.voiceRepeatSub}>{voiceMessage}</Text>
                             ) : (
@@ -2353,17 +2590,23 @@ Return ONLY valid JSON:
                                   <Feather name="square" size={12} color={colors.bgDeep} />
                                   <Text style={gStyles.voicePrimaryText}>{t('scenario.voiceStop')}</Text>
                                 </TouchableOpacity>
+                              ) : voiceStep === 'processing' ? (
+                                <View style={gStyles.voiceProcessingIndicator}>
+                                  <Animated.View style={gStyles.voiceProcessingDot} />
+                                </View>
                               ) : null}
-                              <TouchableOpacity style={gStyles.voiceSecondary} onPress={skipVoiceStep} activeOpacity={0.72}>
-                                <Text style={gStyles.voiceSecondaryText}>{t('scenario.voiceSkip')}</Text>
-                              </TouchableOpacity>
+                              {voiceStep !== 'processing' && (
+                                <TouchableOpacity style={gStyles.voiceSecondary} onPress={skipVoiceStep} activeOpacity={0.72}>
+                                  <Text style={gStyles.voiceSecondaryText}>{t('scenario.voiceSkip')}</Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           </View>
                         )}
                       </>
                     );
                   })()}
-                </View>
+                </Animated.View>
               ) : (
                 /* Idle — options list */
                 <>
@@ -2411,9 +2654,7 @@ Return ONLY valid JSON:
                         />
                         <TouchableOpacity
                           style={gStyles.micButton}
-                          onPress={() => {
-                            setVoiceMessage(t('scenario.chooseAbove'));
-                          }}
+                          onPress={() => { void startSceneVoiceReply(); }}
                           activeOpacity={0.85}
                         >
                           <Feather name="mic" size={22} color={colors.bgDeep} />
@@ -2422,7 +2663,7 @@ Return ONLY valid JSON:
                       <View style={gStyles.micInstruction}>
                         <Text style={gStyles.micInstructionMain}>{t('scenario.speak')}</Text>
                         <Text style={gStyles.micInstructionSub}>
-                          {t('scenario.chooseAbove')}
+                          {voiceMessage || t('scenario.chooseAbove')}
                         </Text>
                       </View>
                     </View>
@@ -2460,7 +2701,7 @@ Return ONLY valid JSON:
           <View style={gStyles.bottomLinks}>
             <TouchableOpacity
               style={[gStyles.bottomLink, isRecording && { opacity: 0 }]}
-              onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+              onPress={replayNpcLine}
               activeOpacity={0.6}
             >
               <View style={gStyles.bottomLinkInner}>
@@ -2481,7 +2722,14 @@ Return ONLY valid JSON:
               <TouchableOpacity
                 style={gStyles.bottomLink}
                 activeOpacity={0.6}
-                onPress={() => setIsRecording(false)}
+                onPress={() => {
+                  setVoiceInputMode('written');
+                  setVoiceMessage('Yazılı seçenekler açık. İstersen cevabını buradan seç.');
+                  if (voiceCaptureMode === 'scene') {
+                    setVoiceCaptureMode(null);
+                    voiceCaptureModeRef.current = null;
+                  }
+                }}
               >
                 <View style={gStyles.bottomLinkInner}>
                   <Text style={gStyles.bottomLinkText}>{t('scenario.write')}</Text>
@@ -2689,6 +2937,18 @@ const styles = StyleSheet.create({
   replayItem: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: colors.hairline },
   replayHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   replayDot: { width: 7, height: 7, borderRadius: 4 },
+  replayQuestionBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  replayQuestionBadgeText: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 10,
+    letterSpacing: 0.2,
+  },
   replayNpc: { fontFamily: 'InterTight_400Regular', fontSize: 11, color: colors.inkTertiary, flex: 1 },
   replayChosen: { fontFamily: 'InterTight_500Medium', fontSize: 13, paddingLeft: 15 },
   replayBetter: { fontFamily: 'InterTight_400Regular', fontSize: 12, color: colors.accentWarmSoft, paddingLeft: 15, lineHeight: 18 },
@@ -3086,19 +3346,63 @@ const gStyles = StyleSheet.create({
 
   // Timer
   timerWrap: {
-    gap: 4,
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(5,8,12,0.46)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+  },
+
+  timerLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  timerLabel: {
+    ...typography.eyebrow,
+    fontSize: 8,
+    color: 'rgba(255,255,255,0.74)',
+    letterSpacing: 1.8,
+  },
+
+  timerValue: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.inkPrimary,
+    letterSpacing: 1.2,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  timerValueHot: {
+    color: colors.errorDs,
   },
 
   timerTrack: {
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.hairlineStrong,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.22)',
   },
 
   timerFill: {
-    height: 2,
-    borderRadius: 1,
+    height: '100%',
+    borderRadius: 999,
+    shadowColor: colors.accentWarmSoft,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 6,
   },
 
   timerHint: {
@@ -3198,19 +3502,33 @@ const gStyles = StyleSheet.create({
     gap: 6,
   },
 
+  npcTranslationFace: {
+    gap: 8,
+  },
+
+  npcTranslationLabel: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarm,
+    letterSpacing: 1.6,
+  },
+
   npcTranslationText: {
     fontFamily: 'Fraunces_300Light_Italic',
-    fontSize: 12,
-    color: colors.inkTertiary,
-    lineHeight: 18,
-    flex: 1,
+    fontSize: 18,
+    color: colors.inkPrimary,
+    lineHeight: 27,
+    letterSpacing: -0.3,
   },
 
   npcTranslationHint: {
     ...typography.body,
     fontSize: 11,
-    color: colors.inkTertiary,
+    color: 'rgba(232,234,237,0.62)',
     fontStyle: 'italic',
+    marginTop: 10,
+    alignSelf: 'center',
+    textAlign: 'center',
   },
 
   // ── User prompt card ──────────────────────────────────────────
@@ -3391,6 +3709,25 @@ const gStyles = StyleSheet.create({
     fontSize: 10,
     color: colors.inkTertiary,
     letterSpacing: 1.6,
+  },
+  recordingCountdown: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 13,
+    color: colors.accentWarm,
+    letterSpacing: 0.5,
+  },
+  voiceProcessingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  voiceProcessingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentWarm,
+    opacity: 0.7,
   },
 
   speakerBtn: {

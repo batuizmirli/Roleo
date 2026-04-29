@@ -16,6 +16,7 @@ import { typography } from '../theme/typography';
 
 import { colors as dsColors } from '../theme/colors';
 const ACCENT = dsColors.accentWarm;
+const ACCORDION_EASE = Easing.bezier(0.16, 1, 0.3, 1);
 
 /** Satır + boşluk yaklaşık yüksekliği (onLayout olmadan akıcı animasyon) */
 const ROW_UNIT = 104;
@@ -52,6 +53,7 @@ export default function PracticeFocusPicker({
   ).current as Record<string, Animated.Value>;
 
   const [openKey, setOpenKey] = useState<string | null>(firstTitle || null);
+  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
 
   const toggle = (title: string) => {
     const anim = animBySection[title];
@@ -59,8 +61,8 @@ export default function PracticeFocusPicker({
     if (openKey === title) {
       Animated.timing(anim, {
         toValue: 0,
-        duration: 240,
-        easing: Easing.in(Easing.cubic),
+        duration: 420,
+        easing: ACCORDION_EASE,
         useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) setOpenKey(null);
@@ -73,8 +75,8 @@ export default function PracticeFocusPicker({
       anim.setValue(0);
       Animated.timing(anim, {
         toValue: 1,
-        duration: 280,
-        easing: Easing.out(Easing.cubic),
+        duration: 420,
+        easing: ACCORDION_EASE,
         useNativeDriver: false,
       }).start();
     };
@@ -83,8 +85,8 @@ export default function PracticeFocusPicker({
       const prevAnim = animBySection[openKey];
       Animated.timing(prevAnim, {
         toValue: 0,
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
+        duration: 360,
+        easing: ACCORDION_EASE,
         useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) openNext();
@@ -107,8 +109,7 @@ export default function PracticeFocusPicker({
   return (
     <Body {...bodyProps}>
       {GOAL_SECTIONS.map((section, si) => {
-        const expanded = sectionExpandedHeight(section.targets.length);
-        const open = openKey === section.title;
+        const expanded = measuredHeights[section.title] ?? sectionExpandedHeight(section.targets.length);
         const heightAnim = animBySection[section.title].interpolate({
           inputRange: [0, 1],
           outputRange: [0, expanded],
@@ -116,6 +117,14 @@ export default function PracticeFocusPicker({
         const opacityAnim = animBySection[section.title].interpolate({
           inputRange: [0, 0.15, 1],
           outputRange: [0, 0.6, 1],
+        });
+        const translateAnim = animBySection[section.title].interpolate({
+          inputRange: [0, 1],
+          outputRange: [-16, 0],
+        });
+        const rotateAnim = animBySection[section.title].interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '180deg'],
         });
 
         return (
@@ -131,11 +140,13 @@ export default function PracticeFocusPicker({
               >
                 {section.title}
               </Text>
-              <MaterialIcons
-                name={open ? 'expand-less' : 'expand-more'}
-                size={26}
-                color={isLight ? ACCENT : 'rgba(255,255,255,0.85)'}
-              />
+              <Animated.View style={{ transform: [{ rotate: rotateAnim }] }}>
+                <MaterialIcons
+                  name="expand-more"
+                  size={26}
+                  color={isLight ? ACCENT : 'rgba(255,255,255,0.85)'}
+                />
+              </Animated.View>
             </TouchableOpacity>
             <Animated.View
               style={[
@@ -146,7 +157,23 @@ export default function PracticeFocusPicker({
                 },
               ]}
             >
-              <View style={[styles.accBody, si < GOAL_SECTIONS.length - 1 && styles.accBodyBorder]}>
+              <Animated.View
+                style={[
+                  styles.accBody,
+                  si < GOAL_SECTIONS.length - 1 && styles.accBodyBorder,
+                  {
+                    transform: [{ translateY: translateAnim }],
+                  },
+                ]}
+                onLayout={(event) => {
+                  const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+                  setMeasuredHeights(prev => (
+                    prev[section.title] === nextHeight
+                      ? prev
+                      : { ...prev, [section.title]: nextHeight }
+                  ));
+                }}
+              >
                 {section.targets.map(t => {
                   const active = selected?.id === t.id;
                   return (
@@ -184,7 +211,7 @@ export default function PracticeFocusPicker({
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </Animated.View>
             </Animated.View>
           </View>
         );

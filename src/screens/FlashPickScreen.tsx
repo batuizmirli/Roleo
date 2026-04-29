@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ImageBackground, Animated, Easing } from 'react-native';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { awardActivityXP } from '../services/progress';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -17,12 +19,14 @@ type Props = {
   runMode?: boolean;
   runSceneTitle?: string;
   onComplete?: (result: ModuleResult) => void;
+  backgroundImage?: string;
 };
 
 const NEXT_DELAY_CORRECT_MS = 420;
 const NEXT_DELAY_WRONG_MS = 1200;
+const RUN_READY_THRESHOLD = 0.6;
 
-export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle, onComplete }: Props) {
+export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle, onComplete, backgroundImage }: Props) {
   const t = useAppTranslation();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
@@ -46,6 +50,8 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
   const rafRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
   const timeoutHandledRef = useRef(false);
+  const questionTransition = useRef(new Animated.Value(1)).current;
+  const phaseTransition = useRef(new Animated.Value(1)).current;
 
   const [power, setPower] = useState({
     fifty_fifty: 1,
@@ -57,7 +63,7 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
 
   const config = DIFFICULTY_CONFIG[difficulty];
   const current = questions[index];
-  const accuracy = questions.length ? Math.round((correctCount / Math.max(index, 1)) * 100) : 0;
+  const accuracy = questions.length ? Math.round((correctCount / Math.max(index + 1, 1)) * 100) : 0;
 
   useEffect(() => {
     AsyncStorage.getItem('userProfile').then(raw => {
@@ -84,29 +90,52 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
     timeoutHandledRef.current = false;
   };
 
+  const transitionPhase = (nextPhase: typeof phase, beforeChange?: () => void) => {
+    Animated.timing(phaseTransition, {
+      toValue: 0,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      beforeChange?.();
+      setPhase(nextPhase);
+      phaseTransition.setValue(0);
+      requestAnimationFrame(() => {
+        Animated.timing(phaseTransition, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }).start();
+      });
+    });
+  };
+
   const startGame = (nextDifficulty: Difficulty) => {
     const qs = buildFlashPickQuestions(nextDifficulty, langCode, questionCount);
     const c = DIFFICULTY_CONFIG[nextDifficulty];
 
-    setDifficulty(nextDifficulty);
-    setQuestions(qs);
-    setIndex(0);
-    setPracticeScore(0);
-    setPracticeRun(0);
-    setBestPracticeRun(0);
-    setLives(c.lives);
-    setTimeLeft(c.seconds);
-    setCorrectCount(0);
-    setWrongWords([]);
-    setPower({ fifty_fifty: 1, time_freeze: 1, hint: 1, totalUsed: 0, maxUses: 2 });
-    resetQuestionUi();
-    setPhase('playing');
+    transitionPhase('playing', () => {
+      setDifficulty(nextDifficulty);
+      setQuestions(qs);
+      setIndex(0);
+      setPracticeScore(0);
+      setPracticeRun(0);
+      setBestPracticeRun(0);
+      setLives(c.lives);
+      setTimeLeft(c.seconds);
+      setCorrectCount(0);
+      setWrongWords([]);
+      setPower({ fifty_fifty: 1, time_freeze: 1, hint: 1, totalUsed: 0, maxUses: 2 });
+      questionTransition.setValue(1);
+      resetQuestionUi();
+    });
   };
 
   const finishGame = async () => {
     const xp = Math.max(6, Math.min(28, Math.floor(practiceScore / 10) + Math.floor(bestPracticeRun / 2)));
     await awardActivityXP(xp);
-    setPhase('result');
+    transitionPhase('result');
   };
 
   const goNext = async (remainingLives = lives) => {
@@ -115,9 +144,25 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
       await finishGame();
       return;
     }
-    setIndex(v => v + 1);
-    setTimeLeft(config.seconds);
-    resetQuestionUi();
+    Animated.timing(questionTransition, {
+      toValue: 0,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIndex(v => v + 1);
+      setTimeLeft(config.seconds);
+      resetQuestionUi();
+      questionTransition.setValue(0);
+      requestAnimationFrame(() => {
+        Animated.timing(questionTransition, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }).start();
+      });
+    });
   };
 
   const applyWrong = async () => {
@@ -227,9 +272,39 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
     consumePower('hint');
   };
 
-  if (phase === 'setup') {
-    return (
+  const renderContainer = (children: React.ReactNode) =>
+    backgroundImage ? (
+      <ImageBackground source={{ uri: backgroundImage }} style={styles.container} imageStyle={{ opacity: 0.45 }}>
+        <LinearGradient colors={['rgba(10,14,20,0.65)', 'rgba(10,14,20,0.97)']} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <Animated.View
+          style={{
+            opacity: phaseTransition,
+            transform: [{
+              translateY: phaseTransition.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+            }],
+          }}
+        >
+          {children}
+        </Animated.View>
+      </ImageBackground>
+    ) : (
       <View style={styles.container}>
+        <Animated.View
+          style={{
+            opacity: phaseTransition,
+            transform: [{
+              translateY: phaseTransition.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+            }],
+          }}
+        >
+          {children}
+        </Animated.View>
+      </View>
+    );
+
+  if (phase === 'setup') {
+    return renderContainer(
+      <>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
@@ -270,17 +345,11 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
 
               <Text style={styles.countLabel}>{t('mini.questionCount')}</Text>
               <View style={styles.countRow}>
-                <TouchableOpacity
-                  style={styles.countBtn}
-                  onPress={() => setQuestionCount(v => Math.max(4, v - 2))}
-                >
+                <TouchableOpacity style={styles.countBtn} onPress={() => setQuestionCount(v => Math.max(4, v - 2))}>
                   <Text style={styles.countBtnText}>−</Text>
                 </TouchableOpacity>
                 <Text style={styles.countValue}>{questionCount}</Text>
-                <TouchableOpacity
-                  style={styles.countBtn}
-                  onPress={() => setQuestionCount(v => Math.min(getFlashPickMaxCount(langCode), v + 2))}
-                >
+                <TouchableOpacity style={styles.countBtn} onPress={() => setQuestionCount(v => Math.min(getFlashPickMaxCount(langCode), v + 2))}>
                   <Text style={styles.countBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -297,21 +366,24 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
             <Text style={styles.startBtnText}>{runMode ? t('mini.flashStart') : t('mini.start')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </>
     );
   }
 
   if (phase === 'result') {
-    const totalAnswered = Math.max(index, 1);
+    const totalAnswered = Math.max(index + 1, 1);
+    const resultAccuracy = correctCount / totalAnswered;
+    const resultPercent = Math.round(resultAccuracy * 100);
+    const shouldRepeatWarmup = runMode && resultAccuracy < RUN_READY_THRESHOLD;
     const result: ModuleResult = {
       module: 'flash',
-      accuracy: correctCount / totalAnswered,
+      accuracy: resultAccuracy,
       comboMax: bestPracticeRun,
       speed: 1 / Math.max(DIFFICULTY_CONFIG[difficulty].seconds, 1),
     };
 
-    return (
-      <View style={styles.container}>
+    return renderContainer(
+      <>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
@@ -320,11 +392,12 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
         </View>
 
         <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>{runMode ? t('mini.flashReady') : t('mini.runDone')}</Text>
-          <Text style={styles.resultScore}>%{Math.round((correctCount / totalAnswered) * 100)}</Text>
+          <Text style={styles.resultTitle}>{shouldRepeatWarmup ? 'Bir tur daha iyi olur' : runMode ? t('mini.flashReady') : t('mini.runDone')}</Text>
+          <Text style={styles.resultScore}>%{resultPercent}</Text>
           <Text style={styles.resultMeta}>Kelime refleksi</Text>
           <Text style={styles.resultMeta}>Kesintisiz doğru seçim: {bestPracticeRun}</Text>
-          <Text style={styles.resultMeta}>{t('mini.accuracy', { value: Math.round((correctCount / totalAnswered) * 100) })}</Text>
+          <Text style={styles.resultMeta}>{t('mini.accuracy', { value: resultPercent })}</Text>
+          {shouldRepeatWarmup && <Text style={styles.resultAdvice}>%60'ın altında kaldın. Sahneye geçmeden önce kelimeleri bir kez daha ısıtalım.</Text>}
 
           {wrongWords.length > 0 && (
             <View style={styles.troubleBox}>
@@ -334,24 +407,53 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
           )}
 
           {runMode && onComplete ? (
-            <TouchableOpacity style={styles.startBtn} onPress={() => onComplete(result)}>
-              <Text style={styles.startBtnText}>Ton ısınmasına geç →</Text>
-            </TouchableOpacity>
+            shouldRepeatWarmup ? (
+              <>
+                <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
+                  <Text style={styles.startBtnText}>Kelime ısınmasını tekrar et</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={() => onComplete(result)}>
+                  <Text style={styles.secondaryBtnText}>Yine de ton ısınmasına geç</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.startBtn} onPress={() => onComplete(result)}>
+                <Text style={styles.startBtnText}>Ton ısınmasına geç →</Text>
+              </TouchableOpacity>
+            )
           ) : (
             <TouchableOpacity style={styles.startBtn} onPress={() => startGame(difficulty)}>
               <Text style={styles.startBtnText}>{t('mini.playAgain')}</Text>
             </TouchableOpacity>
           )}
         </View>
-      </View>
+
+        {runMode && (
+          <View style={styles.runStepsCard}>
+            <Text style={styles.runStepsEyebrow}>SAHNE AKIŞI</Text>
+            <View style={styles.runStepRow}>
+              <View style={[styles.runStepDot, shouldRepeatWarmup ? styles.runStepDotActive : styles.runStepDotDone]} />
+              <View style={[styles.runStepLine, shouldRepeatWarmup && styles.runStepLineDim]} />
+              <View style={[styles.runStepDot, shouldRepeatWarmup ? styles.runStepDotDim : styles.runStepDotActive]} />
+              <View style={[styles.runStepLine, styles.runStepLineDim]} />
+              <View style={[styles.runStepDot, styles.runStepDotDim]} />
+            </View>
+            <View style={styles.runStepLabels}>
+              <Text style={[styles.runStepLabel, shouldRepeatWarmup ? styles.runStepLabelActive : styles.runStepLabelDone]}>Kelime{'\n'}ısınması</Text>
+              <Text style={[styles.runStepLabel, shouldRepeatWarmup ? styles.runStepLabelDim : styles.runStepLabelActive]}>Ton{'\n'}provası</Text>
+              <Text style={[styles.runStepLabel, styles.runStepLabelDim]}>Sahne</Text>
+            </View>
+          </View>
+        )}
+      </>
     );
   }
 
   const timerPct = Math.max(0, Math.min((timeLeft / config.seconds) * 100, 100));
   const isFreezeActive = frozenUntil > Date.now();
 
-  return (
-    <View style={styles.container}>
+  return renderContainer(
+    <>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -371,53 +473,68 @@ export default function FlashPickScreen({ onBack, runMode = false, runSceneTitle
       </View>
       <Text style={styles.timerText}>{timeLeft.toFixed(1)}s {isFreezeActive ? '⏸' : ''}</Text>
 
-      <View style={styles.promptCard}>
-        <Text style={styles.promptLabel}>WORD</Text>
-        <Text style={styles.promptText}>{current?.prompt}</Text>
-      </View>
+      <Animated.View
+        style={{
+          opacity: questionTransition,
+          transform: [{
+            translateY: questionTransition.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }),
+          }],
+        }}
+      >
+        <View style={styles.promptCard}>
+          <Text style={styles.promptLabel}>WORD</Text>
+          <Text style={styles.promptText}>{current?.prompt}</Text>
+        </View>
 
-      <View style={styles.grid}>
-        {visibleOptions.map(opt => {
-          const isSelected = selectedId === opt.id;
-          const isCorrect = selectedId !== null && current?.correctOptionId === opt.id;
-          const showHint = hintOptionId === opt.id && !selectedId;
+        <View style={styles.grid}>
+          {visibleOptions.map(opt => {
+            const isSelected = selectedId === opt.id;
+            const isCorrect = selectedId !== null && current?.correctOptionId === opt.id;
+            const showHint = hintOptionId === opt.id && !selectedId;
 
-          return (
-            <TouchableOpacity
-              key={opt.id}
-              style={[
-                styles.option,
-                showHint && styles.optionHint,
-                isSelected && !isCorrect && styles.optionWrong,
-                isCorrect && styles.optionCorrect,
-              ]}
-              onPress={() => handleOptionPress(opt.id)}
-              disabled={selectedId !== null}
-              activeOpacity={0.84}
-            >
-              <Text style={styles.optionEmoji}>{opt.visual}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={[
+                  styles.option,
+                  showHint && styles.optionHint,
+                  isSelected && !isCorrect && styles.optionWrong,
+                  isCorrect && styles.optionCorrect,
+                ]}
+                onPress={() => handleOptionPress(opt.id)}
+                disabled={selectedId !== null}
+                activeOpacity={0.84}
+              >
+                <View style={styles.optionIconPlate}>
+                  <FontAwesome5
+                    name={opt.visual as any}
+                    size={34}
+                    color={isCorrect ? colors.successDs : isSelected && !isCorrect ? colors.errorDs : colors.accentWarm}
+                  />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-      <View style={styles.powerRow}>
-        <TouchableOpacity style={[styles.powerBtn, !canUsePower('fifty_fifty') && styles.powerBtnOff]} onPress={useFiftyFifty}>
-          <Text style={styles.powerText}>50/50</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.powerBtn, !canUsePower('time_freeze') && styles.powerBtnOff]} onPress={useFreeze}>
-          <Text style={styles.powerText}>+2s</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.powerBtn, !canUsePower('hint') && styles.powerBtnOff]} onPress={useHint}>
-          <Text style={styles.powerText}>Hint</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.powerRow}>
+          <TouchableOpacity style={[styles.powerBtn, !canUsePower('fifty_fifty') && styles.powerBtnOff]} onPress={useFiftyFifty}>
+            <Text style={styles.powerText}>50/50</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.powerBtn, !canUsePower('time_freeze') && styles.powerBtnOff]} onPress={useFreeze}>
+            <Text style={styles.powerText}>+2s</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.powerBtn, !canUsePower('hint') && styles.powerBtnOff]} onPress={useHint}>
+            <Text style={styles.powerText}>Hint</Text>
+          </TouchableOpacity>
+        </View>
 
-      <Text style={[styles.feedback, lastResult === 'correct' ? styles.feedbackGood : lastResult === 'wrong' ? styles.feedbackBad : null]}>
-        {lastResult === 'correct' ? t('mini.correct') : lastResult === 'wrong' ? t('mini.wrong') : t('mini.fast')}
-      </Text>
-      <Text style={styles.accText}>Doğruluk %{accuracy}</Text>
-    </View>
+        <Text style={[styles.feedback, lastResult === 'correct' ? styles.feedbackGood : lastResult === 'wrong' ? styles.feedbackBad : null]}>
+          {lastResult === 'correct' ? t('mini.correct') : lastResult === 'wrong' ? t('mini.wrong') : t('mini.fast')}
+        </Text>
+        <Text style={styles.accText}>Doğruluk %{accuracy}</Text>
+      </Animated.View>
+    </>
   );
 }
 
@@ -450,8 +567,8 @@ const styles = StyleSheet.create({
   runWhyBox: { backgroundColor: colors.bgSoft, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.hairlineStrong, marginBottom: spacing.lg },
   runWhyTitle: { color: colors.accentWarm, fontSize: typography.size.xs, fontWeight: typography.weight.black, letterSpacing: 1, marginBottom: spacing.xs },
   runWhyText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20, fontWeight: typography.weight.semibold },
-  startBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center' },
-  startBtnText: { color: colors.bgDeep, fontWeight: typography.weight.black, fontSize: typography.size.md },
+  startBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: spacing.md, alignSelf: 'stretch' },
+  startBtnText: { color: colors.bgDeep, fontFamily: 'InterTight_600SemiBold', fontSize: 15 },
 
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   stat: { color: colors.inkSecondary, fontSize: typography.size.sm, fontWeight: typography.weight.semibold },
@@ -466,11 +583,20 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   option: { width: '48.5%', backgroundColor: colors.bgMid, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.hairline },
-  optionEmoji: { fontSize: 42 },
+  optionIconPlate: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(232,181,118,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.16)',
+  },
   optionLabel: { color: colors.inkTertiary, fontSize: typography.size.xs, marginTop: spacing.xs, textTransform: 'capitalize' },
   optionHint: { borderColor: colors.accentWarm, shadowColor: colors.accentWarm, shadowOpacity: 0.22, shadowRadius: 8 },
-  optionCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
-  optionWrong: { borderColor: colors.errorDs, backgroundColor: 'rgba(201,122,106,0.15)' },
+  optionCorrect: { borderColor: colors.successDs, backgroundColor: colors.successDsSoft },
+  optionWrong: { borderColor: colors.errorDs, backgroundColor: colors.errorDsSoft },
 
   powerRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   powerBtn: { flex: 1, backgroundColor: colors.bgMid, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.hairline },
@@ -487,7 +613,25 @@ const styles = StyleSheet.create({
   resultTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
   resultScore: { color: colors.accentWarm, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },
   resultMeta: { color: colors.inkSecondary, fontSize: typography.size.sm, marginTop: spacing.xs },
+  resultAdvice: { color: colors.inkPrimary, fontSize: typography.size.sm, lineHeight: 20, textAlign: 'center', marginTop: spacing.md, opacity: 0.86 },
+  secondaryBtn: { marginTop: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center' },
+  secondaryBtnText: { color: colors.inkSecondary, fontFamily: 'InterTight_500Medium', fontSize: 13 },
   troubleBox: { width: '100%', marginTop: spacing.md, backgroundColor: colors.bgSoft, borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: colors.hairline },
   troubleTitle: { color: colors.accentWarm, fontWeight: typography.weight.bold, fontSize: typography.size.sm, marginBottom: spacing.xs },
   troubleText: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 19 },
+
+  runStepsCard: { marginTop: spacing.xl, paddingHorizontal: spacing.md, paddingVertical: spacing.lg },
+  runStepsEyebrow: { color: colors.inkTertiary, fontSize: 10, letterSpacing: 2.4, fontFamily: 'InterTight_500Medium', textTransform: 'uppercase', textAlign: 'center', marginBottom: spacing.lg },
+  runStepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  runStepDot: { width: 10, height: 10, borderRadius: 5 },
+  runStepDotDone: { backgroundColor: colors.accentWarmSoft },
+  runStepDotActive: { width: 13, height: 13, borderRadius: 7, backgroundColor: colors.accentWarm, shadowColor: colors.accentWarm, shadowOpacity: 0.5, shadowRadius: 6 },
+  runStepDotDim: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.hairlineStrong },
+  runStepLine: { flex: 1, height: 1, backgroundColor: colors.accentWarmSoft, marginHorizontal: spacing.sm, maxWidth: 64 },
+  runStepLineDim: { backgroundColor: colors.hairline },
+  runStepLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xs },
+  runStepLabel: { fontSize: 11, textAlign: 'center', lineHeight: 15, flex: 1 },
+  runStepLabelDone: { color: colors.accentWarmSoft, fontFamily: 'InterTight_400Regular' },
+  runStepLabelActive: { color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold' },
+  runStepLabelDim: { color: colors.inkTertiary, fontFamily: 'InterTight_400Regular' },
 });

@@ -160,7 +160,7 @@ export default function PracticeHubScreen({
             <View style={styles.modeIconCircle}>
               <Feather name="check-circle" size={20} color={colors.successDs} />
             </View>
-            <Text style={styles.modeTitle}>True or Fake</Text>
+            <Text style={styles.modeTitle}>True or False</Text>
             <Text style={styles.modeSub} numberOfLines={2}>{t('practice.trueFakeSub')}</Text>
           </TouchableOpacity>
         </View>

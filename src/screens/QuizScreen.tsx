@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
@@ -17,6 +17,7 @@ export default function QuizScreen({ onBack, scenarioTitle, stageType }: Props) 
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const questionTransition = useRef(new Animated.Value(1)).current;
 
   useEffect(() => { loadQuiz(); }, []);
 
@@ -73,8 +74,24 @@ correct is the index (0-3) of the correct answer.`;
 
   const handleNext = () => {
     if (current + 1 >= questions.length) { setDone(true); return; }
-    setCurrent(c => c + 1);
-    setSelected(null);
+    Animated.timing(questionTransition, {
+      toValue: 0,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setCurrent(c => c + 1);
+      setSelected(null);
+      questionTransition.setValue(0);
+      requestAnimationFrame(() => {
+        Animated.timing(questionTransition, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }).start();
+      });
+    });
   };
 
   const optionStyle = (idx: number) => {
@@ -138,36 +155,45 @@ correct is the index (0-3) of the correct answer.`;
         <View style={[styles.progressFill, { width: `${((current + 1) / questions.length) * 100}%` as any }]} />
       </View>
 
-      <View style={styles.questionCard}>
-        <Text style={styles.questionText}>{q.question}</Text>
-      </View>
-
-      <View style={styles.options}>
-        {q.options.map((opt, idx) => (
-          <TouchableOpacity key={idx} style={optionStyle(idx)} onPress={() => handleAnswer(idx)}>
-            <View style={styles.optionLetterWrap}>
-              <Text style={styles.optionLetter}>{['A', 'B', 'C', 'D'][idx]}</Text>
-            </View>
-            <Text style={styles.optionText}>{opt}</Text>
-            {selected !== null && idx === q.correct && <Text style={styles.tick}>✓</Text>}
-            {selected === idx && idx !== q.correct && <Text style={styles.cross}>✗</Text>}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {selected !== null && (
-        <View style={styles.explanationBox}>
-          <Text style={styles.explanationText}>💡 {q.explanation}</Text>
+      <Animated.View
+        style={{
+          opacity: questionTransition,
+          transform: [{
+            translateY: questionTransition.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }),
+          }],
+        }}
+      >
+        <View style={styles.questionCard}>
+          <Text style={styles.questionText}>{q.question}</Text>
         </View>
-      )}
 
-      {selected !== null && (
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleNext}>
-          <Text style={styles.btnPrimaryText}>
-            {current + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}
-          </Text>
-        </TouchableOpacity>
-      )}
+        <View style={styles.options}>
+          {q.options.map((opt, idx) => (
+            <TouchableOpacity key={idx} style={optionStyle(idx)} onPress={() => handleAnswer(idx)}>
+              <View style={styles.optionLetterWrap}>
+                <Text style={styles.optionLetter}>{['A', 'B', 'C', 'D'][idx]}</Text>
+              </View>
+              <Text style={styles.optionText}>{opt}</Text>
+              {selected !== null && idx === q.correct && <Text style={styles.tick}>✓</Text>}
+              {selected === idx && idx !== q.correct && <Text style={styles.cross}>✗</Text>}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {selected !== null && (
+          <View style={styles.explanationBox}>
+            <Text style={styles.explanationText}>💡 {q.explanation}</Text>
+          </View>
+        )}
+
+        {selected !== null && (
+          <TouchableOpacity style={styles.btnPrimary} onPress={handleNext}>
+            <Text style={styles.btnPrimaryText}>
+              {current + 1 >= questions.length ? 'Sonucu Gör →' : 'Sonraki →'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </Animated.View>
       <View style={{ height: 40 }} />
     </ScrollView>
   );

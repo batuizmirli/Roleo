@@ -1,0 +1,12 @@
+---
+description: Roleo UI animation standards for new screens and interactions
+alwaysApply: true
+---
+
+# Roleo Animation Standards
+
+- New screens, cards, accordions, menus, and modal-like panels should feel animated by default. Avoid instant mount/unmount for visible UI changes.
+- Use calm, premium motion: fade with slight slide/scale, around 220-520ms, with cubic/bezier easing similar to existing Roleo flows.
+- Back, cancel, close, and skip actions should use the shared back-transition feel: fade out, then previous screen fades/slides in softly.
+- Accordions should animate height, opacity, chevron rotation, and content entering from slightly above, matching the current `GrammarScreen` / scene-prep accordion feel.
+- Keep motion subtle and cinematic. Avoid shaking, bouncing, gamified effects, or abrupt layout jumps unless the user explicitly asks.

@@ -1,0 +1,15 @@
+---
+description: Roleo product, content, language, and implementation standards
+alwaysApply: true
+---
+
+# Roleo Product Standards
+
+- Read `ROLEO_RULES.md` and `CLAUDE.md` when making product, UI, copy, AI, monetization, or navigation decisions.
+- Preserve Roleo's core identity: scene rehearsal before lesson/quiz mechanics. The app should feel cinematic, calm, and real-world, not gamified.
+- Keep learning language and native language separate. Learning language drives practice content; native language drives UI, explanations, translations, and feedback.
+- New UI should follow the existing dark cinematic visual system, Roleo typography, warm accent usage, contextual scene photos, and readable overlays.
+- Do not reintroduce a separate phrasebook/scene-phrases route. Scene patterns, useful expressions, and rescue lines belong inside `GrammarScreen`.
+- Treat `PronunciationScreen` as `Sesler / Kelimeler / Cümleler / Detaylar`, not the old letters/words/numbers model.
+- For AI features, provide scene-aware fallbacks and never let missing API responses produce empty or broken flows.
+- After substantive TypeScript changes, run `npx tsc --noEmit` and fix introduced errors.

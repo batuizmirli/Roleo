@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  RefreshControl, Dimensions, Platform, ImageBackground,
+  RefreshControl, Dimensions, Platform, ImageBackground, Animated, Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
@@ -22,16 +22,59 @@ type Props = {
   onBack: () => void;
 };
 
-const STAGE_META: Record<string, { icon: string; labelKey: string }> = {
-  cafe:     { icon: 'coffee', labelKey: 'scenarios.stage.cafe' },
-  social:   { icon: 'users',  labelKey: 'scenarios.stage.social' },
-  story:    { icon: 'book-open', labelKey: 'scenarios.stage.story' },
-  travel:   { icon: 'navigation', labelKey: 'scenarios.stage.travel' },
-  business: { icon: 'briefcase', labelKey: 'scenarios.stage.business' },
-  survival: { icon: 'shield', labelKey: 'scenarios.stage.survival' },
+type SceneCategoryId = NonNullable<Scenario['sceneCategory']> | 'all';
+
+const CATEGORY_META: Array<{ id: SceneCategoryId; label: string; icon: string }> = [
+  { id: 'all', label: 'Tümü', icon: '✨' },
+  { id: 'daily', label: 'Günlük', icon: '🌆' },
+  { id: 'travel', label: 'Seyahat', icon: '🧳' },
+  { id: 'work', label: 'İş', icon: '💼' },
+  { id: 'social', label: 'Sosyal', icon: '💬' },
+  { id: 'sports', label: 'Spor', icon: '🏟️' },
+  { id: 'food', label: 'Yemek', icon: '🍽️' },
+  { id: 'survival', label: 'Acil', icon: '🛟' },
+];
+
+const TOPIC_META: Record<string, string> = {
+  cafe: 'Kafe',
+  restaurant: 'Restoran',
+  market: 'Pazar',
+  recipe: 'Tarif',
+  directions: 'Yön sorma',
+  hotel: 'Otel',
+  transport: 'Ulaşım',
+  airport: 'Havalimanı',
+  meeting: 'Toplantı',
+  interview: 'Mülakat',
+  concert: 'Konser',
+  party: 'Parti',
+  smallTalk: 'Small talk',
+  football: 'Futbol',
+  basketball: 'Basketbol',
+  horseRiding: 'Atçılık',
+  motorsports: 'Motorsporları',
+  pharmacy: 'Eczane',
+  emergency: 'Acil yardım',
 };
 
-const STAGE_ORDER = ['cafe', 'social', 'story', 'travel', 'business', 'survival'];
+const categoryForScenario = (scenario: Scenario): SceneCategoryId => {
+  if (scenario.sceneCategory) return scenario.sceneCategory;
+  if (scenario.stageType === 'cafe') return 'food';
+  if (scenario.stageType === 'travel') return 'travel';
+  if (scenario.stageType === 'business') return 'work';
+  if (scenario.stageType === 'survival') return 'survival';
+  return 'social';
+};
+
+const topicForScenario = (scenario: Scenario): string => {
+  if (scenario.sceneTopic) return scenario.sceneTopic;
+  if (scenario.stageType === 'cafe') return 'cafe';
+  if (scenario.stageType === 'business') return 'meeting';
+  if (scenario.stageType === 'travel') return scenario.title.toLocaleLowerCase().includes('otel') ? 'hotel' : 'directions';
+  if (scenario.stageType === 'survival') return 'emergency';
+  if (scenario.title.toLocaleLowerCase().includes('konser')) return 'concert';
+  return 'smallTalk';
+};
 
 const FALLBACK_STAGE_IMAGES: Record<string, string> = {
   cafe: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop&q=70',
@@ -61,6 +104,9 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
   const [nextGoal, setNextGoal] = useState('');
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+  const [activeCategory, setActiveCategory] = useState<SceneCategoryId>('all');
+  const [activeTopic, setActiveTopic] = useState<string>('all');
+  const subNavEntrance = useRef(new Animated.Value(1)).current;
 
   const load = async () => {
     const data = await AsyncStorage.getItem('userProfile');
@@ -79,14 +125,47 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const allGroups = STAGE_ORDER.map(key => ({
-    key,
-    items: scenarios.filter(s => (s.stageType ?? 'social') === key),
-  })).filter(g => g.items.length > 0);
+  const availableCategories = useMemo(() => (
+    CATEGORY_META.filter(category => (
+      category.id === 'all' || scenarios.some(s => categoryForScenario(s) === category.id)
+    ))
+  ), [scenarios]);
 
-  const unlockedGroups = allGroups.filter(g => unlockedTypes.includes(g.key));
-  const lockedGroups = allGroups.filter(g => !unlockedTypes.includes(g.key));
-  const stageGroups = [...unlockedGroups, ...lockedGroups];
+  const topicOptions = useMemo(() => {
+    if (activeCategory === 'all') return [];
+    const seen = new Set<string>();
+    scenarios.forEach((scenario) => {
+      if (categoryForScenario(scenario) === activeCategory) seen.add(topicForScenario(scenario));
+    });
+    return Array.from(seen).map(id => ({
+      id,
+      label: TOPIC_META[id] ?? id,
+    }));
+  }, [activeCategory, scenarios]);
+
+  const visibleScenarios = useMemo(() => (
+    scenarios.filter((scenario) => {
+      const categoryMatch = activeCategory === 'all' || categoryForScenario(scenario) === activeCategory;
+      const topicMatch = activeTopic === 'all' || topicForScenario(scenario) === activeTopic;
+      return categoryMatch && topicMatch;
+    })
+  ), [activeCategory, activeTopic, scenarios]);
+
+  const selectCategory = (category: SceneCategoryId) => {
+    setActiveCategory(category);
+    setActiveTopic('all');
+  };
+
+  useEffect(() => {
+    if (topicOptions.length === 0) return;
+    subNavEntrance.setValue(0);
+    Animated.timing(subNavEntrance, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [activeCategory, topicOptions.length, subNavEntrance]);
 
   return (
     <View style={styles.container}>
@@ -129,76 +208,115 @@ export default function ScenariosScreen({ onScenarioSelect, onBack }: Props) {
           </View>
         )}
 
-        {/* Stage groups */}
-        {stageGroups.map((group) => {
-          const isUnlocked = unlockedTypes.includes(group.key);
-          const meta = STAGE_META[group.key] ?? { icon: 'circle', labelKey: group.key };
-          return (
-            <View key={group.key} style={styles.groupWrap}>
-              {/* Group header */}
-              <View style={styles.groupHeader}>
-                <Feather name={meta.icon as any} size={12} color={isUnlocked ? colors.accentWarmSoft : colors.inkTertiary} />
-                <Text style={[styles.groupTitle, !isUnlocked && styles.groupTitleLocked]}>
-                  {t(meta.labelKey).toUpperCase()}
-                </Text>
-                {!isUnlocked && (
-                  <View style={styles.lockBadge}>
-                    <Feather name="lock" size={9} color={colors.inkTertiary} />
-                  </View>
-                )}
-              </View>
-
-              {!isUnlocked ? (
-                <View style={styles.lockedCard}>
-                  <Text style={styles.lockedText}>
-                    {lockedStageReason(group.key)}
+        <View style={styles.tabBleed}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
+            {availableCategories.map((category) => {
+              const active = activeCategory === category.id;
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  onPress={() => selectCategory(category.id)}
+                  style={[styles.tabBtn, active && styles.tabBtnActive]}
+                  activeOpacity={0.84}
+                >
+                  <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                    {category.icon} {category.label}
                   </Text>
-                </View>
-              ) : (
-                group.items.map((scenario, index) => {
-                  const isDone = completedIds.includes(scenario.id);
-                  const playCount = playCounts[scenario.id] ?? 0;
-                  const variant = getScenarioWithVariant(scenario, playCount, profile?.identity);
-                  return (
-                    <AnimatedPressable
-                      key={scenario.id}
-                      style={[styles.card, isDone && styles.cardDone]}
-                      onPress={() => onScenarioSelect(variant)}
-                      delay={index * 40}
-                    >
-                      <ScenarioCardPhoto
-                        scenario={variant}
-                        imageUri={imageForScenario(variant)}
-                        isDone={isDone}
-                        completedLabel={t('scenarios.completed')}
-                      />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-                      {/* Text content */}
-                      <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle}>{scenario.title}</Text>
-                        <View style={styles.cardLocationRow}>
-                          <Feather name="map-pin" size={10} color={colors.inkTertiary} />
-                          <Text style={styles.cardLocation}>{scenario.location}</Text>
-                        </View>
-                        {!!scenario.mission && (
-                          <Text style={styles.cardMission} numberOfLines={2}>{scenario.mission}</Text>
-                        )}
-                        <View style={styles.cardFooter}>
-                          <Text style={styles.cardCta}>
-                            {isDone ? 'Tekrar oyna' : 'Sahneye gir'} →
-                          </Text>
-                          <View style={styles.xpBadge}>
-                            <Text style={styles.xpBadgeText}>+{scenario.xpReward ?? 20} XP</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </AnimatedPressable>
-                  );
-                })
-              )}
-            </View>
-          );
-        })}
+        {topicOptions.length > 0 && (
+          <Animated.View
+            style={[
+              styles.subTabBleed,
+              {
+                opacity: subNavEntrance,
+                transform: [{
+                  translateY: subNavEntrance.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+                }],
+              },
+            ]}
+          >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabRow}>
+              {[{ id: 'all', label: 'Hepsi' }, ...topicOptions].map((topic) => {
+                const active = activeTopic === topic.id;
+                return (
+                  <TouchableOpacity
+                    key={topic.id}
+                    onPress={() => setActiveTopic(topic.id)}
+                    style={[styles.subTabBtn, active && styles.subTabBtnActive]}
+                    activeOpacity={0.84}
+                  >
+                    <Text style={[styles.subTabText, active && styles.subTabTextActive]}>{topic.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        <View style={styles.sceneList}>
+          {visibleScenarios.map((scenario, index) => {
+            const stage = scenario.stageType ?? 'social';
+            const isUnlocked = unlockedTypes.includes(stage);
+            const isDone = completedIds.includes(scenario.id);
+            const playCount = playCounts[scenario.id] ?? 0;
+            const variant = getScenarioWithVariant(scenario, playCount, profile?.identity);
+
+            if (!isUnlocked) {
+              return (
+                <View key={scenario.id} style={styles.lockedCard}>
+                  <View style={styles.lockedTitleRow}>
+                    <Feather name="lock" size={11} color={colors.inkTertiary} />
+                    <Text style={styles.lockedTitle}>{scenario.title}</Text>
+                  </View>
+                  <Text style={styles.lockedText}>{lockedStageReason(stage)}</Text>
+                </View>
+              );
+            }
+
+            return (
+              <AnimatedPressable
+                key={scenario.id}
+                style={[styles.card, isDone && styles.cardDone]}
+                onPress={() => onScenarioSelect(variant)}
+                delay={index * 40}
+              >
+                <ScenarioCardPhoto
+                  scenario={variant}
+                  imageUri={imageForScenario(variant)}
+                  isDone={isDone}
+                  completedLabel={t('scenarios.completed')}
+                />
+
+                <View style={styles.cardBody}>
+                  <View style={styles.topicRow}>
+                    <Text style={styles.topicPill}>{TOPIC_META[topicForScenario(scenario)] ?? topicForScenario(scenario)}</Text>
+                  </View>
+                  <Text style={styles.cardTitle}>{scenario.title}</Text>
+                  <View style={styles.cardLocationRow}>
+                    <Feather name="map-pin" size={10} color={colors.inkTertiary} />
+                    <Text style={styles.cardLocation}>{scenario.location}</Text>
+                  </View>
+                  {!!scenario.mission && (
+                    <Text style={styles.cardMission} numberOfLines={2}>{scenario.mission}</Text>
+                  )}
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.cardCta}>
+                      {isDone ? 'Tekrar oyna' : 'Sahneye gir'} →
+                    </Text>
+                    <View style={styles.xpBadge}>
+                      <Text style={styles.xpBadgeText}>+{scenario.xpReward ?? 20} XP</Text>
+                    </View>
+                  </View>
+                </View>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
 
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -338,6 +456,68 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  tabBleed: {
+    marginHorizontal: -20,
+    marginBottom: 10,
+  },
+  tabRow: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  tabBtn: {
+    minWidth: 104,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.bgMid,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    borderColor: colors.accentWarm,
+    backgroundColor: colors.bgSoft,
+  },
+  tabText: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkSecondary,
+  },
+  tabTextActive: {
+    color: colors.accentWarm,
+  },
+  subTabBleed: {
+    marginHorizontal: -20,
+    marginBottom: 18,
+  },
+  subTabRow: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  subTabBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  subTabBtnActive: {
+    borderColor: colors.accentWarm,
+    backgroundColor: colors.accentGlow,
+  },
+  subTabText: {
+    ...typography.bodyMedium,
+    fontSize: 12,
+    color: colors.inkTertiary,
+  },
+  subTabTextActive: {
+    color: colors.accentWarm,
+  },
+  sceneList: {
+    gap: 10,
+  },
+
   groupWrap: { marginBottom: 28 },
   groupHeader: {
     flexDirection: 'row',
@@ -368,6 +548,17 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     padding: 16,
     opacity: 0.6,
+  },
+  lockedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  lockedTitle: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.inkSecondary,
   },
   lockedText: {
     ...typography.body,
@@ -400,6 +591,20 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: 14,
     paddingTop: 12,
+  },
+  topicRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  topicPill: {
+    ...typography.bodyMedium,
+    fontSize: 10,
+    color: colors.accentWarmSoft,
+    backgroundColor: `${colors.accentWarm}12`,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    overflow: 'hidden',
   },
   cardEmoji: { fontSize: 26 },
   cardBadgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },

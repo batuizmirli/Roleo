@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Scenario, UserProfile } from '../types';
 import { sendMessage } from '../services/claude';
@@ -8,7 +8,37 @@ import { colors } from '../theme/colors';
 import { useAppTranslation } from '../i18n';
 
 type GrammarLesson = { title: string; rule: string; examples: { sentence: string; translation: string; }[]; tip: string; };
+type PhraseSupportSection = { title: string; phrases: Array<{ phrase: string; meaning: string; usage: string }> };
 type Props = { onBack: () => void; scenarioTitle?: string; stageType?: string; scenario?: Scenario; };
+
+const ACCORDION_EASE = Easing.bezier(0.16, 1, 0.3, 1);
+
+const buildPhraseSupportSections = (scenario: Scenario | undefined): PhraseSupportSection[] => {
+  const useful = scenario?.usefulPhrases?.slice(0, 4).map(item => ({
+    phrase: item.phrase,
+    meaning: item.context,
+    usage: 'Bu sahnede doğal cevap kurarken kullan.',
+  })) ?? [];
+
+  return [
+    {
+      title: 'İşe yarayan ifadeler',
+      phrases: useful.length > 0 ? useful : [
+        { phrase: 'Could you repeat that, please?', meaning: 'Tekrar eder misiniz?', usage: 'Cümleyi tam duymadığında.' },
+        { phrase: 'I just want to confirm.', meaning: 'Sadece teyit etmek istiyorum.', usage: 'Yanlış anlamamak için.' },
+        { phrase: 'Could you help me with this?', meaning: 'Bu konuda yardımcı olur musunuz?', usage: 'Karşı taraftan destek isterken.' },
+      ],
+    },
+    {
+      title: 'Kurtarıcı cümleler',
+      phrases: [
+        { phrase: 'I didn’t quite catch that.', meaning: 'Tam anlayamadım.', usage: 'Konuşma hızlandığında akışı koparmadan durdurmak için.' },
+        { phrase: 'Could you say it another way?', meaning: 'Bunu başka şekilde söyleyebilir misiniz?', usage: 'Aynı cümle tekrar edilse de anlamadığında.' },
+        { phrase: 'One moment, let me think.', meaning: 'Bir saniye, düşüneyim.', usage: 'Cevap vermeden önce zaman kazanmak için.' },
+      ],
+    },
+  ];
+};
 
 const firstPhrase = (scenario: Scenario | undefined, fallback: string) =>
   scenario?.usefulPhrases?.[0]?.phrase ?? fallback;
@@ -483,32 +513,28 @@ Return ONLY valid JSON array:
       )}
 
       {lessons.map((lesson, i) => (
-        <View key={i} style={styles.lessonCard}>
-          <TouchableOpacity style={styles.lessonHeader} onPress={() => setExpanded(expanded === i ? -1 : i)}>
-            <View style={styles.lessonNum}>
-              <Text style={styles.lessonNumText}>{i + 1}</Text>
-            </View>
-            <Text style={styles.lessonTitle}>{lesson.title}</Text>
-            <Text style={styles.chevron}>{expanded === i ? '▲' : '▼'}</Text>
-          </TouchableOpacity>
-          {expanded === i && (
-            <View style={styles.lessonBody}>
-              <Text style={styles.ruleText}>{lesson.rule}</Text>
-              <Text style={styles.examplesLabel}>Örnekler</Text>
-              {lesson.examples?.map((ex, j) => (
-                <View key={j} style={styles.exampleRow}>
-                  <Text style={styles.exSentence}>{ex.sentence}</Text>
-                  <Text style={styles.exTranslation}>{ex.translation}</Text>
-                </View>
-              ))}
-              <View style={styles.tipBox}>
-                <Text style={styles.tipIcon}>💡</Text>
-                <Text style={styles.tipText}>{lesson.tip}</Text>
-              </View>
-            </View>
-          )}
-        </View>
+        <GrammarLessonAccordion
+          key={i}
+          lesson={lesson}
+          index={i}
+          expanded={expanded === i}
+          onToggle={() => setExpanded(expanded === i ? -1 : i)}
+        />
       ))}
+
+      {lessons.length > 0 && (
+        <>
+          <Text style={styles.supportSectionTitle}>Sahne ifadeleri</Text>
+          {buildPhraseSupportSections(scenario).map((section, i) => (
+            <PhraseSupportAccordion
+              key={section.title}
+              section={section}
+              expanded={expanded === lessons.length + i}
+              onToggle={() => setExpanded(expanded === lessons.length + i ? -1 : lessons.length + i)}
+            />
+          ))}
+        </>
+      )}
 
       {lessons.length > 0 && (
         <TouchableOpacity style={styles.refreshBtn} onPress={async () => {
@@ -530,6 +556,163 @@ Return ONLY valid JSON array:
   );
 }
 
+function GrammarLessonAccordion({
+  lesson,
+  index,
+  expanded,
+  onToggle,
+}: {
+  lesson: GrammarLesson;
+  index: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const fallbackHeight = 230 + (lesson.examples?.length ?? 0) * 76;
+  const bodyHeight = measuredHeight || fallbackHeight;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: expanded ? 1 : 0,
+      duration: 420,
+      easing: ACCORDION_EASE,
+      useNativeDriver: false,
+    }).start();
+  }, [anim, expanded]);
+
+  return (
+    <View style={styles.lessonCard}>
+      <TouchableOpacity style={styles.lessonHeader} onPress={onToggle} activeOpacity={0.82}>
+        <View style={styles.lessonNum}>
+          <Text style={styles.lessonNumText}>{index + 1}</Text>
+        </View>
+        <Text style={styles.lessonTitle}>{lesson.title}</Text>
+        <Animated.Text
+          style={[
+            styles.chevron,
+            {
+              transform: [{
+                rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }),
+              }],
+            },
+          ]}
+        >
+          ▼
+        </Animated.Text>
+      </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.lessonBodyWrap,
+          {
+            height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, bodyHeight] }),
+            opacity: anim,
+          },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.lessonBody,
+            {
+              transform: [{
+                translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }),
+              }],
+            },
+          ]}
+          onLayout={(event) => {
+            const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+            setMeasuredHeight(prev => (prev === nextHeight ? prev : nextHeight));
+          }}
+        >
+          <Text style={styles.ruleText}>{lesson.rule}</Text>
+          <Text style={styles.examplesLabel}>Örnekler</Text>
+          {lesson.examples?.map((ex, j) => (
+            <View key={j} style={styles.exampleRow}>
+              <Text style={styles.exSentence}>{ex.sentence}</Text>
+              <Text style={styles.exTranslation}>{ex.translation}</Text>
+            </View>
+          ))}
+          <View style={styles.tipBox}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>{lesson.tip}</Text>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+}
+
+function PhraseSupportAccordion({
+  section,
+  expanded,
+  onToggle,
+}: {
+  section: PhraseSupportSection;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const fallbackHeight = Math.max(0, section.phrases.length * 108 + 24);
+  const bodyHeight = measuredHeight || fallbackHeight;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: expanded ? 1 : 0,
+      duration: 420,
+      easing: ACCORDION_EASE,
+      useNativeDriver: false,
+    }).start();
+  }, [anim, expanded]);
+
+  return (
+    <View style={styles.lessonCard}>
+      <TouchableOpacity style={styles.lessonHeader} onPress={onToggle} activeOpacity={0.82}>
+        <View style={styles.lessonNum}>
+          <Text style={styles.lessonNumText}>＋</Text>
+        </View>
+        <Text style={styles.lessonTitle}>{section.title}</Text>
+        <Animated.Text
+          style={[
+            styles.chevron,
+            { transform: [{ rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] },
+          ]}
+        >
+          ▼
+        </Animated.Text>
+      </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.lessonBodyWrap,
+          {
+            height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, bodyHeight] }),
+            opacity: anim,
+          },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.lessonBody,
+            { transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] },
+          ]}
+          onLayout={(event) => {
+            const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+            setMeasuredHeight(prev => (prev === nextHeight ? prev : nextHeight));
+          }}
+        >
+          {section.phrases.map((item, idx) => (
+            <View key={`${item.phrase}-${idx}`} style={styles.exampleRow}>
+              <Text style={styles.exSentence}>{item.phrase}</Text>
+              <Text style={styles.exTranslation}>{item.meaning}</Text>
+              <Text style={styles.supportUsage}>{item.usage}</Text>
+            </View>
+          ))}
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgDeep },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
@@ -538,6 +721,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 20, color: colors.inkPrimary },
   title: { fontSize: 22, fontFamily: 'InterTight_600SemiBold', color: colors.inkPrimary },
   subtitle: { fontSize: 14, color: colors.inkSecondary, marginBottom: 28 },
+  supportSectionTitle: { fontSize: 11, fontFamily: 'InterTight_600SemiBold', color: colors.accentWarm, letterSpacing: 2.2, textTransform: 'uppercase', marginTop: 10, marginBottom: 10 },
   center: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   loadingText: { color: colors.inkSecondary, fontSize: 14 },
   lessonCard: { backgroundColor: colors.bgMid, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.hairlineStrong, overflow: 'hidden' },
@@ -546,7 +730,8 @@ const styles = StyleSheet.create({
   lessonNumText: { color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', fontSize: 14 },
   lessonTitle: { flex: 1, fontSize: 16, fontFamily: 'InterTight_600SemiBold', color: colors.inkPrimary },
   chevron: { color: colors.inkTertiary, fontSize: 12 },
-  lessonBody: { paddingHorizontal: 18, paddingBottom: 18, gap: 14, borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: 16 },
+  lessonBodyWrap: { overflow: 'hidden', borderTopWidth: 1, borderTopColor: colors.hairline },
+  lessonBody: { paddingHorizontal: 18, paddingBottom: 18, gap: 14, paddingTop: 16 },
   ruleText: { fontSize: 14, color: colors.inkSecondary, lineHeight: 22 },
   examplesLabel: { fontSize: 11, fontFamily: 'InterTight_600SemiBold', color: colors.accentWarm, letterSpacing: 1.2 },
   exampleRow: { backgroundColor: colors.bgMid, borderRadius: 12, padding: 14, gap: 4 },
@@ -555,6 +740,7 @@ const styles = StyleSheet.create({
   tipBox: { flexDirection: 'row', gap: 8, backgroundColor: colors.bgSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.hairlineStrong },
   tipIcon: { fontSize: 16 },
   tipText: { flex: 1, fontSize: 13, color: colors.accentWarm, lineHeight: 20 },
+  supportUsage: { fontSize: 12, color: colors.inkTertiary, marginTop: 4 },
   errorBox: { alignItems: 'center', padding: 24, gap: 12 },
   errorText: { color: colors.errorDs, fontSize: 14, textAlign: 'center' },
   retryBtn: { backgroundColor: colors.accentWarm, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },

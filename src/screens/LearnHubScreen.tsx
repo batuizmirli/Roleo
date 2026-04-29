@@ -3,24 +3,28 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
-import { getProgress, getWeeklyXp } from '../services/progress';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProgress } from '../services/progress';
+import { getLearnFills, recordLearnOpen, LearnMode } from '../services/learnActivity';
+import { getCulturalTips, CulturalTip } from '../data/culturalTips';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { useAppTranslation } from '../i18n';
+import { tryParseJson } from '../services/json';
+import { UserProfile } from '../types';
 
 const { width: SW } = Dimensions.get('window');
 
 type Props = {
   onOpenVocab?: () => void;
   onOpenPronunciation?: () => void;
+  onOpenListening?: () => void;
   onOpenInstantLearn?: () => void;
   onOpenGrammar?: () => void;
-  onOpenPhrasebook?: () => void;
-  onOpenStories?: () => void;
 };
 
 type PrepTile = {
-  id: string;
+  id: LearnMode;
   label: string;
   icon: string;
   caption: string;
@@ -39,60 +43,81 @@ type ToolCard = {
 export default function LearnHubScreen({
   onOpenVocab,
   onOpenPronunciation,
+  onOpenListening,
   onOpenInstantLearn,
   onOpenGrammar,
-  onOpenPhrasebook,
-  onOpenStories,
 }: Props) {
   const insets = useSafeAreaInsets();
   const t = useAppTranslation();
-  const [weeklyTotal, setWeeklyTotal] = useState(0);
   const [playedToday, setPlayedToday] = useState(false);
-  const [xp, setXp] = useState(0);
+  const [fills, setFills] = useState<Record<LearnMode, number>>({ vocab: 0, pronunciation: 0, listening: 0 });
+  const [targetLang, setTargetLang] = useState<string>('es');
+  const [tips, setTips] = useState<CulturalTip[]>([]);
+  const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
     (async () => {
       const progress = await getProgress();
       const todayStr = new Date().toISOString().slice(0, 10);
       setPlayedToday(progress.lastPlayedDate === todayStr);
-      const weekly = getWeeklyXp(progress.dailyXpLog ?? {});
-      setWeeklyTotal(weekly.reduce((s, d) => s + d.xp, 0));
-      setXp(progress.xp);
+
+      const activityFills = await getLearnFills();
+      setFills(activityFills);
+
+      const raw = await AsyncStorage.getItem('userProfile');
+      if (raw) {
+        const profile = tryParseJson<UserProfile>(raw);
+        if (profile?.language?.code) {
+          setTargetLang(profile.language.code);
+        }
+      }
     })();
   }, []);
 
+  useEffect(() => {
+    const list = getCulturalTips(targetLang);
+    setTips(list);
+    setTipIndex(Math.floor(Math.random() * list.length));
+  }, [targetLang]);
+
+  const activeTip = tips[tipIndex] ?? null;
+
+  const handleOpenMode = (mode: LearnMode, fn?: () => void) => {
+    recordLearnOpen(mode);
+    setFills(prev => ({ ...prev, [mode]: Math.min(1, prev[mode] + 1 / 3) }));
+    fn?.();
+  };
+
   const prepTiles: PrepTile[] = [
     {
-      id: 'kelime',
+      id: 'vocab',
       label: t('learn.vocab'),
       icon: 'book-open',
-      fill: playedToday ? 1 : 0.35,
+      fill: fills.vocab,
       caption: t('learn.vocabCaption'),
-      onPress: () => onOpenVocab?.(),
+      onPress: () => handleOpenMode('vocab', onOpenVocab),
     },
     {
-      id: 'telaffuz',
+      id: 'pronunciation',
       label: t('learn.pronunciation'),
       icon: 'mic',
-      fill: Math.min(1, 0.45 + (weeklyTotal > 20 ? 0.25 : 0)),
+      fill: fills.pronunciation,
       caption: t('learn.pronunciationCaption'),
-      onPress: () => onOpenPronunciation?.(),
+      onPress: () => handleOpenMode('pronunciation', onOpenPronunciation),
     },
     {
-      id: 'dinleme',
+      id: 'listening',
       label: t('learn.listening'),
       icon: 'headphones',
-      fill: Math.min(1, 0.55 + (xp > 80 ? 0.3 : 0)),
+      fill: fills.listening,
       caption: t('learn.listeningCaption'),
-      onPress: () => onOpenPronunciation?.(),
+      onPress: () => handleOpenMode('listening', onOpenListening),
     },
   ];
 
   const toolCards: ToolCard[] = [
     { id: 'grammar', title: t('learn.patterns'), subtitle: t('learn.patternsSub'), icon: 'globe', onPress: () => onOpenGrammar?.() },
-    { id: 'phrase', title: t('learn.phrases'), subtitle: t('learn.phrasesSub'), icon: 'bookmark', onPress: () => onOpenPhrasebook?.() },
     { id: 'instant', title: t('learn.instant'), subtitle: t('learn.instantSub'), icon: 'message-circle', onPress: () => onOpenInstantLearn?.() },
-    { id: 'stories', title: t('learn.stories'), subtitle: t('learn.storiesSub'), icon: 'layers', onPress: () => onOpenStories?.() },
   ];
 
   const bottomPad = Math.max(insets.bottom, 12) + 56;
@@ -100,13 +125,11 @@ export default function LearnHubScreen({
 
   return (
     <View style={styles.root}>
-      {/* Atmosphere */}
       <View style={styles.glow} pointerEvents="none" />
 
-      {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.eyebrow}>{t('learn.eyebrow')}</Text>
-        <Text style={styles.screenTitle}>{t('learn.title')}</Text>
+        <Text style={styles.screenTitle}>Seni sahneye{'\n'}hazırlayalım.</Text>
         <Text style={styles.subtitle}>{t('learn.subtitle')}</Text>
       </View>
 
@@ -138,7 +161,6 @@ export default function LearnHubScreen({
               </View>
               <Text style={styles.prepLabel}>{tile.label}</Text>
               <Text style={styles.prepCaption} numberOfLines={2}>{tile.caption}</Text>
-              {/* Fill bar */}
               <View style={styles.prepTrack}>
                 <LinearGradient
                   colors={[colors.accentWarmSoft, colors.accentWarm]}
@@ -150,8 +172,28 @@ export default function LearnHubScreen({
           ))}
         </View>
 
+        {/* Cultural tip */}
+        {activeTip ? (
+          <>
+            <View style={[styles.sectionRow, { marginTop: 4 }]}>
+              <Text style={styles.sectionTitle}>KÜLTÜREL İPUCU</Text>
+              {tips.length > 1 ? (
+                <TouchableOpacity onPress={() => setTipIndex((tipIndex + 1) % tips.length)}>
+                  <Text style={styles.sectionMeta}>Sonraki →</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View style={styles.tipCard}>
+              <Text style={styles.tipText}>{activeTip.text}</Text>
+              {activeTip.example ? (
+                <Text style={styles.tipExample}>"{activeTip.example}"</Text>
+              ) : null}
+            </View>
+          </>
+        ) : null}
+
         {/* Tool cards */}
-        <Text style={[styles.sectionTitle, { marginTop: 8, marginBottom: 12 }]}>Dil Araçları</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Dil Araçları</Text>
         <View style={styles.toolGrid}>
           {toolCards.map(card => (
             <TouchableOpacity
@@ -204,10 +246,6 @@ const styles = StyleSheet.create({
     lineHeight: 37,
     marginBottom: 8,
   },
-  screenTitleItalic: {
-    fontFamily: 'Fraunces_300Light_Italic',
-    color: colors.accentWarm,
-  },
   subtitle: {
     ...typography.body,
     fontSize: 13,
@@ -235,7 +273,6 @@ const styles = StyleSheet.create({
     color: colors.accentWarmSoft,
   },
 
-  // Prep tiles
   prepGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   prepCard: {
     width: '30.5%',
@@ -279,7 +316,28 @@ const styles = StyleSheet.create({
   },
   prepFill: { height: 2, borderRadius: 1 },
 
-  // Tool cards
+  tipCard: {
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.2)',
+    padding: 16,
+    marginBottom: 8,
+  },
+  tipText: {
+    ...typography.body,
+    fontSize: 13,
+    color: colors.inkSecondary,
+    lineHeight: 20,
+  },
+  tipExample: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 14,
+    color: colors.accentWarm,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+
   toolGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   toolCard: {
     width: '48%',
