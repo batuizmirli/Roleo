@@ -14,6 +14,7 @@ import {
   SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview, VoiceAttempt,
 } from '../types';
 import { sendMessage } from '../services/claude';
+import { getSessionTurns } from '../data/scenarioDialogues';
 import { parseModelJson, tryParseJson } from '../services/json';
 import { getPersonaByStage, getGoalContext } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
@@ -103,6 +104,7 @@ const MAX_TURNS = 6;
 const REACTION_DELAY_MS = 360;
 const VOICE_REPEAT_SECONDS = 3.2;
 const VOICE_REPLY_SECONDS = 7;
+const AI_TURN_TIMEOUT_MS = 8500;
 const GAME_EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 const GAME_EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 
@@ -242,6 +244,76 @@ const computeFlowPath = (history: TurnRecord[]): SceneFlowPath => {
 const answerSecondsFor = (p: NpcPersonality, firstSession: boolean) => {
   const base = p === 'friendly' ? 16 : p === 'busy' ? 11 : 8;
   return Math.round(base * (firstSession ? 1.45 : 1));
+};
+
+const normalizeSceneLine = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const similarSceneLine = (a?: string, b?: string) => {
+  const left = normalizeSceneLine(a ?? '');
+  const right = normalizeSceneLine(b ?? '');
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const leftTokens = new Set(left.split(' ').filter(token => token.length > 3));
+  const rightTokens = right.split(' ').filter(token => token.length > 3);
+  if (rightTokens.length === 0) return false;
+  const overlap = rightTokens.filter(token => leftTokens.has(token)).length / rightTokens.length;
+  return overlap >= 0.72;
+};
+
+const stageBeatFor = (stage: NonNullable<Scenario['stageType']>, turnIndex: number) => {
+  const beats: Record<NonNullable<Scenario['stageType']>, string[]> = {
+    cafe: [
+      'Take the main order.',
+      'Ask a concrete follow-up: size, side, milk, sugar, refill, to-go, or one extra item.',
+      'Confirm the order and ask one practical detail.',
+      'Move toward payment/check or closing the order.',
+      'Resolve the final small detail and complete the interaction.',
+    ],
+    travel: [
+      'Find out where the user wants to go.',
+      'Ask or explain the line/platform/direction.',
+      'Add a transfer, ticket, stop, or timing detail.',
+      'Confirm the route so the user can leave confidently.',
+      'Close the travel help interaction.',
+    ],
+    business: [
+      'Open the professional topic.',
+      'Ask for one concrete opinion, deadline, example, or clarification.',
+      'Introduce a small disagreement, risk, or constraint.',
+      'Ask the user to repair, soften, or clarify the point.',
+      'Close with a next step.',
+    ],
+    social: [
+      'Start the social contact.',
+      'Ask one personal/contextual follow-up.',
+      'Introduce a small social choice, invitation, or misunderstanding.',
+      'Let the user keep or repair the flow.',
+      'Close the exchange naturally.',
+    ],
+    story: [
+      'Establish what happened.',
+      'Ask for the user perspective.',
+      'Introduce a consequence or decision.',
+      'Ask for a repair or compromise.',
+      'Resolve the scene.',
+    ],
+    survival: [
+      'Identify the urgent need.',
+      'Ask for one precise symptom, place, document, or problem detail.',
+      'Give one instruction or ask for confirmation.',
+      'Check if the user understood the next action.',
+      'Close with the safest next step.',
+    ],
+  };
+  const list = beats[stage] ?? beats.social;
+  return list[Math.min(turnIndex, list.length - 1)];
 };
 
 const survivalResponsesByLang: Record<string, string[]> = {
@@ -406,7 +478,6 @@ export default function ScenarioScreen({
   const recordingUriRef = useRef<string | undefined>(undefined);
   const voiceCaptureModeRef = useRef<'scene' | 'repeat' | null>(null);
   const translationCacheRef = useRef<Record<string, string>>({});
-  const lastSpokenNpcLineRef = useRef('');
 
   // Animation: mic ripple (two concentric rings)
   const micRipple1 = useRef(new Animated.Value(0)).current;
@@ -507,11 +578,11 @@ export default function ScenarioScreen({
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== 'game' || !npcMessage || selectedIdx !== null) return;
-    if (lastSpokenNpcLineRef.current === npcMessage) return;
-    lastSpokenNpcLineRef.current = npcMessage;
-    void speakNpcLine(npcMessage, scenario.language);
-  }, [npcMessage, phase, scenario.language, selectedIdx]);
+    if (phase !== 'game') return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    });
+  }, [phase, npcMessage, selectedIdx]);
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
@@ -532,14 +603,15 @@ export default function ScenarioScreen({
 
   const historyKey = (history: TurnRecord[]) => {
     if (!history.length) return 'root';
-    return history.map(h => h.quality).join('|');
+    return history
+      .map(h => `${h.quality}:${normalizeSceneLine(h.selectedText).slice(0, 28)}`)
+      .join('|');
   };
 
   const startThinkingCountdown = () => {
     if (thinkingTimer.current) clearInterval(thinkingTimer.current);
     let current = 3;
     setThinkingCountdown(current);
-    setNpcMessage(`${persona.name}'dan cümle geliyor... ${current}`);
     thinkingTimer.current = setInterval(() => {
       current -= 1;
       if (current <= 0) {
@@ -549,7 +621,6 @@ export default function ScenarioScreen({
         return;
       }
       setThinkingCountdown(current);
-      setNpcMessage(`${persona.name}'dan cümle geliyor... ${current}`);
     }, 1000);
   };
 
@@ -571,6 +642,19 @@ export default function ScenarioScreen({
   };
 
   const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<null>(resolve => {
+          timeoutId = setTimeout(() => resolve(null), ms);
+        }),
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   const pickByIndex = (arr: string[], idx: number) => arr[idx % arr.length];
 
@@ -712,7 +796,7 @@ export default function ScenarioScreen({
     const pack = getLanguagePack(scenario.language);
     const idx = history.length;
     const stageOptions = pack.sceneOptions[stageKey] ?? pack.sceneOptions.social;
-    const currentBeat = scenario.dramaticBeats?.[idx % (scenario.dramaticBeats?.length || 1)];
+    const currentBeat = scenario.dramaticBeats?.[idx % (scenario.dramaticBeats?.length || 1)] ?? stageBeatFor(stageKey, idx);
     const usefulPhrase = scenario.usefulPhrases?.[idx % (scenario.usefulPhrases?.length || 1)]?.phrase;
 
     const good = pickByIndex(stageOptions.good, idx);
@@ -720,9 +804,65 @@ export default function ScenarioScreen({
     const awkward = pickByIndex(stageOptions.awkward, idx);
 
     const lastQuality = history[history.length - 1]?.quality ?? 'good';
-    const npcLine = history.length === 0
-      ? openingMsg
-      : pickByIndex(pack.followUp[lastQuality], idx + playCount);
+    const localNpcByLang: Record<string, Partial<Record<NonNullable<Scenario['stageType']>, string[]>>> = {
+      en: {
+        cafe: [
+          openingMsg,
+          'Got it. Would you like anything on the side with that?',
+          'No problem. Is that for here or to go?',
+          'Perfect. Anything else before I bring the check?',
+          'All set. I’ll put that in for you now.',
+        ],
+        travel: [
+          openingMsg,
+          'Sure. Which station are you trying to reach?',
+          'You’ll need the right direction first. Do you want the fastest route or the easiest one?',
+          'There is one transfer. Do you want me to repeat where to change?',
+          'That should get you there. Need anything else before you go?',
+        ],
+        business: [
+          openingMsg,
+          'That makes sense. Can you give me one concrete example?',
+          'I see the point, but the timeline may be tight. How would you adjust it?',
+          'Before we decide, can you soften that into a clear next step?',
+          'Good. Let’s agree on the next action.',
+        ],
+        social: [
+          openingMsg,
+          'Nice. What brought you here tonight?',
+          'That’s interesting. Do you know anyone else here?',
+          'I might join the others in a minute. Want to come with me?',
+          'Great talking to you. Let’s keep in touch.',
+        ],
+        survival: [
+          openingMsg,
+          'Okay, tell me exactly what you need help with.',
+          'I understand. Where is the problem happening right now?',
+          'I can help, but I need one more detail before we move.',
+          'Good. Follow this next step and you’ll be okay.',
+        ],
+        story: [
+          openingMsg,
+          'I hear you. What do you think happened first?',
+          'That changes things. What do you want to do now?',
+          'Before we decide, can you say that more calmly?',
+          'Okay, that gives us a way forward.',
+        ],
+      },
+      es: {
+        cafe: [openingMsg, 'Entiendo. ¿Quieres algo más con eso?', 'Claro. ¿Es para tomar aquí o para llevar?', 'Perfecto. ¿Algo más antes de la cuenta?', 'Muy bien, ahora preparo el pedido.'],
+        travel: [openingMsg, 'Claro. ¿A qué estación quieres llegar?', 'Primero necesitas la dirección correcta. ¿Quieres la ruta rápida o la fácil?', 'Hay un transbordo. ¿Quieres que repita dónde cambiar?', 'Listo. Con eso llegas bien.'],
+        business: [openingMsg, 'Entiendo. ¿Puedes darme un ejemplo concreto?', 'Veo el punto, pero el plazo está ajustado. ¿Cómo lo cambiarías?', 'Antes de decidir, dilo como próximo paso claro.', 'Bien. Acordemos la siguiente acción.'],
+        social: [openingMsg, 'Qué bien. ¿Qué te trae por aquí?', 'Interesante. ¿Conoces a alguien más aquí?', 'Voy con el grupo en un momento. ¿Quieres venir?', 'Me gustó hablar contigo. Seguimos en contacto.'],
+        survival: [openingMsg, 'Vale, dime exactamente qué necesitas.', 'Entiendo. ¿Dónde está pasando el problema ahora?', 'Puedo ayudar, pero necesito un detalle más.', 'Bien. Sigue este paso y estarás bien.'],
+        story: [openingMsg, 'Te entiendo. ¿Qué crees que pasó primero?', 'Eso cambia la situación. ¿Qué quieres hacer ahora?', 'Antes de decidir, dilo con más calma.', 'Bien, eso nos da una salida.'],
+      },
+    };
+    const localStageLines = localNpcByLang[scenario.language]?.[stageKey] ?? localNpcByLang.en[stageKey] ?? localNpcByLang.en.social;
+    const fallbackNpcLine = pickByIndex(pack.followUp[lastQuality], idx + playCount);
+    const candidateNpcLine = history.length === 0 ? openingMsg : (localStageLines?.[Math.min(idx, (localStageLines.length ?? 1) - 1)] ?? fallbackNpcLine);
+    const priorNpcLines = history.map(t => t.npcMessage);
+    const npcLine = priorNpcLines.some(line => similarSceneLine(line, candidateNpcLine)) ? fallbackNpcLine : candidateNpcLine;
 
     const dialogOptions: DialogOption[] = [
       {
@@ -774,9 +914,13 @@ export default function ScenarioScreen({
       .slice(0, 3);
 
     if (options.length < 3) return null;
+    const npcLine = payload.npc_message ?? payload.npcLine ?? openingMsg;
+    const optionTexts = options.map(o => normalizeSceneLine(o.text));
+    if (new Set(optionTexts).size < 3) return null;
+    if (options.some((option, idx) => optionTexts.slice(0, idx).some(prev => similarSceneLine(prev, option.text)))) return null;
 
     return {
-      npc_message: payload.npc_message ?? payload.npcLine ?? openingMsg,
+      npc_message: npcLine,
       npc_mood: payload.npc_mood ?? (payload.sceneState?.tension === 'high' ? 'impatient' : 'neutral'),
       options,
       reactions: payload.reactions ?? {
@@ -792,6 +936,7 @@ export default function ScenarioScreen({
   const applyTurnToUi = (turn: GameTurn, history: TurnRecord[], openingMsg: string) => {
     stopThinkingCountdown();
     clearAnswerTimer();
+    setOptionsLoading(false);
     feedbackEntrance.setValue(0);
     const shuffleKey = (playCount * 31 + history.length * 7 + (scenario.id?.length ?? 0)) % 6;
     const perms: number[][] = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
@@ -816,7 +961,7 @@ export default function ScenarioScreen({
     }
 
     animateOptionsIn();
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 80);
   };
 
   const requestTurn = async (history: TurnRecord[], openingMsg: string): Promise<GameTurn | null> => {
@@ -850,6 +995,8 @@ export default function ScenarioScreen({
     const historyText = history
       .map((t, i) => `Turn ${i + 1}: NPC: "${t.npcMessage}" → User: "${t.selectedText}" (${t.quality})`)
       .join('\n');
+    const priorNpcLines = history.map((t, i) => `NPC line ${i + 1}: "${t.npcMessage}"`).join('\n') || 'none yet';
+    const priorUserReplies = history.map((t, i) => `User reply ${i + 1}: "${t.selectedText}"`).join('\n') || 'none yet';
 
     const reactionFmt = `"reactions":{"good":"(warm NPC reply in ${langName}, 1 sentence)","ok":"(brief/neutral reply in ${langName}, 1 sentence)","awkward":"(confused/impatient reply in ${langName}, 1 sentence)"}`;
     const choiceSchema = `"choices":[{"text":"...","quality":"good","feedback":"why this is natural","why":"social reason"},{"text":"...","quality":"ok","feedback":"what is missing","why":"social reason"},{"text":"...","quality":"awkward","feedback":"why this creates friction","why":"social reason"}]`;
@@ -885,6 +1032,7 @@ export default function ScenarioScreen({
       ? `NPC context: ${scenario.systemPrompt.split('\n')[0]}\n`
       : '';
 
+    const requiredBeat = stageBeatFor(stageKey, history.length);
     const sharedContext = `SCENE CONTEXT
 - User identity goal: "${identityGoal || 'not provided'}"
 - Target language: ${langName} (${p?.language?.code ?? scenario.language})
@@ -892,6 +1040,7 @@ export default function ScenarioScreen({
 - Current scenario: "${scenario.title}" at ${scenario.location}
 - Scene mission: ${scenario.mission ?? 'Complete the interaction naturally'}
 - Dramatic beat now: ${currentBeat}
+- Required scene progress now: ${requiredBeat}
 - NPC persona: ${persona.name} (${persona.roleLabel}); ${PERSONALITY_LABEL[personality]}
 - Difficulty: scenario=${scenario.difficulty}; replayCount=${playCount}; personality=${personality}
 - Last session memory:
@@ -903,8 +1052,17 @@ ${usefulPhrases}
 - Likely misunderstandings:
 ${likelyMisunderstandings}
 
-Generate choices as social-tone alternatives, not grammar quiz answers. The three choices should usually share the same broad intent but differ by tact, clarity, and fit for the NPC relationship.
-Do not paste vocabHint words into unnatural templates. Use vocabulary only if it fits the sentence naturally.`;
+Generate choices as scene-relevant replies, not grammar quiz answers. The three choices should answer the NPC's current question and move the current beat forward.
+Do not paste vocabHint words into unnatural templates. Use vocabulary only if it fits the sentence naturally.
+
+ANTI-LOOP RULES:
+- Every NPC line must move the scene to a new concrete beat. Do not ask generic "anything else?" unless the current beat is closing/payment.
+- Do not repeat prior NPC lines, prior user replies, or the same intent in new wording.
+- The NPC line must reference or logically react to the user's last reply, then add one new concrete detail/question.
+- Choices must answer the current NPC line directly. They must not be random useful phrases.
+- Choices must not reuse earlier reply topics. If the user already ordered coffee, the next choices must be about side item, milk, to-go, payment, refill, etc. depending on the beat.
+- The good/ok/awkward options may share the same immediate intent, but the content must be new for this turn and tied to the new NPC question.
+- If the mission is already satisfied after 3+ user turns, set scene_complete true instead of extending the conversation.`;
 
     const prompt = isFirst
       ? `Turn-based language roleplay game.
@@ -931,11 +1089,14 @@ ${npcContext}${goalInject}
 ${branchNote}${replayNote}
 
 History:\n${historyText}
+Prior NPC lines to avoid:\n${priorNpcLines}
+Prior user replies to avoid copying:\n${priorUserReplies}
 
 Write NPC's next line (react naturally based on personality + last user choice).
-Generate 3 response choices — same intent, 3 social registers.
+The NPC must progress this exact next beat: ${requiredBeat}
+Generate 3 response choices that answer this new NPC line. They should test register and clarity, but the topic/content must be new compared with prior user replies.
 Choices must feel like real choices a person might make, not a grammar test.
-scene_complete:true only after turn ${history.length} if scene goal naturally achieved (min 3 turns).${okSlowHint}${difficultyHint}
+scene_complete:true after turn ${history.length} if the mission is naturally achieved (min 3 turns). Do not stretch the scene beyond 5 user turns unless there is unresolved friction.${okSlowHint}${difficultyHint}
 
 IMPORTANT: Do NOT include action narrations like *wipes the glass*, *smiles*, *leans forward* etc. NPC must speak only in dialogue. No asterisk actions, no stage directions, no narration.
 
@@ -948,7 +1109,14 @@ Return ONLY valid JSON:
       { maxTokens: 520 },
     );
 
-    return normalizeAiTurn(parseModelJson<AiTurnPayload>(res, 'object'), openingMsg);
+    const normalized = normalizeAiTurn(parseModelJson<AiTurnPayload>(res, 'object'), openingMsg);
+    if (!normalized) return null;
+    const repeatedNpcLine = history.some(turn => similarSceneLine(turn.npcMessage, normalized.npc_message));
+    const repeatedChoiceIntent = normalized.options.some(option =>
+      history.some(turn => similarSceneLine(turn.selectedText, option.text)),
+    );
+    if (repeatedNpcLine || repeatedChoiceIntent) return null;
+    return normalized;
   };
 
   const translateNpcLine = async (text: string): Promise<string> => {
@@ -1045,7 +1213,7 @@ Return ONLY valid JSON:
     const key = historyKey(history);
     const cached = turnCacheRef.current[key];
 
-    setOptionsLoading(false);
+    setOptionsLoading(true);
     setOptions(null);
     setCurrentReactions(null);
     setNpcReaction(null);
@@ -1059,28 +1227,48 @@ Return ONLY valid JSON:
       return;
     }
 
+    // ── Static dialogue path (default) ──────────────────────────────────────
+    const staticPool = getSessionTurns(stageKey, scenario.language, playCount);
+    if (staticPool) {
+      const staticTurn = staticPool[history.length] ?? staticPool[staticPool.length - 1];
+      const gameTurn: GameTurn = {
+        npc_message: staticTurn.npc_message,
+        npc_mood: staticTurn.npc_mood,
+        options: staticTurn.options.map(o => ({
+          text: o.text,
+          quality: o.quality,
+          feedback: o.feedback,
+          why: o.correction,
+        })),
+        reactions: {
+          good: staticTurn.options.find(o => o.quality === 'good')?.feedback ?? '',
+          ok: staticTurn.options.find(o => o.quality === 'ok')?.feedback ?? '',
+          awkward: staticTurn.options.find(o => o.quality === 'awkward')?.feedback ?? '',
+        },
+        scene_complete: staticTurn.scene_complete ?? history.length >= 4,
+        sceneState: {
+          tension: 'low',
+          progress: history.length <= 1 ? 'opening' : history.length >= 4 ? 'resolution' : 'complication',
+          nextBeat: staticTurn.npc_message,
+        },
+      };
+      if (minDelayMs > 0) await wait(minDelayMs);
+      turnCacheRef.current[key] = gameTurn;
+      applyTurnToUi(gameTurn, history, openingMsg);
+      return;
+    }
+    // ── AI fallback (no static pool for this stageType/language) ────────────
+
     const localTurn = buildLocalTurn(history, openingMsg);
-    turnCacheRef.current[key] = localTurn;
     if (minDelayMs > 0) await wait(minDelayMs);
-    applyTurnToUi(localTurn, history, openingMsg);
 
-    const activeNpcMessage = history.length === 0 ? openingMsg : (localTurn.npc_message || npcMessage);
-    void prefetchNextTurns(history, openingMsg, localTurn, activeNpcMessage);
+    const parsed = await withTimeout(requestTurn(history, openingMsg), AI_TURN_TIMEOUT_MS).catch(() => null);
+    const turn = parsed?.options?.length ? parsed : localTurn;
+    turnCacheRef.current[key] = turn;
+    applyTurnToUi(turn, history, openingMsg);
 
-    void requestTurn(history, openingMsg)
-      .then(parsed => {
-        if (!parsed?.options?.length) return;
-        turnCacheRef.current[key] = parsed;
-        void prefetchNextTurns(
-          history,
-          openingMsg,
-          parsed,
-          history.length === 0 ? openingMsg : (parsed.npc_message || localTurn.npc_message || npcMessage),
-        );
-      })
-      .catch(() => {
-        // local-first fallback already active
-      });
+    const activeNpcMessage = history.length === 0 ? openingMsg : (turn.npc_message || localTurn.npc_message || npcMessage);
+    void prefetchNextTurns(history, openingMsg, turn, activeNpcMessage);
   };
 
   // ── Game actions ──────────────────────────────────────────────────────────
@@ -2248,9 +2436,9 @@ Return ONLY valid JSON:
         {/* Photo tint — birebir mockup değerleri */}
         <LinearGradient
           colors={[
-            'rgba(10,14,20,0.15)',
-            'rgba(10,14,20,0.00)',
-            'rgba(10,14,20,0.40)',
+            'rgba(10,14,20,0.32)',
+            'rgba(10,14,20,0.12)',
+            'rgba(10,14,20,0.58)',
             'rgba(10,14,20,0.95)',
           ]}
           locations={[0, 0.30, 0.80, 1]}
@@ -3265,9 +3453,9 @@ const gStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(255,255,255,0.10)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(10,14,20,0.04)',
+    backgroundColor: 'rgba(5,8,12,0.58)',
   },
 
   sceneCaptionEyebrow: {
@@ -3283,9 +3471,9 @@ const gStyles = StyleSheet.create({
     lineHeight: 23,
     color: colors.inkPrimary,
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.82)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowRadius: 10,
   },
 
   // ── Dialogue scroll ───────────────────────────────────────────
@@ -3294,7 +3482,6 @@ const gStyles = StyleSheet.create({
   },
 
   dialogueScrollContent: {
-    justifyContent: 'flex-end',
     flexGrow: 1,
     gap: 12,
     paddingTop: 8,
