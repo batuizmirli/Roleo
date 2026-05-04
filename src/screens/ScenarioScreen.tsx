@@ -151,6 +151,16 @@ const STAGE_ROLE_TR: Record<string, string> = {
   survival: 'Yerli',
 };
 
+// Feather icon per stage type
+const STAGE_ICON: Record<string, React.ComponentProps<typeof Feather>['name']> = {
+  cafe:     'coffee',
+  travel:   'map-pin',
+  business: 'briefcase',
+  social:   'users',
+  story:    'book-open',
+  survival: 'compass',
+};
+
 const MOOD_EMOJI: Record<NpcMood, string> = {
   happy: '😊', neutral: '😐', confused: '😕', impatient: '😤',
 };
@@ -472,6 +482,8 @@ export default function ScenarioScreen({
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   const [customInputText, setCustomInputText] = useState('');
   const optionsPanelAnim = useRef(new Animated.Value(0)).current;
+  const [loadingCountdown, setLoadingCountdown] = useState<5 | 4 | 3 | 2 | 1>(5);
+  const loadingCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Combo + hint
   const [consecutiveGood, setConsecutiveGood] = useState(0);
@@ -533,6 +545,7 @@ export default function ScenarioScreen({
   const sceneLiveSrActiveRef = useRef(false);
   const sceneLiveTranscriptRef = useRef('');
   const [liveScenePartialText, setLiveScenePartialText] = useState('');
+  const liveTranscriptFade = useRef(new Animated.Value(0)).current;
   const sceneFileSttPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sceneFileSttFlushRef = useRef(false);
   const liveFileAccumulatedRef = useRef('');
@@ -617,10 +630,19 @@ export default function ScenarioScreen({
   // Animation: mic ripple (two concentric rings)
   const micRipple1 = useRef(new Animated.Value(0)).current;
   const micRipple2 = useRef(new Animated.Value(0)).current;
-  // Animation: waveform bars (12 bars)
+  // Animation: waveform bars (20 bars)
   const waveAnims = useRef(
-    Array.from({ length: 12 }, () => new Animated.Value(0.3))
+    Array.from({ length: 20 }, () => new Animated.Value(0.15))
   ).current;
+  // Animation: breathing pulse during processing
+  const processingPulse = useRef(new Animated.Value(0.6)).current;
+  // Animation: NPC avatar glow during TTS speaking
+  const npcSpeakPulse = useRef(new Animated.Value(0)).current;
+  const [isNpcSpeaking, setIsNpcSpeaking] = useState(false);
+  // Animation: typing dots for thinking indicator
+  const typingDot1 = useRef(new Animated.Value(0.3)).current;
+  const typingDot2 = useRef(new Animated.Value(0.3)).current;
+  const typingDot3 = useRef(new Animated.Value(0.3)).current;
   // Animation: blinking cursor in voice capture area
   const cursorBlink = useRef(new Animated.Value(1)).current;
   // Animation: scene meta dot pulse
@@ -727,9 +749,9 @@ export default function ScenarioScreen({
   useEffect(() => {
     if (phase !== 'game') return;
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      scrollRef.current?.scrollToEnd({ animated: true });
     });
-  }, [phase, npcMessage, selectedIdx]);
+  }, [phase, npcMessage, selectedIdx, reactionVisible]);
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
@@ -1108,7 +1130,7 @@ export default function ScenarioScreen({
     }
 
     animateOptionsIn();
-    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 80);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
   const requestTurn = async (history: TurnRecord[], openingMsg: string): Promise<GameTurn | null> => {
@@ -1526,6 +1548,10 @@ Return ONLY valid JSON:
       setReactionVisible(true);
       animateNpcReplyEntrance();
       setNpcMood(computeMood(turnHistory, picked.quality, consecutiveGood));
+      // Voice mode: auto-advance to next turn after reaction is seen
+      if (sessionInputModeRef.current === 'voice') {
+        setTimeout(() => { void handleNextRef.current?.(); }, 1600);
+      }
     }, REACTION_DELAY_MS);
   };
 
@@ -1974,6 +2000,31 @@ Return ONLY valid JSON:
     }).start();
   }, [phase, sceneEntrance]);
 
+  // 3-2-1 loop while options are loading
+  useEffect(() => {
+    if (optionsLoading) {
+      setLoadingCountdown(5);
+      loadingCountdownIntervalRef.current = setInterval(() => {
+        setLoadingCountdown(prev => (prev === 1 ? 5 : (prev - 1) as 5 | 4 | 3 | 2 | 1));
+      }, 1000);
+    } else {
+      if (loadingCountdownIntervalRef.current) {
+        clearInterval(loadingCountdownIntervalRef.current);
+        loadingCountdownIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (loadingCountdownIntervalRef.current) clearInterval(loadingCountdownIntervalRef.current);
+    };
+  }, [optionsLoading]);
+
+  // Fade in live transcript text whenever it updates
+  useEffect(() => {
+    if (!liveScenePartialText) { liveTranscriptFade.setValue(0); return; }
+    liveTranscriptFade.setValue(0.3);
+    Animated.timing(liveTranscriptFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  }, [liveScenePartialText, liveTranscriptFade]);
+
   // Mic ripple animation while recording
   useEffect(() => {
     if (!isRecording) {
@@ -2004,16 +2055,17 @@ Return ONLY valid JSON:
   // Waveform animation while recording
   useEffect(() => {
     if (!isRecording) {
-      waveAnims.forEach(a => a.setValue(0.3));
+      waveAnims.forEach(a => a.setValue(0.15));
       return;
     }
+    const heights = [0.35, 0.6, 0.9, 0.5, 1.0, 0.7, 0.45, 0.85, 0.55, 0.75, 0.4, 0.65, 0.95, 0.5, 0.8, 0.45, 0.7, 0.35, 0.9, 0.6];
     const loops = waveAnims.map((anim, i) => {
-      const heights = [0.4, 0.7, 1.0, 0.6, 0.85, 0.5, 0.75, 0.45, 0.9, 0.55, 0.7, 0.35];
+      const period = 320 + (i % 5) * 60;
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.delay(i * 80),
-          Animated.timing(anim, { toValue: heights[i], duration: 400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.3, duration: 400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.delay(i * 55),
+          Animated.timing(anim, { toValue: heights[i], duration: period, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.15, duration: period, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
       );
       loop.start();
@@ -2021,6 +2073,39 @@ Return ONLY valid JSON:
     });
     return () => loops.forEach(l => l.stop());
   }, [isRecording, waveAnims]);
+
+  // Breathing pulse while processing
+  useEffect(() => {
+    const isProcessing = voiceCaptureMode === 'scene' && voiceStep === 'processing';
+    if (!isProcessing) {
+      processingPulse.setValue(0.6);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(processingPulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(processingPulse, { toValue: 0.6, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [voiceCaptureMode, voiceStep, processingPulse]);
+
+  // NPC avatar pulse while TTS speaking
+  useEffect(() => {
+    if (!isNpcSpeaking) {
+      npcSpeakPulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(npcSpeakPulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(npcSpeakPulse, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isNpcSpeaking, npcSpeakPulse]);
 
   useEffect(() => {
     if (!isRecording) { cursorBlink.setValue(0); return; }
@@ -2036,9 +2121,32 @@ Return ONLY valid JSON:
     return () => loop.stop();
   }, [isRecording, cursorBlink]);
 
+  // Typing dots animation while optionsLoading
+  useEffect(() => {
+    if (!optionsLoading) {
+      typingDot1.setValue(0.3);
+      typingDot2.setValue(0.3);
+      typingDot3.setValue(0.3);
+      return;
+    }
+    const dot = (a: Animated.Value, delay: number) =>
+      Animated.loop(Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(a, { toValue: 1, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(a, { toValue: 0.3, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(560),
+      ]));
+    const l1 = dot(typingDot1, 0);
+    const l2 = dot(typingDot2, 200);
+    const l3 = dot(typingDot3, 400);
+    l1.start(); l2.start(); l3.start();
+    return () => { l1.stop(); l2.stop(); l3.stop(); };
+  }, [optionsLoading, typingDot1, typingDot2, typingDot3]);
+
   const replayNpcLine = () => {
     const text = reactionVisible && npcReaction ? npcReaction : npcMessage;
-    void speakNpcLine(text, scenario.language);
+    setIsNpcSpeaking(true);
+    void speakNpcLine(text, scenario.language).finally(() => setIsNpcSpeaking(false));
   };
 
   const beginVoiceRecording = async (mode: 'scene' | 'repeat', seconds: number) => {
@@ -2924,14 +3032,26 @@ Return ONLY valid JSON:
   const ripple2Scale = micRipple2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
   const ripple2Opacity = micRipple2.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.6, 0] });
 
+  const npcCardRotation = npcCardFlip.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '90deg', '0deg'],
+  });
+
   const isVoiceCapturing = isRecording || (voiceCaptureMode === 'scene' && voiceStep === 'processing');
 
   return (
-    <View style={chat.root}>
+    <Animated.View style={[chat.root, { opacity: sceneEntrance }]}>
       {/* Full-screen wallpaper */}
       <ImageBackground source={scenePhoto} style={StyleSheet.absoluteFill} resizeMode="cover">
         <View style={chat.wallpaperOverlay} />
       </ImageBackground>
+      {/* Bottom gradient — outside ImageBackground so it covers full screen height */}
+      <LinearGradient
+        colors={['transparent', 'rgba(10,14,20,0.60)', 'rgba(10,14,20,0.92)', colors.bgDeep]}
+        locations={[0.15, 0.48, 0.74, 1]}
+        style={chat.wallpaperBottomFade}
+        pointerEvents="none"
+      />
 
       {/* Countdown overlay (in-game) */}
       {turnCountdown !== null && (
@@ -2960,8 +3080,16 @@ Return ONLY valid JSON:
           <Feather name="arrow-left" size={18} color={colors.inkPrimary} />
         </TouchableOpacity>
         <View style={chat.headerCenter}>
-          <View style={chat.headerAvatar}>
-            <Text style={chat.headerAvatarText}>{persona.name[0]}</Text>
+          <View style={chat.headerAvatarWrap}>
+            {isNpcSpeaking && (
+              <Animated.View style={[chat.npcSpeakRing, {
+                opacity: npcSpeakPulse,
+                transform: [{ scale: npcSpeakPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] }) }],
+              }]} />
+            )}
+            <View style={chat.headerAvatar}>
+              <Feather name={STAGE_ICON[stageKey] ?? 'user'} size={16} color={colors.accentWarm} />
+            </View>
           </View>
           <View style={chat.headerMeta}>
             <Text style={chat.headerName} numberOfLines={1}>
@@ -3005,8 +3133,19 @@ Return ONLY valid JSON:
           </View>
         ))}
 
-        {/* Current NPC message — always shows npcMessage, never replaced by reaction */}
-        {npcMessage ? (
+        {/* Loading — typing indicator bubble */}
+        {optionsLoading && (
+          <View style={chat.npcRow}>
+            <View style={chat.typingBubble}>
+              <Animated.View style={[chat.typingDot, { opacity: typingDot1 }]} />
+              <Animated.View style={[chat.typingDot, { opacity: typingDot2 }]} />
+              <Animated.View style={[chat.typingDot, { opacity: typingDot3 }]} />
+            </View>
+          </View>
+        )}
+
+        {/* Current NPC message — flip card on tap for translation */}
+        {npcMessage && !optionsLoading ? (
           <Animated.View
             style={[
               chat.npcRow,
@@ -3016,12 +3155,27 @@ Return ONLY valid JSON:
               },
             ]}
           >
-            <View style={chat.npcBubble}>
-              <Text style={chat.npcText}>{npcMessage}</Text>
-              {npcTranslation ? (
-                <Text style={chat.npcTranslation}>{npcTranslation}</Text>
-              ) : null}
-            </View>
+            <TouchableOpacity activeOpacity={0.88} onPress={() => { void flipNpcCard(npcMessage); }}>
+              <Animated.View style={[
+                chat.npcBubble,
+                { transform: [{ perspective: 900 }, { rotateY: npcCardRotation }] },
+              ]}>
+                {npcCardSide === 'translation' ? (
+                  <>
+                    <Text style={chat.npcTranslationLabel}>ÇEVİRİ</Text>
+                    <Text style={chat.npcTranslationText}>{npcTranslation ?? '…'}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={chat.npcText}>{npcMessage}</Text>
+                    <View style={chat.npcTranslateHintRow}>
+                      <Feather name="globe" size={10} color={colors.inkTertiary} />
+                      <Text style={chat.npcTranslationHint}>dokun</Text>
+                    </View>
+                  </>
+                )}
+              </Animated.View>
+            </TouchableOpacity>
             <TouchableOpacity style={chat.replayBtn} onPress={replayNpcLine} activeOpacity={0.7}>
               <Feather name="volume-2" size={13} color={colors.inkTertiary} />
             </TouchableOpacity>
@@ -3070,6 +3224,19 @@ Return ONLY valid JSON:
         <View style={{ height: 8 }} />
       </ScrollView>
 
+      {/* Answer timer bar — thin strip at top of input area, only while waiting for answer */}
+      {answerTimeLeft !== null && selectedIdx === null && !optionsLoading && (
+        <View style={chat.timerStrip} pointerEvents="none">
+          <Animated.View style={[
+            chat.timerStripFill,
+            {
+              width: timerProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              backgroundColor: answerTimeLeft <= 5 ? colors.errorDs : colors.accentWarmSoft,
+            },
+          ]} />
+        </View>
+      )}
+
       {/* Input area */}
       <View style={[chat.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
 
@@ -3107,66 +3274,65 @@ Return ONLY valid JSON:
 
         ) : sessionInputMode === 'voice' ? (
           /* Voice mode */
-          optionsLoading ? (
-            <View style={chat.loadingRow}>
-              <Text style={chat.loadingText}>{t('scenario.thinking', { name: persona.name })}</Text>
-            </View>
-          ) : isVoiceCapturing ? (
-            /* Recording — waveform bar */
-            <View style={chat.voiceRecordBar}>
-              <View style={chat.waveform}>
-                {waveAnims.map((anim, idx) => (
-                  <Animated.View key={idx} style={[chat.waveBar, { transform: [{ scaleY: anim }] }]} />
-                ))}
-              </View>
-              {(voiceTranscriptRevealing || liveScenePartialText.trim()) ? (
-                <Text style={chat.liveTranscript} numberOfLines={1}>
-                  {voiceTranscriptRevealing ? `"${voiceTranscriptRevealing}"` : liveScenePartialText}
-                </Text>
-              ) : null}
-              {isRecording ? (
-                <TouchableOpacity style={chat.stopBtn} onPress={stopRecording} activeOpacity={0.8}>
-                  <View style={chat.stopBtnInner} />
+          optionsLoading ? null : isVoiceCapturing ? (
+            isRecording ? (
+              /* Recording — full cinematic waveform */
+              <View style={chat.voiceRecordArea}>
+                <View style={chat.waveformLarge}>
+                  {waveAnims.map((anim, idx) => (
+                    <Animated.View
+                      key={idx}
+                      style={[
+                        chat.waveBarLarge,
+                        { transform: [{ scaleY: anim }] },
+                      ]}
+                    />
+                  ))}
+                </View>
+                {(liveScenePartialText.trim()) ? (
+                  <Animated.Text style={[chat.liveTranscriptLarge, { opacity: liveTranscriptFade }]} numberOfLines={2}>
+                    {liveScenePartialText}
+                  </Animated.Text>
+                ) : (
+                  <Text style={chat.voiceListeningHint}>dinleniyor…</Text>
+                )}
+                <TouchableOpacity style={chat.stopBtnLarge} onPress={stopRecording} activeOpacity={0.8}>
+                  <View style={chat.stopBtnInnerLarge} />
                 </TouchableOpacity>
-              ) : (
-                <Text style={chat.processingDots}>…</Text>
-              )}
-            </View>
+              </View>
+            ) : (
+              /* Processing — breathing orb */
+              <View style={chat.voiceProcessingArea}>
+                <Animated.View style={[chat.processingOrb, {
+                  opacity: processingPulse,
+                  transform: [{ scale: processingPulse.interpolate({ inputRange: [0.6, 1], outputRange: [0.9, 1.1] }) }],
+                }]} />
+                <Text style={chat.voiceProcessingLabel}>işleniyor</Text>
+              </View>
+            )
           ) : (
             /* Mic idle */
             <View style={chat.voiceIdleRow}>
-              <View style={chat.micWrap}>
-                <Animated.View style={[chat.micRipple, { transform: [{ scale: ripple1Scale }], opacity: ripple1Opacity }]} />
-                <Animated.View style={[chat.micRipple, { transform: [{ scale: ripple2Scale }], opacity: ripple2Opacity }]} />
-                <TouchableOpacity
-                  style={chat.micBtn}
-                  onPress={() => { void startSceneVoiceReply(); }}
-                  activeOpacity={0.85}
-                >
-                  <Feather name="mic" size={26} color={colors.bgDeep} />
-                </TouchableOpacity>
-              </View>
-              {canFinishEarly && (
-                <TouchableOpacity style={chat.earlyFinishLink} onPress={() => setPhase('done')} activeOpacity={0.7}>
-                  <Text style={chat.earlyFinishText}>{t('scenario.finish')}</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={chat.micBtn}
+                onPress={() => { void startSceneVoiceReply(); }}
+                activeOpacity={0.85}
+              >
+                <Feather name="mic" size={28} color={colors.bgDeep} />
+              </TouchableOpacity>
+              <Text style={chat.micHintText}>konuşmak için dokun</Text>
             </View>
           )
 
         ) : (
           /* Written mode */
-          optionsLoading ? (
-            <View style={chat.loadingRow}>
-              <Text style={chat.loadingText}>{t('scenario.thinking', { name: persona.name })}</Text>
-            </View>
-          ) : (
+          optionsLoading ? null : (
             <View style={chat.writtenBar}>
               <TextInput
                 style={chat.textInput}
                 value={customInputText}
                 onChangeText={setCustomInputText}
-                placeholder="Cevabını yaz…"
+                placeholder="…"
                 placeholderTextColor={colors.inkTertiary}
                 multiline
                 blurOnSubmit
@@ -3181,16 +3347,11 @@ Return ONLY valid JSON:
                   <Feather name={showOptionsPanel ? 'chevron-down' : 'list'} size={20} color={colors.accentWarm} />
                 </TouchableOpacity>
               )}
-              {canFinishEarly && !showOptionsPanel && !customInputText.trim() && (
-                <TouchableOpacity style={chat.earlyFinishLink} onPress={() => setPhase('done')} activeOpacity={0.7}>
-                  <Text style={chat.earlyFinishText}>{t('scenario.finish')}</Text>
-                </TouchableOpacity>
-              )}
             </View>
           )
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -4415,8 +4576,8 @@ const gStyles = StyleSheet.create({
   countdownLabel: {
     fontFamily: 'InterTight_400Regular',
     fontSize: 13,
-    color: colors.inkTertiary,
-    letterSpacing: 2,
+    color: colors.inkSecondary,
+    letterSpacing: 2.5,
     textTransform: 'uppercase',
   },
   countdownText: {
@@ -4579,7 +4740,14 @@ const chat = StyleSheet.create({
   },
   wallpaperOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,14,20,0.52)',
+    backgroundColor: 'rgba(10,14,20,0.40)',
+  },
+  wallpaperBottomFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '82%',
   },
 
   // ── Header ───────────────────────────────────────────────────────
@@ -4589,8 +4757,6 @@ const chat = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 10,
     backgroundColor: 'rgba(10,14,20,0.75)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   headerBtn: {
     width: 38,
@@ -4604,6 +4770,20 @@ const chat = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 4,
+  },
+  headerAvatarWrap: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  npcSpeakRing: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.accentWarm,
   },
   headerAvatar: {
     width: 36,
@@ -4675,16 +4855,80 @@ const chat = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: -0.2,
   },
-  npcTranslation: {
+  npcTranslationLabel: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 9,
+    color: colors.accentWarmSoft,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  npcTranslationText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 16,
+    color: colors.inkPrimary,
+    lineHeight: 24,
+    letterSpacing: -0.2,
+  },
+  npcTranslateHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  npcTranslationHint: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 10,
+    color: colors.inkTertiary,
+    letterSpacing: 0.3,
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(28,20,14,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.18)',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.accentWarm,
+  },
+  timerStrip: {
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
+  },
+  timerStripFill: {
+    height: 2,
+    borderRadius: 1,
+  },
+  // kept for compat
+  thinkingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  thinkingText: {
     fontFamily: 'InterTight_400Regular',
     fontSize: 12,
     color: colors.inkTertiary,
-    lineHeight: 17,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    paddingTop: 6,
-    marginTop: 2,
     fontStyle: 'italic',
+  },
+  thinkingCount: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 18,
+    color: colors.accentWarm,
+    letterSpacing: -0.5,
+    lineHeight: 22,
   },
   replayBtn: {
     width: 28,
@@ -4796,18 +5040,87 @@ const chat = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Voice recording bar
-  voiceRecordBar: {
+  // Voice recording — cinematic full area
+  voiceRecordArea: {
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  waveformLarge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.bgMid,
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
+    justifyContent: 'center',
+    gap: 3.5,
+    height: 60,
+    width: '100%',
   },
+  waveBarLarge: {
+    width: 3.5,
+    height: 52,
+    borderRadius: 3,
+    backgroundColor: colors.accentWarm,
+    shadowColor: colors.accentWarm,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  liveTranscriptLarge: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 15,
+    color: colors.inkPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+    lineHeight: 22,
+    paddingHorizontal: 8,
+  },
+  voiceListeningHint: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    letterSpacing: 0.5,
+  },
+  stopBtnLarge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.errorDs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopBtnInnerLarge: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: 'white',
+  },
+
+  // Voice processing — breathing orb
+  voiceProcessingArea: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  processingOrb: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(232,181,118,0.22)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(232,181,118,0.5)',
+    shadowColor: colors.accentWarm,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+  },
+  voiceProcessingLabel: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    letterSpacing: 0.5,
+  },
+
+  // Keep old names for compatibility
   waveform: {
     flex: 1,
     flexDirection: 'row',
@@ -4823,10 +5136,11 @@ const chat = StyleSheet.create({
     backgroundColor: colors.accentWarm,
   },
   liveTranscript: {
-    fontFamily: 'InterTight_400Regular',
-    fontSize: 12,
-    color: colors.inkTertiary,
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 14,
+    color: colors.inkSecondary,
     flex: 1,
+    letterSpacing: -0.2,
   },
   stopBtn: {
     width: 32,
@@ -4842,17 +5156,12 @@ const chat = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'white',
   },
-  processingDots: {
-    fontFamily: 'InterTight_400Regular',
-    fontSize: 18,
-    color: colors.inkTertiary,
-  },
 
   // Voice idle
   voiceIdleRow: {
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
+    gap: 8,
+    paddingVertical: 6,
   },
   micWrap: {
     width: 64,
@@ -4869,12 +5178,18 @@ const chat = StyleSheet.create({
     borderColor: colors.inkPrimary,
   },
   micBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.inkPrimary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  micHintText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+    letterSpacing: 0.3,
   },
 
   // Written input bar

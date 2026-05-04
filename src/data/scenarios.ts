@@ -38,7 +38,7 @@ const scenarioDefinitions: Scenario[] = [
     Start VERY simple. If the user writes in Turkish or English, respond in both Spanish AND Turkish/English translation so they understand.
     Gradually encourage them to try Spanish words. After each user response, briefly note any grammar or vocabulary mistakes with the prefix "💡 Düzeltme:".
     Be very patient and encouraging. Example: if they say "kahve istiyorum", respond "¡Café! (Kahve) — Muy bien! ¿Con leche o solo? (Sütlü mü yoksa sade mi?)"`,
-    openingMessage: '¡Buenos días! (Günaydın!) Bienvenido a Café Barcelona. ¿Qué quieres tomar? ☕\n\n👉 Türkçe veya İngilizce yazabilirsin, sana hem İspanyolca hem çevirisini göstereceğim.',
+    openingMessage: '¡Buenos días! (Günaydın!) Bienvenido a Café Barcelona. ¿Qué quieres tomar? ☕',
     vocabHints: [
       { word: 'Hola', meaning: 'Merhaba' },
       { word: 'Por favor', meaning: 'Lütfen' },
@@ -65,7 +65,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a helpful local in Madrid metro. The user is a Turkish beginner learning Spanish.
     If the user writes in Turkish or English, respond in both Spanish AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: '¡Hola! (Merhaba!) Parece que estás perdido. ¿Necesitas ayuda? (Kaybolmuş gibi görünüyorsun. Yardıma ihtiyacın var mı?)\n\n👉 Türkçe veya İspanyolca yazabilirsin!',
+    openingMessage: '¡Hola! (Merhaba!) Parece que estás perdido. ¿Necesitas ayuda? (Kaybolmuş gibi görünüyorsun. Yardıma ihtiyacın var mı?)',
     vocabHints: [
       { word: '¿Dónde está...?', meaning: 'Nerede...?' },
       { word: 'La estación', meaning: 'İstasyon' },
@@ -304,7 +304,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly waiter in a Parisian café. The user is a Turkish beginner learning French.
     If the user writes in Turkish or English, respond in both French AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: 'Bonjour! (Merhaba!) Bienvenue au Café de Paris. Qu\'est-ce que vous voulez? (Ne istersiniz?)\n\n👉 Türkçe veya Fransızca yazabilirsin!',
+    openingMessage: 'Bonjour! (Merhaba!) Bienvenue au Café de Paris. Qu\'est-ce que vous voulez? (Ne istersiniz?)',
     vocabHints: [
       { word: 'Bonjour', meaning: 'Merhaba' },
       { word: 'S\'il vous plaît', meaning: 'Lütfen' },
@@ -385,7 +385,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly vendor at a Berlin market. The user is a Turkish beginner learning German.
     If the user writes in Turkish or English, respond in both German AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: 'Guten Morgen! (Günaydın!) Willkommen auf dem Berliner Markt! Was darf es sein? (Ne istersiniz?)\n\n👉 Türkçe veya Almanca yazabilirsin!',
+    openingMessage: 'Guten Morgen! (Günaydın!) Willkommen auf dem Berliner Markt! Was darf es sein? (Ne istersiniz?)',
     vocabHints: [
       { word: 'Hallo', meaning: 'Merhaba' },
       { word: 'Bitte', meaning: 'Lütfen' },
@@ -466,7 +466,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly barista in a Rome café. The user is a Turkish beginner learning Italian.
     If the user writes in Turkish or English, respond in both Italian AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: 'Ciao! (Merhaba!) Benvenuto al Bar Roma! Cosa prendi? (Ne alırsın?)\n\n👉 Türkçe veya İtalyanca yazabilirsin!',
+    openingMessage: 'Ciao! (Merhaba!) Benvenuto al Bar Roma! Cosa prendi? (Ne alırsın?)',
     vocabHints: [
       { word: 'Ciao', meaning: 'Merhaba / Hoşça kal' },
       { word: 'Per favore', meaning: 'Lütfen' },
@@ -521,7 +521,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly Spanish person at a house party in Madrid. The user is a Turkish beginner learning Spanish.
     If the user writes in Turkish or English, respond in both Spanish AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Keep the energy fun and light.`,
-    openingMessage: '¡Hola! No te había visto antes. ¿Cómo te llamas? (Merhaba! Seni daha önce görmedim. Adın ne?)\n\n👉 Türkçe ya da İspanyolca yazabilirsin!',
+    openingMessage: '¡Hola! No te había visto antes. ¿Cómo te llamas? (Merhaba! Seni daha önce görmedim. Adın ne?)',
     vocabHints: [
       { word: '¿Cómo te llamas?', meaning: 'Adın ne?' },
       { word: 'Me llamo...', meaning: 'Adım...' },
@@ -603,7 +603,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly French person relaxing on the beach in Nice. The user is a Turkish beginner learning French.
     If the user writes in Turkish or English, respond in both French AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:".`,
-    openingMessage: 'Bonjour! Il fait beau aujourd\'hui, n\'est-ce pas? (Merhaba! Bugün hava çok güzel, değil mi?)\n\n👉 Türkçe ya da Fransızca yazabilirsin!',
+    openingMessage: 'Bonjour! Il fait beau aujourd\'hui, n\'est-ce pas? (Merhaba! Bugün hava çok güzel, değil mi?)',
     vocabHints: [
       { word: 'Il fait beau', meaning: 'Hava güzel' },
       { word: 'Je suis en vacances', meaning: 'Tatildeyim' },
@@ -632,7 +632,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly German person at a bar in Munich. The user is a Turkish beginner learning German.
     If the user writes in Turkish or English, respond in both German AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:".`,
-    openingMessage: 'Hallo! Ich habe dich hier noch nicht gesehen. Woher kommst du? (Merhaba! Seni burada daha önce görmedim. Nerelisin?)\n\n👉 Türkçe ya da Almanca yazabilirsin!',
+    openingMessage: 'Hallo! Ich habe dich hier noch nicht gesehen. Woher kommst du? (Merhaba! Seni burada daha önce görmedim. Nerelisin?)',
     vocabHints: [
       { word: 'Wie heißt du?', meaning: 'Adın ne?' },
       { word: 'Ich heiße...', meaning: 'Adım...' },
@@ -688,7 +688,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a helpful Roman in the metro. The user is a Turkish beginner learning Italian.
     If the user writes in Turkish or English, respond in both Italian AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:".`,
-    openingMessage: 'Ciao! Sembra che tu sia perso. Posso aiutarti? (Merhaba! Kaybolmuş gibi görünüyorsun. Yardımcı olabilir miyim?)\n\n👉 Türkçe ya da İtalyanca yazabilirsin!',
+    openingMessage: 'Ciao! Sembra che tu sia perso. Posso aiutarti? (Merhaba! Kaybolmuş gibi görünüyorsun. Yardımcı olabilir miyim?)',
     vocabHints: [
       { word: 'Dov\'è...?', meaning: 'Nerede...?' },
       { word: 'La fermata', meaning: 'Durak' },
@@ -741,7 +741,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly local in Florence's main piazza. The user is a Turkish beginner learning Italian.
     If the user writes in Turkish or English, respond in both Italian AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:".`,
-    openingMessage: 'Ciao! È la tua prima volta a Firenze? (Merhaba! Floransa\'ya ilk gelişin mi?)\n\n👉 Türkçe ya da İtalyanca yazabilirsin!',
+    openingMessage: 'Ciao! È la tua prima volta a Firenze? (Merhaba! Floransa\'ya ilk gelişin mi?)',
     vocabHints: [
       { word: 'È bellissimo!', meaning: 'Çok güzel!' },
       { word: 'Da dove vieni?', meaning: 'Nerelisin?' },
@@ -770,7 +770,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a friendly barista in a London café. The user is a Turkish beginner learning English.
     If the user writes in Turkish, respond in both English AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: 'Hello! (Merhaba!) Welcome to London Café! What would you like? (Ne istersiniz?)\n\n👉 Türkçe de yazabilirsin, sana hem İngilizce hem çevirisini göstereceğim!',
+    openingMessage: 'Hello! (Merhaba!) Welcome to London Café! What would you like? (Ne istersiniz?)',
     vocabHints: [
       { word: 'Hello / Hi', meaning: 'Merhaba' },
       { word: 'Please', meaning: 'Lütfen' },
@@ -823,7 +823,7 @@ const scenarioDefinitions: Scenario[] = [
     systemPrompt: `You are a helpful Londoner in the Underground. The user is a Turkish beginner learning English.
     If the user writes in Turkish, respond in both English AND Turkish translation.
     After each user response, note mistakes with prefix "💡 Düzeltme:". Be very encouraging.`,
-    openingMessage: 'Hello! You look a bit lost. Can I help you? (Merhaba! Biraz kaybolmuş gibisin. Yardımcı olabilir miyim?)\n\n👉 Türkçe de yazabilirsin!',
+    openingMessage: 'Hello! You look a bit lost. Can I help you? (Merhaba! Biraz kaybolmuş gibisin. Yardımcı olabilir miyim?)',
     vocabHints: [
       { word: 'Which line?', meaning: 'Hangi hat?' },
       { word: 'Change at...', meaning: '...\'da aktarma yap' },
