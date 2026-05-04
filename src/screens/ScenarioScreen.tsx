@@ -1131,6 +1131,11 @@ export default function ScenarioScreen({
 
     animateOptionsIn();
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+    // Written mode: auto-show options panel so user sees choices without extra tap
+    if (sessionInputModeRef.current !== 'voice') {
+      setShowOptionsPanel(true);
+      Animated.spring(optionsPanelAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 11 }).start();
+    }
   };
 
   const requestTurn = async (history: TurnRecord[], openingMsg: string): Promise<GameTurn | null> => {
@@ -3098,9 +3103,14 @@ Return ONLY valid JSON:
             <Text style={chat.headerLocation} numberOfLines={1}>{scenario.location}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={onBack} style={chat.headerBtn} activeOpacity={0.7}>
-          <Feather name="x" size={16} color={colors.inkSecondary} />
-        </TouchableOpacity>
+        <View style={chat.headerRight}>
+          <View style={chat.turnCounter}>
+            <Text style={chat.turnCounterText}>{turnHistory.length + (selectedIdx !== null ? 1 : 0)}<Text style={chat.turnCounterTotal}>/{MAX_TURNS}</Text></Text>
+          </View>
+          <TouchableOpacity onPress={onBack} style={chat.headerBtn} activeOpacity={0.7}>
+            <Feather name="x" size={16} color={colors.inkSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Chat scroll */}
@@ -3114,19 +3124,20 @@ Return ONLY valid JSON:
         {turnHistory.map((turn, i) => (
           <View key={i}>
             <View style={chat.npcRow}>
-              <View style={chat.npcBubble}>
-                <Text style={chat.npcText}>{turn.npcMessage}</Text>
+              <View style={[chat.npcBubble, chat.npcHistoryBubble]}>
+                <Text style={[chat.npcText, chat.npcHistoryText]}>{turn.npcMessage}</Text>
               </View>
             </View>
             <View style={chat.userRow}>
-              <View style={[chat.userBubble, { borderColor: qColor(turn.quality) + '55' }]}>
-                <Text style={chat.userText}>{turn.selectedText}</Text>
+              <View style={[chat.userBubble, chat.userHistoryBubble, { borderColor: qColor(turn.quality) + '44' }]}>
+                <Text style={[chat.userText, chat.userHistoryText]}>{turn.selectedText}</Text>
+                <View style={[chat.historyQualityDot, { backgroundColor: qColor(turn.quality) }]} />
               </View>
             </View>
             {turn.npcReaction ? (
               <View style={chat.npcRow}>
-                <View style={[chat.npcBubble, chat.npcReactionBubble]}>
-                  <Text style={chat.npcText}>{turn.npcReaction}</Text>
+                <View style={[chat.npcBubble, chat.npcReactionBubble, chat.npcHistoryBubble]}>
+                  <Text style={[chat.npcText, chat.npcHistoryText]}>{turn.npcReaction}</Text>
                 </View>
               </View>
             ) : null}
@@ -4938,6 +4949,43 @@ const chat = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+  },
+
+  // History bubble overrides (muted opacity)
+  npcHistoryBubble: { opacity: 0.6 },
+  npcHistoryText: { fontSize: 14, lineHeight: 21 },
+  userHistoryBubble: { opacity: 0.7, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  userHistoryText: { fontSize: 14, lineHeight: 21, flex: 1 },
+  historyQualityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
+  },
+
+  // Header right side
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  turnCounter: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  turnCounterText: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 12,
+    color: colors.accentWarmSoft,
+  },
+  turnCounterTotal: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
   },
 
   // User bubble — right aligned
