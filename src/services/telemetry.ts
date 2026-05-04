@@ -26,7 +26,8 @@ export type TelemetryEventName =
   | 'paywall_shown'
   | 'plus_mock_upgrade_selected'
   | 'friend_challenge_opened'
-  | 'friend_challenge_shared';
+  | 'friend_challenge_shared'
+  | 'scenario_session_input_mode';
 
 export type EventPayload = Record<string, string | number | boolean | null | undefined>;
 

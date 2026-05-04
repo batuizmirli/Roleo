@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   supportSectionTitle: { fontSize: 11, fontFamily: 'InterTight_600SemiBold', color: colors.accentWarm, letterSpacing: 2.2, textTransform: 'uppercase', marginTop: 10, marginBottom: 10 },
   center: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   loadingText: { color: colors.inkSecondary, fontSize: 14 },
-  lessonCard: { backgroundColor: colors.bgMid, borderRadius: 18, marginBottom: 12, borderWidth: 1.5, borderColor: colors.hairlineStrong, overflow: 'hidden' },
+  lessonCard: { backgroundColor: colors.bgMid, borderRadius: 20, marginBottom: 12, borderWidth: 1.5, borderColor: colors.hairlineStrong, overflow: 'hidden' },
   lessonHeader: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 12 },
   lessonNum: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.bgSoft, alignItems: 'center', justifyContent: 'center' },
   lessonNumText: { color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', fontSize: 14 },

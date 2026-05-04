@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated, Easing,
-  ImageBackground, Dimensions, Platform,
+  ImageBackground, Dimensions, Platform, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +15,7 @@ import {
   SceneRunSnapshot, ReplayHookKind, FriendChallengeTarget, StageLearningSummary, StageTurnReview, VoiceAttempt,
 } from '../types';
 import { sendMessage } from '../services/claude';
-import { getSessionTurns } from '../data/scenarioDialogues';
+import { getSessionTurns, StaticTurn } from '../data/scenarioDialogues';
 import { parseModelJson, tryParseJson } from '../services/json';
 import { getPersonaByStage, getGoalContext } from '../services/personas';
 import { trackEvent } from '../services/telemetry';
@@ -27,16 +28,21 @@ import {
   buildLostReplayCta,
 } from '../services/runHook';
 import { getLastSceneSession } from '../services/sessionMemory';
+import { getSpeechRecognitionModule, isLiveSpeechRecognitionUsable } from '../services/sceneSpeechRecognition';
 import {
   cleanupVoiceRecording,
+  claudeEvaluateSceneVoice,
   createVoiceAttempt,
   evaluateVoiceAttempt,
+  type VoiceAttemptEvaluation,
   requestMicrophonePermission,
   speakNpcLine,
   startVoiceRecording,
   stopNpcSpeech,
   stopVoiceRecording,
   transcribeVoice,
+  isSttConfigured,
+  isVoiceRecordingActive,
 } from '../services/voice';
 import { getVoiceRepeatLimitState, recordVoiceRepeatUse } from '../services/subscription';
 import AnimatedPressable from '../components/AnimatedPressable';
@@ -90,11 +96,15 @@ type SavedGameState = {
   currentNpcMessage: string;
   npcMood: NpcMood;
   savedAt: string;
+  /** Oyuna girişte seçilen katılım modu (eski kayıtlarda yoksa yazılı varsayılır) */
+  sessionInputMode?: 'written' | 'voice';
 };
 
 type TurnCache = Record<string, GameTurn>;
 
-type Phase = 'init' | 'intro' | 'vocab' | 'resume' | 'game' | 'lost' | 'done';
+type Phase = 'init' | 'intro' | 'vocab' | 'modePick' | 'resume' | 'countdown' | 'game' | 'lost' | 'done';
+
+type ScenarioSessionInputMode = 'written' | 'voice';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -104,6 +114,15 @@ const MAX_TURNS = 6;
 const REACTION_DELAY_MS = 360;
 const VOICE_REPEAT_SECONDS = 3.2;
 const VOICE_REPLY_SECONDS = 7;
+/** Expo Go / no native SR: refresh partial transcript from rolling file chunks while STT is configured */
+const SCENE_FILE_STT_POLL_MS = 2200;
+
+const bcp47ForScenarioLang = (code: string) => {
+  const m: Record<string, string> = {
+    en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', pt: 'pt-PT', tr: 'tr-TR',
+  };
+  return m[code.slice(0, 2)] ?? 'en-US';
+};
 const AI_TURN_TIMEOUT_MS = 8500;
 const GAME_EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 const GAME_EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
@@ -241,10 +260,7 @@ const computeFlowPath = (history: TurnRecord[]): SceneFlowPath => {
   return 'smooth';
 };
 
-const answerSecondsFor = (p: NpcPersonality, firstSession: boolean) => {
-  const base = p === 'friendly' ? 16 : p === 'busy' ? 11 : 8;
-  return Math.round(base * (firstSession ? 1.45 : 1));
-};
+const answerSecondsFor = (_p: NpcPersonality, _firstSession: boolean) => 30;
 
 const normalizeSceneLine = (text: string) =>
   text
@@ -381,7 +397,33 @@ type Props = {
   /** Completed count for this scenario — harder / less hand-holding on replay */
   playCount?: number;
   challengeTarget?: FriendChallengeTarget | null;
+  /** Günlük akış vb. için mod seçimini atla */
+  lockedSessionInputMode?: ScenarioSessionInputMode;
 };
+
+// ─── Static turn helper ─────────────────────────────────────────────────────
+
+const buildGameTurnFromStatic = (turn: StaticTurn, historyLen: number): GameTurn => ({
+  npc_message: turn.npc_message,
+  npc_mood: turn.npc_mood,
+  options: turn.options.map(o => ({
+    text: o.text,
+    quality: o.quality,
+    feedback: o.feedback,
+    why: o.correction,
+  })),
+  reactions: {
+    good: turn.options.find(o => o.quality === 'good')?.feedback ?? '',
+    ok: turn.options.find(o => o.quality === 'ok')?.feedback ?? '',
+    awkward: turn.options.find(o => o.quality === 'awkward')?.feedback ?? '',
+  },
+  scene_complete: turn.scene_complete ?? historyLen >= 4,
+  sceneState: {
+    tension: 'low',
+    progress: historyLen <= 1 ? 'opening' : historyLen >= 4 ? 'resolution' : 'complication',
+    nextBeat: turn.npc_message,
+  },
+});
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
@@ -390,12 +432,14 @@ export default function ScenarioScreen({
   guidedRunMode = false,
   playCount = 0,
   challengeTarget = null,
+  lockedSessionInputMode,
 }: Props) {
   const t = useAppTranslation();
   const stageKey = scenario.stageType ?? 'social';
   const persona = getPersonaByStage(stageKey);
   const goalCtx = getGoalContext(goalId);
 
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>(firstSessionMode ? 'intro' : 'init');
   const [savedState, setSavedState] = useState<SavedGameState | null>(null);
 
@@ -411,6 +455,8 @@ export default function ScenarioScreen({
   const [npcReaction, setNpcReaction] = useState<string | null>(null);
   const [reactionVisible, setReactionVisible] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [turnCountdown, setTurnCountdown] = useState<number | null>(null);
+  const countdownAnim = useRef(new Animated.Value(0)).current;
   const [turnHistory, setTurnHistory] = useState<TurnRecord[]>([]);
   const [sceneComplete, setSceneComplete] = useState(false);
   const [failReaction, setFailReaction] = useState('');
@@ -420,8 +466,12 @@ export default function ScenarioScreen({
   const [voiceMessage, setVoiceMessage] = useState('');
   const [voiceTargetText, setVoiceTargetText] = useState('');
   const [voiceCaptureMode, setVoiceCaptureMode] = useState<'scene' | 'repeat' | null>(null);
-  const [voiceInputMode, setVoiceInputMode] = useState<'hybrid' | 'written'>('hybrid');
+  const sessionInputModeRef = useRef<ScenarioSessionInputMode | null>(null);
+  const [sessionInputMode, setSessionInputMode] = useState<ScenarioSessionInputMode | null>(null);
   const [lastVoiceTranscript, setLastVoiceTranscript] = useState('');
+  const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+  const [customInputText, setCustomInputText] = useState('');
+  const optionsPanelAnim = useRef(new Animated.Value(0)).current;
 
   // Combo + hint
   const [consecutiveGood, setConsecutiveGood] = useState(0);
@@ -469,15 +519,100 @@ export default function ScenarioScreen({
 
   // ── Scene editorial UI state ───────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscriptRevealing, setVoiceTranscriptRevealing] = useState<string | null>(null);
   const [recordingSecsLeft, setRecordingSecsLeft] = useState(3.2);
   const [npcCardSide, setNpcCardSide] = useState<'front' | 'translation'>('front');
   const [npcTranslation, setNpcTranslation] = useState<string | null>(null);
-  const [translationLoading, setTranslationLoading] = useState(false);
   const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingUriRef = useRef<string | undefined>(undefined);
   const voiceCaptureModeRef = useRef<'scene' | 'repeat' | null>(null);
   const translationCacheRef = useRef<Record<string, string>>({});
+
+  const npcMessageRef = useRef(npcMessage);
+  const sceneLiveSrActiveRef = useRef(false);
+  const sceneLiveTranscriptRef = useRef('');
+  const [liveScenePartialText, setLiveScenePartialText] = useState('');
+  const sceneFileSttPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sceneFileSttFlushRef = useRef(false);
+  const liveFileAccumulatedRef = useRef('');
+
+  useEffect(() => {
+    npcMessageRef.current = npcMessage;
+  }, [npcMessage]);
+
+  // On mount: warm the translation cache for all static NPC lines in this scenario
+  useEffect(() => {
+    const pool = getSessionTurns(stageKey, scenario.language, playCount);
+    if (!pool) return;
+    const lines = [scenario.openingMessage, ...pool.map(t => t.npc_message)].filter(Boolean);
+    lines.forEach(line => { void translateNpcLine(line); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pre-fetch translation for the visible NPC line whenever it changes
+  const visibleNpcLineForPrefetch = npcReaction && reactionVisible ? npcReaction : npcMessage;
+  useEffect(() => {
+    if (!visibleNpcLineForPrefetch) return;
+    setNpcTranslation(null);
+    void translateNpcLine(visibleNpcLineForPrefetch).then(result => {
+      setNpcTranslation(result);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleNpcLineForPrefetch]);
+
+  useEffect(() => {
+    const mod = getSpeechRecognitionModule();
+    if (!mod) return;
+    const subResult = mod.addListener('result', ev => {
+      if (!sceneLiveSrActiveRef.current) return;
+      const text = ev.results[0]?.transcript ?? '';
+      sceneLiveTranscriptRef.current = text;
+      setLiveScenePartialText(text);
+    });
+    const subErr = mod.addListener('error', () => {
+      if (!sceneLiveSrActiveRef.current) return;
+      sceneLiveSrActiveRef.current = false;
+      if (recordingTimer.current) clearTimeout(recordingTimer.current);
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+        countdownInterval.current = null;
+      }
+      setIsRecording(false);
+      setVoiceStep('idle');
+      setVoiceCaptureMode(null);
+      voiceCaptureModeRef.current = null;
+      setLiveScenePartialText('');
+      sceneLiveTranscriptRef.current = '';
+      setVoiceMessage(t('scenario.voiceLiveError'));
+    });
+    return () => {
+      subResult.remove();
+      subErr.remove();
+    };
+  }, [t]);
+
+  useEffect(() => {
+    return () => {
+      if (sceneLiveSrActiveRef.current) {
+        try {
+          getSpeechRecognitionModule()?.abort();
+        } catch {
+          /* noop */
+        }
+        sceneLiveSrActiveRef.current = false;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (sceneFileSttPollRef.current) {
+        clearInterval(sceneFileSttPollRef.current);
+        sceneFileSttPollRef.current = null;
+      }
+    };
+  }, []);
 
   // Animation: mic ripple (two concentric rings)
   const micRipple1 = useRef(new Animated.Value(0)).current;
@@ -486,10 +621,13 @@ export default function ScenarioScreen({
   const waveAnims = useRef(
     Array.from({ length: 12 }, () => new Animated.Value(0.3))
   ).current;
+  // Animation: blinking cursor in voice capture area
+  const cursorBlink = useRef(new Animated.Value(1)).current;
   // Animation: scene meta dot pulse
   const metaDotPulse = useRef(new Animated.Value(1)).current;
   // Animation: screen entrance
   const sceneEntrance = useRef(new Animated.Value(0)).current;
+  const modePickEntrance = useRef(new Animated.Value(0)).current;
 
   const animateNpcEntrance = () => {
     npcEntrance.setValue(0);
@@ -507,7 +645,6 @@ export default function ScenarioScreen({
     npcCardFlip.setValue(0);
     setNpcCardSide('front');
     setNpcTranslation(null);
-    setTranslationLoading(false);
   };
 
   const animateOptionsIn = () => {
@@ -542,7 +679,12 @@ export default function ScenarioScreen({
   useEffect(() => {
     if (firstSessionMode) return;
     if (guidedRunMode) {
-      startGame();
+      if (lockedSessionInputMode) {
+        sessionInputModeRef.current = lockedSessionInputMode;
+        startGame();
+      } else {
+        setPhase('modePick');
+      }
       return;
     }
     const bootstrap = async () => {
@@ -559,8 +701,7 @@ export default function ScenarioScreen({
       if (scenario.vocabHints?.length) {
         setPhase('vocab');
       } else {
-        setPhase('game');
-        loadTurn([], scenario.openingMessage);
+        setPhase('modePick');
       }
     };
     bootstrap();
@@ -568,7 +709,13 @@ export default function ScenarioScreen({
 
   useEffect(() => {
     if (phase === 'game') {
-      trackEvent('stage_started', { scenarioId: scenario.id, stageType: stageKey, firstSessionMode, guidedRunMode });
+      trackEvent('stage_started', {
+        scenarioId: scenario.id,
+        stageType: stageKey,
+        firstSessionMode,
+        guidedRunMode,
+        sessionInputMode: sessionInputModeRef.current ?? 'written',
+      });
     }
     return () => {
       if (reactionTimer.current) clearTimeout(reactionTimer.current);
@@ -1120,8 +1267,17 @@ Return ONLY valid JSON:
   };
 
   const translateNpcLine = async (text: string): Promise<string> => {
-    const clean = text.replace(/^["“]|["”]$/g, '').trim();
+    const clean = text.replace(/^[“”]|[“”]$/g, '').trim();
     if (!clean) return t('scenario.translationUnavailable');
+
+    // Check static pool for pre-embedded translation (zero API cost)
+    const pool = getSessionTurns(stageKey, scenario.language, playCount);
+    const staticMatch = pool?.find(turn => turn.npc_message === clean);
+    if (staticMatch?.npc_translation) {
+      translationCacheRef.current[`static:${clean}`] = staticMatch.npc_translation;
+      return staticMatch.npc_translation;
+    }
+
     const profile = await getProfile();
     const nativeLanguage = profile?.nativeLanguage?.name ?? 'Turkish';
     const cacheKey = `${profile?.nativeLanguage?.code ?? 'tr'}:${clean}`;
@@ -1149,11 +1305,9 @@ Return ONLY valid JSON:
   const flipNpcCard = async (text: string) => {
     const nextSide = npcCardSide === 'front' ? 'translation' : 'front';
     if (nextSide === 'translation' && !npcTranslation) {
-      setTranslationLoading(true);
-      void translateNpcLine(text).then(translated => {
-        setNpcTranslation(translated);
-        setTranslationLoading(false);
-      });
+      // Pre-fetch should have already resolved this; fetch synchronously as fallback
+      const translated = await translateNpcLine(text);
+      setNpcTranslation(translated);
     }
 
     Animated.timing(npcCardFlip, {
@@ -1199,8 +1353,15 @@ Return ONLY valid JSON:
       if (turnCacheRef.current[key]) return;
 
       try {
-        const nextTurn = await requestTurn(nextHistory, openingMsg);
-        if (nextTurn?.options?.length) turnCacheRef.current[key] = nextTurn;
+        const nextStaticPool = getSessionTurns(stageKey, scenario.language, playCount);
+        const vSession = sessionInputModeRef.current === 'voice';
+        if (nextStaticPool && !vSession) {
+          const staticTurn = nextStaticPool[nextHistory.length] ?? nextStaticPool[nextStaticPool.length - 1];
+          turnCacheRef.current[key] = buildGameTurnFromStatic(staticTurn, nextHistory.length);
+        } else {
+          const nextTurn = await requestTurn(nextHistory, openingMsg);
+          if (nextTurn?.options?.length) turnCacheRef.current[key] = nextTurn;
+        }
       } catch {
         // prefetch is best-effort only
       }
@@ -1227,37 +1388,18 @@ Return ONLY valid JSON:
       return;
     }
 
-    // ── Static dialogue path (default) ──────────────────────────────────────
+    // ── Static dialogue path (written session only) ───────────────────────
     const staticPool = getSessionTurns(stageKey, scenario.language, playCount);
-    if (staticPool) {
+    const voiceSession = sessionInputModeRef.current === 'voice';
+    if (staticPool && !voiceSession) {
       const staticTurn = staticPool[history.length] ?? staticPool[staticPool.length - 1];
-      const gameTurn: GameTurn = {
-        npc_message: staticTurn.npc_message,
-        npc_mood: staticTurn.npc_mood,
-        options: staticTurn.options.map(o => ({
-          text: o.text,
-          quality: o.quality,
-          feedback: o.feedback,
-          why: o.correction,
-        })),
-        reactions: {
-          good: staticTurn.options.find(o => o.quality === 'good')?.feedback ?? '',
-          ok: staticTurn.options.find(o => o.quality === 'ok')?.feedback ?? '',
-          awkward: staticTurn.options.find(o => o.quality === 'awkward')?.feedback ?? '',
-        },
-        scene_complete: staticTurn.scene_complete ?? history.length >= 4,
-        sceneState: {
-          tension: 'low',
-          progress: history.length <= 1 ? 'opening' : history.length >= 4 ? 'resolution' : 'complication',
-          nextBeat: staticTurn.npc_message,
-        },
-      };
+      const gameTurn = buildGameTurnFromStatic(staticTurn, history.length);
       if (minDelayMs > 0) await wait(minDelayMs);
       turnCacheRef.current[key] = gameTurn;
       applyTurnToUi(gameTurn, history, openingMsg);
       return;
     }
-    // ── AI fallback (no static pool for this stageType/language) ────────────
+    // ── AI path (voice session — learner lines vary; static pool would desync) + no static pool
 
     const localTurn = buildLocalTurn(history, openingMsg);
     if (minDelayMs > 0) await wait(minDelayMs);
@@ -1273,7 +1415,19 @@ Return ONLY valid JSON:
 
   // ── Game actions ──────────────────────────────────────────────────────────
 
-  const startGame = (history: TurnRecord[] = [], msg = scenario.openingMessage, mood: NpcMood = 'neutral') => {
+  const startGame = async (
+    history: TurnRecord[] = [],
+    msg = scenario.openingMessage,
+    mood: NpcMood = 'neutral',
+    opts?: { mode?: ScenarioSessionInputMode },
+  ) => {
+    const resolvedMode = opts?.mode ?? sessionInputModeRef.current;
+    if (!resolvedMode) {
+      setPhase('modePick');
+      return;
+    }
+    sessionInputModeRef.current = resolvedMode;
+    setSessionInputMode(resolvedMode);
     turnCacheRef.current = {};
     comboPeakRef.current = 0;
     timedOutTurnsRef.current = 0;
@@ -1297,12 +1451,32 @@ Return ONLY valid JSON:
     setVoiceTargetText('');
     setVoiceCaptureMode(null);
     voiceCaptureModeRef.current = null;
-    setVoiceInputMode('hybrid');
     setLastVoiceTranscript('');
+    setLiveScenePartialText('');
+    sceneLiveTranscriptRef.current = '';
+    if (sceneLiveSrActiveRef.current) {
+      try {
+        getSpeechRecognitionModule()?.abort();
+      } catch {
+        /* noop */
+      }
+      sceneLiveSrActiveRef.current = false;
+    }
     setSceneComplete(false);
     setConsecutiveGood(0);
     setConsecutiveBad(0);
     setHintIdx(null);
+
+    // 3-2-1 countdown at scene opening
+    setPhase('countdown');
+    for (const n of [3, 2, 1]) {
+      setTurnCountdown(n);
+      countdownAnim.setValue(0);
+      Animated.timing(countdownAnim, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      await wait(900);
+    }
+    setTurnCountdown(null);
+
     setPhase('game');
     loadTurn(history, msg);
   };
@@ -1478,11 +1652,38 @@ Return ONLY valid JSON:
     }
 
     await AsyncStorage.setItem(CONV_KEY(scenario.id), JSON.stringify({
-      turnHistory: newHistory, currentNpcMessage: npcMessage, npcMood,
+      turnHistory: newHistory,
+      currentNpcMessage: npcMessage,
+      npcMood,
       savedAt: new Date().toISOString(),
+      sessionInputMode: sessionInputModeRef.current ?? 'written',
     } as SavedGameState));
 
-    await loadTurn(newHistory, scenario.openingMessage, 3050);
+    await loadTurn(newHistory, scenario.openingMessage, 0);
+  };
+
+  const handleCustomText = () => {
+    if (!options || !customInputText.trim()) return;
+    const input = customInputText.toLowerCase().trim();
+    let bestIdx = 0;
+    let bestScore = -1;
+    options.forEach((opt, idx) => {
+      const optWords = opt.text.toLowerCase().split(/\s+/);
+      const inputWords = input.split(/\s+/);
+      const overlap = inputWords.filter(w => optWords.some(ow => ow.includes(w) || w.includes(ow))).length;
+      const score = overlap / Math.max(optWords.length, inputWords.length);
+      if (score > bestScore) { bestScore = score; bestIdx = idx; }
+    });
+    const typed = customInputText.trim();
+    setCustomInputText('');
+    setShowOptionsPanel(false);
+    handleSelect(bestIdx, { transcript: typed });
+  };
+
+  const toggleOptionsPanel = () => {
+    const toVal = showOptionsPanel ? 0 : 1;
+    setShowOptionsPanel(!showOptionsPanel);
+    Animated.spring(optionsPanelAnim, { toValue: toVal, useNativeDriver: true, tension: 80, friction: 11 }).start();
   };
 
   const completeStage = async () => {
@@ -1750,6 +1951,17 @@ Return ONLY valid JSON:
     return () => loop.stop();
   }, [metaDotPulse]);
 
+  useEffect(() => {
+    if (phase !== 'modePick') return;
+    modePickEntrance.setValue(0);
+    Animated.timing(modePickEntrance, {
+      toValue: 1,
+      duration: 520,
+      easing: GAME_EASE_OUT,
+      useNativeDriver: true,
+    }).start();
+  }, [phase, modePickEntrance]);
+
   // Scene entrance animation on game start
   useEffect(() => {
     if (phase !== 'game') return;
@@ -1810,12 +2022,84 @@ Return ONLY valid JSON:
     return () => loops.forEach(l => l.stop());
   }, [isRecording, waveAnims]);
 
+  useEffect(() => {
+    if (!isRecording) { cursorBlink.setValue(0); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cursorBlink, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.delay(480),
+        Animated.timing(cursorBlink, { toValue: 0, duration: 80, useNativeDriver: true }),
+        Animated.delay(420),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isRecording, cursorBlink]);
+
   const replayNpcLine = () => {
     const text = reactionVisible && npcReaction ? npcReaction : npcMessage;
     void speakNpcLine(text, scenario.language);
   };
 
   const beginVoiceRecording = async (mode: 'scene' | 'repeat', seconds: number) => {
+    if (sceneFileSttPollRef.current) {
+      clearInterval(sceneFileSttPollRef.current);
+      sceneFileSttPollRef.current = null;
+    }
+    liveFileAccumulatedRef.current = '';
+    if (mode === 'scene') {
+      try {
+        const srMod = getSpeechRecognitionModule();
+        const useNativeSr = Platform.OS !== 'web' && !!srMod && isLiveSpeechRecognitionUsable();
+        if (useNativeSr && srMod) {
+          const srPerm = await srMod.requestPermissionsAsync();
+          if (!srPerm.granted) {
+            setVoiceStep('idle');
+            setVoiceMessage(t('scenario.voicePermissionDenied'));
+            setVoiceCaptureMode(null);
+            voiceCaptureModeRef.current = null;
+            return;
+          }
+          sceneLiveTranscriptRef.current = '';
+          setLiveScenePartialText('');
+          sceneLiveSrActiveRef.current = true;
+          setVoiceCaptureMode('scene');
+          voiceCaptureModeRef.current = 'scene';
+          setIsRecording(true);
+          setVoiceStep('recording');
+          setVoiceMessage('');
+          setRecordingSecsLeft(seconds);
+          if (countdownInterval.current) clearInterval(countdownInterval.current);
+          const startedAt = Date.now();
+          countdownInterval.current = setInterval(() => {
+            const elapsed = (Date.now() - startedAt) / 1000;
+            setRecordingSecsLeft(Math.max(0, +(seconds - elapsed).toFixed(1)));
+          }, 100);
+          if (recordingTimer.current) clearTimeout(recordingTimer.current);
+          recordingTimer.current = setTimeout(() => {
+            void stopRecording();
+          }, seconds * 1000);
+          const opts = optionsRef.current ?? [];
+          srMod.start({
+            lang: bcp47ForScenarioLang(scenario.language),
+            interimResults: true,
+            continuous: true,
+            maxAlternatives: 1,
+            contextualStrings: opts.map(o => o.text).filter(Boolean).slice(0, 10),
+            addsPunctuation: true,
+          });
+          return;
+        }
+      } catch {
+        try {
+          getSpeechRecognitionModule()?.abort();
+        } catch {
+          /* noop */
+        }
+        sceneLiveSrActiveRef.current = false;
+      }
+    }
+
     const allowed = await requestMicrophonePermission();
     if (!allowed) {
       setVoiceStep(mode === 'scene' ? 'idle' : 'skipped');
@@ -1843,7 +2127,48 @@ Return ONLY valid JSON:
       recordingTimer.current = setTimeout(() => {
         void stopRecording();
       }, seconds * 1000);
+      if (mode === 'scene' && isSttConfigured()) {
+        sceneFileSttPollRef.current = setInterval(() => {
+          void (async () => {
+            if (voiceCaptureModeRef.current !== 'scene') return;
+            if (sceneFileSttFlushRef.current) return;
+            if (!isVoiceRecordingActive()) return;
+            sceneFileSttFlushRef.current = true;
+            try {
+              const stopped = await stopVoiceRecording();
+              const uri = stopped.uri ?? recordingUriRef.current ?? '';
+              if (uri) {
+                const { transcript } = await transcribeVoice(uri, scenario.language, { deleteFile: true });
+                const seg = transcript.trim();
+                if (seg) {
+                  const acc = liveFileAccumulatedRef.current;
+                  liveFileAccumulatedRef.current = acc ? `${acc} ${seg}` : seg;
+                  setLiveScenePartialText(liveFileAccumulatedRef.current);
+                }
+              }
+              if (voiceCaptureModeRef.current !== 'scene') return;
+              const restarted = await startVoiceRecording();
+              recordingUriRef.current = restarted.uri;
+            } catch {
+              try {
+                if (voiceCaptureModeRef.current === 'scene' && !isVoiceRecordingActive()) {
+                  const restarted = await startVoiceRecording();
+                  recordingUriRef.current = restarted.uri;
+                }
+              } catch {
+                /* noop */
+              }
+            } finally {
+              sceneFileSttFlushRef.current = false;
+            }
+          })();
+        }, SCENE_FILE_STT_POLL_MS);
+      }
     } catch {
+      if (sceneFileSttPollRef.current) {
+        clearInterval(sceneFileSttPollRef.current);
+        sceneFileSttPollRef.current = null;
+      }
       setIsRecording(false);
       setVoiceCaptureMode(null);
       voiceCaptureModeRef.current = null;
@@ -1864,9 +2189,9 @@ Return ONLY valid JSON:
   };
 
   const startSceneVoiceReply = async () => {
+    if (sessionInputMode !== 'voice') return;
     if (selectedIdx !== null || optionsLoading || !options?.length || isRecording) return;
     clearAnswerTimer();
-    setVoiceInputMode('hybrid');
     setCurrentVoiceAttempt(null);
     setLastVoiceTranscript('');
     setVoiceTargetText('');
@@ -1884,21 +2209,44 @@ Return ONLY valid JSON:
     }
 
     const activeOptions = optionsRef.current;
+
+    const claudePromise = claudeEvaluateSceneVoice(
+      spoken,
+      npcMessageRef.current,
+      scenario.mission,
+      activeOptions.map(o => ({ text: o.text, quality: o.quality })),
+      scenario.language,
+    );
+
+    // Keyword fallback (instant, used if Claude fails or times out)
     const scored = activeOptions
       .map((option, index) => ({ index, option, score: scoreVoiceMatch(spoken, option.text) }))
       .sort((a, b) => b.score - a.score);
     const best = scored[0];
-    const quality: OptionQuality = best?.score >= 0.68
+    const fallbackQuality: OptionQuality = best?.score >= 0.68
       ? best.option.quality
       : best?.score >= 0.36
         ? 'ok'
         : 'awkward';
+
+    // Show transcript reveal immediately while Claude runs
+    setVoiceTranscriptRevealing(spoken);
+
+    // Wait for both: 1.1s reveal AND Claude result
+    const [claudeResult] = await Promise.all([claudePromise, wait(1100)]);
+
+    setVoiceTranscriptRevealing(null);
+
+    const quality: OptionQuality = claudeResult?.quality ?? fallbackQuality;
+    const feedback = claudeResult?.feedback
+      ?? (quality === 'awkward'
+        ? 'Cevabın duyuldu ama sahne için biraz daha net bir cümle gerekebilir.'
+        : 'Sesli cevabın sahneye işlendi.');
+
     const voiceOption: DialogOption = {
       text: spoken,
       quality,
-      feedback: quality === 'awkward'
-        ? 'Cevabın duyuldu ama sahne için biraz daha net bir cümle gerekebilir.'
-        : 'Sesli cevabın sahneye işlendi.',
+      feedback,
       why: 'voice-transcript',
     };
     const nextOptions = [...activeOptions, voiceOption];
@@ -1908,11 +2256,18 @@ Return ONLY valid JSON:
     setVoiceTargetText(spoken);
     setLastVoiceTranscript(spoken);
     setVoiceMessage('Sesli cevabın sahneye işlendi.');
-    const evaluation = await evaluateVoiceAttempt(best?.option.text ?? spoken, spoken, scenario.language);
+    const evaluation: VoiceAttemptEvaluation = {
+      confidence: claudeResult ? 0.82 : (quality === 'good' ? 0.65 : quality === 'ok' ? 0.5 : 0.35),
+      feedback: feedback || (quality === 'awkward'
+        ? 'Cevabın duyuldu ama sahne için biraz daha net bir cümle gerekebilir.'
+        : 'Sesli cevabın sahneye işlendi.'),
+      meaningClear: quality !== 'awkward',
+      missingKeywords: [],
+    };
     const attempt = createVoiceAttempt({
-      targetText: best?.option.text ?? spoken,
+      targetText: spoken,
       transcript: spoken,
-      evaluation: { ...evaluation, meaningClear: quality !== 'awkward' || evaluation.meaningClear },
+      evaluation,
       scenarioId: scenario.id,
       language: scenario.language,
     });
@@ -1927,12 +2282,59 @@ Return ONLY valid JSON:
     const mode = voiceCaptureModeRef.current;
     setIsRecording(false);
     setVoiceStep('processing');
+
+    if (mode === 'scene' && sceneLiveSrActiveRef.current) {
+      try {
+        getSpeechRecognitionModule()?.stop();
+      } catch {
+        /* noop */
+      }
+      sceneLiveSrActiveRef.current = false;
+      await wait(520);
+      const text = sceneLiveTranscriptRef.current.trim();
+      setLiveScenePartialText('');
+      setVoiceCaptureMode(null);
+      voiceCaptureModeRef.current = null;
+      if (!text) {
+        setVoiceStep('idle');
+        setVoiceMessage(t('scenario.voiceLiveEmpty'));
+        return;
+      }
+      try {
+        await handleSceneVoiceTranscript(text);
+      } catch {
+        setVoiceStep('idle');
+        setVoiceMessage(t('scenario.voiceUnavailable'));
+      }
+      return;
+    }
+
     try {
+      if (sceneFileSttPollRef.current) {
+        clearInterval(sceneFileSttPollRef.current);
+        sceneFileSttPollRef.current = null;
+      }
+      const spinUntil = Date.now() + 12000;
+      while (sceneFileSttFlushRef.current && Date.now() < spinUntil) {
+        await wait(50);
+      }
+
       const stopped = await stopVoiceRecording();
       const uri = stopped.uri ?? recordingUriRef.current ?? '';
-      const transcription = uri ? await transcribeVoice(uri, scenario.language) : { transcript: '', confidence: undefined };
+      let finalSeg = '';
+      if (uri) {
+        const tr = await transcribeVoice(uri, scenario.language, { deleteFile: true });
+        finalSeg = (tr.transcript ?? '').trim();
+      }
+      const stitched =
+        mode === 'scene'
+          ? [liveFileAccumulatedRef.current, finalSeg].filter(Boolean).join(' ').trim()
+          : finalSeg;
+      liveFileAccumulatedRef.current = '';
+      setLiveScenePartialText('');
+
       if (mode === 'scene') {
-        await handleSceneVoiceTranscript(transcription.transcript);
+        await handleSceneVoiceTranscript(stitched);
         setVoiceCaptureMode(null);
         voiceCaptureModeRef.current = null;
         return;
@@ -1943,11 +2345,11 @@ Return ONLY valid JSON:
         voiceCaptureModeRef.current = null;
         return;
       }
-      const evaluation = await evaluateVoiceAttempt(voiceTargetText, transcription.transcript, scenario.language);
+      const evaluation = await evaluateVoiceAttempt(voiceTargetText, stitched, scenario.language);
       const attempt = createVoiceAttempt({
         targetText: voiceTargetText,
-        transcript: transcription.transcript,
-        evaluation: { ...evaluation, confidence: transcription.confidence ?? evaluation.confidence },
+        transcript: stitched,
+        evaluation,
         scenarioId: scenario.id,
         language: scenario.language,
       });
@@ -2018,10 +2420,22 @@ Return ONLY valid JSON:
           <Text style={styles.bigEmoji}>🎮</Text>
           <Text style={styles.bigTitle}>Yarım kalan sahne</Text>
           <Text style={styles.bigMeta}>{timeLabel} · {savedState.turnHistory.length} tur</Text>
-          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame(savedState.turnHistory, savedState.currentNpcMessage, savedState.npcMood)}>
+          <TouchableOpacity
+            style={styles.preStartBtn}
+            onPress={() =>
+              startGame(savedState.turnHistory, savedState.currentNpcMessage, savedState.npcMood, {
+                mode: savedState.sessionInputMode ?? 'written',
+              })
+            }
+          >
             <Text style={styles.preStartBtnText}>Kaldığım yerden devam et →</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostBtn} onPress={async () => { await AsyncStorage.removeItem(CONV_KEY(scenario.id)); startGame(); }}>
+          <TouchableOpacity style={styles.ghostBtn} onPress={async () => {
+            await AsyncStorage.removeItem(CONV_KEY(scenario.id));
+            sessionInputModeRef.current = null;
+            setSessionInputMode(null);
+            setPhase('modePick');
+          }}>
             <Text style={styles.ghostBtnText}>Baştan başla</Text>
           </TouchableOpacity>
         </View>
@@ -2085,7 +2499,7 @@ Return ONLY valid JSON:
             ))}
           </View>
 
-          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
+          <TouchableOpacity style={styles.preStartBtn} onPress={() => setPhase('modePick')}>
             <Text style={styles.preStartBtnText}>Sahneye Gir</Text>
             <Feather name="arrow-right" size={15} color={colors.bgDeep} />
           </TouchableOpacity>
@@ -2127,12 +2541,106 @@ Return ONLY valid JSON:
               </BlurView>
             ))}
           </View>
-          <TouchableOpacity style={styles.preStartBtn} onPress={() => startGame()}>
+          <TouchableOpacity style={styles.preStartBtn} onPress={() => setPhase('modePick')}>
             <Text style={styles.preStartBtnText}>Sahneye Gir</Text>
             <Feather name="arrow-right" size={15} color={colors.bgDeep} />
           </TouchableOpacity>
           <View style={{ height: 36 }} />
         </ScrollView>
+      </View>
+    );
+  }
+
+  // INPUT MODE (session lock — written vs voice)
+  if (phase === 'modePick') {
+    const modePickBg = scenario.backgroundImage
+      ? { uri: scenario.backgroundImage }
+      : (SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO);
+    const commitMode = (mode: ScenarioSessionInputMode) => {
+      void trackEvent('scenario_session_input_mode', { scenarioId: scenario.id, mode });
+      if (mode === 'voice') void requestMicrophonePermission();
+      startGame([], scenario.openingMessage, 'neutral', { mode });
+    };
+    return (
+      <View style={styles.container}>
+        <ImageBackground source={modePickBg} style={styles.introBgPhoto} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(10,14,20,0.25)', 'rgba(10,14,20,0.65)', colors.bgDeep]}
+            locations={[0, 0.50, 0.88]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
+
+        <TouchableOpacity onPress={onBack} style={styles.introBackBtn}>
+          <Feather name="arrow-left" size={18} color={colors.inkSecondary} />
+        </TouchableOpacity>
+
+        <ScrollView contentContainerStyle={styles.introScroll} showsVerticalScrollIndicator={false}>
+          <View style={{ height: PHOTO_HEIGHT * 0.34 }} />
+          <Animated.View
+            style={{
+              opacity: modePickEntrance,
+              transform: [{ translateY: modePickEntrance.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+              gap: 14,
+            }}
+          >
+            <Text style={styles.introBadge}>{t('scenario.modePickBadge')}</Text>
+            <Text style={styles.introTitle}>{t('scenario.modePickTitle')}</Text>
+            <Text style={styles.introSub}>{t('scenario.modePickSub')}</Text>
+
+            <TouchableOpacity
+              style={[styles.modePickCard, styles.modePickCardAccent]}
+              onPress={() => commitMode('written')}
+              activeOpacity={0.88}
+            >
+              <View style={styles.modePickCardInner}>
+                <Feather name="edit-2" size={20} color={colors.accentWarm} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modePickCardTitle}>{t('scenario.modePickWrittenTitle')}</Text>
+                  <Text style={styles.modePickCardSub}>{t('scenario.modePickWrittenSub')}</Text>
+                </View>
+                <Feather name="arrow-right" size={16} color={colors.inkTertiary} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modePickCard}
+              onPress={() => commitMode('voice')}
+              activeOpacity={0.88}
+            >
+              <View style={styles.modePickCardInner}>
+                <Feather name="mic" size={20} color={colors.accentWarmSoft} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modePickCardTitle}>{t('scenario.modePickVoiceTitle')}</Text>
+                  <Text style={styles.modePickCardSub}>{t('scenario.modePickVoiceSub')}</Text>
+                </View>
+                <Feather name="arrow-right" size={16} color={colors.inkTertiary} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+          <View style={{ height: 36 }} />
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // COUNTDOWN (scene opening)
+  if (phase === 'countdown') {
+    return (
+      <View style={gStyles.countdownScreen}>
+        <Text style={gStyles.countdownLabel}>Sahne başlıyor</Text>
+        {turnCountdown !== null && (
+          <Animated.Text style={[
+            gStyles.countdownText,
+            gStyles.countdownTextGold,
+            {
+              opacity: countdownAnim.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 1, 1, 0.3] }),
+              transform: [{ scale: countdownAnim.interpolate({ inputRange: [0, 0.15, 1], outputRange: [1.4, 1, 0.85] }) }],
+            },
+          ]}>
+            {turnCountdown}
+          </Animated.Text>
+        )}
       </View>
     );
   }
@@ -2240,15 +2748,15 @@ Return ONLY valid JSON:
 
     const bestPhrase = turnHistory.find(t => t.quality === 'good')?.selectedText ?? null;
 
-    let claimCta = 'Provayı kaydet →';
+    let claimCta = 'Sonucu gör →';
     if (almostPerfectRun) {
       claimCta = awkwardCount >= 2
-        ? `${awkwardCount} cevabı yumuşatıp provayı kaydet →`
-        : 'Tek cevabı yumuşatıp provayı kaydet →';
+        ? `${awkwardCount} cevabı yumuşatarak sonucu gör →`
+        : 'Tek cevabı yumuşatarak sonucu gör →';
     } else if (timeoutCount >= 2) {
-      claimCta = `${timeoutCount} zaman baskısı notuyla provayı kaydet →`;
+      claimCta = `${timeoutCount} zaman baskısıyla sonucu gör →`;
     } else if (timeoutCount === 1) {
-      claimCta = 'Zaman odağıyla provayı kaydet →';
+      claimCta = 'Zaman odağıyla sonucu gör →';
     }
 
     return (
@@ -2400,534 +2908,288 @@ Return ONLY valid JSON:
     );
   }
 
-  // GAME (main) — editorial scene design
-  const turnNum = turnHistory.length + 1;
+  // GAME — WhatsApp-style chat
   const canFinishEarly = turnHistory.length >= 2 && selectedIdx === null && !optionsLoading;
   const isLastTurn = turnHistory.length + 1 >= MAX_TURNS;
   const comboTier = getComboTier(consecutiveGood);
-  const livePath = computeFlowPath(turnHistory);
 
   const scenePhoto = scenario.backgroundImage
     ? { uri: scenario.backgroundImage }
     : (SCENE_PHOTOS[stageKey] ?? DEFAULT_SCENE_PHOTO);
   const npcRoleTr = STAGE_ROLE_TR[stageKey] ?? '';
-  const turnLabel = `${String(turnNum).padStart(2, '0')} / ${String(MAX_TURNS).padStart(2, '0')}`;
-  const sceneCaptionText = scenario.mission ?? scenario.title;
-  const visibleNpcLine = reactionVisible && npcReaction ? npcReaction : npcMessage;
-  const npcCardRotation = npcCardFlip.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['0deg', '90deg', '0deg'],
-  });
+  const currentNpcLine = reactionVisible && npcReaction ? npcReaction : npcMessage;
 
-  // Ripple ring scale/opacity for mic button
   const ripple1Scale = micRipple1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
   const ripple1Opacity = micRipple1.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.6, 0] });
   const ripple2Scale = micRipple2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
   const ripple2Opacity = micRipple2.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.6, 0] });
 
+  const isVoiceCapturing = isRecording || (voiceCaptureMode === 'scene' && voiceStep === 'processing');
+
   return (
-    <View style={gStyles.root}>
-      {/* ── Photo backdrop ─────────────────────────────────────── */}
-      <ImageBackground
-        source={scenePhoto}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: PHOTO_HEIGHT }}
-        resizeMode="cover"
-      >
-        {/* Photo tint — birebir mockup değerleri */}
-        <LinearGradient
-          colors={[
-            'rgba(10,14,20,0.32)',
-            'rgba(10,14,20,0.12)',
-            'rgba(10,14,20,0.58)',
-            'rgba(10,14,20,0.95)',
-          ]}
-          locations={[0, 0.30, 0.80, 1]}
-          style={StyleSheet.absoluteFill}
-        />
+    <View style={chat.root}>
+      {/* Full-screen wallpaper */}
+      <ImageBackground source={scenePhoto} style={StyleSheet.absoluteFill} resizeMode="cover">
+        <View style={chat.wallpaperOverlay} />
       </ImageBackground>
 
-      {/* Lower dark fade — mockup: top: 50% (ekranın ortası) */}
-      <LinearGradient
-        colors={['transparent', colors.bgDeep, colors.bgDeep]}
-        locations={[0, 0.30, 1]}
-        style={gStyles.lowerFade}
-        pointerEvents="none"
-      />
+      {/* Countdown overlay (in-game) */}
+      {turnCountdown !== null && (
+        <View pointerEvents="none" style={chat.countdownOverlay}>
+          <Animated.Text style={[chat.countdownNum, {
+            opacity: countdownAnim.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 1, 1, 0.3] }),
+            transform: [{ scale: countdownAnim.interpolate({ inputRange: [0, 0.15, 1], outputRange: [1.4, 1, 0.85] }) }],
+          }]}>{turnCountdown}</Animated.Text>
+        </View>
+      )}
 
-
-      {/* ── Combo reward toast (floating) ──────────────────────── */}
+      {/* Combo reward toast */}
       {!!rewardText && (
-        <Animated.View pointerEvents="none" style={[gStyles.rewardToast, { opacity: rewardOpacity }]}>
-          <BlurView intensity={24} tint="dark" style={gStyles.rewardToastInner}>
-            <Text style={[gStyles.rewardToastText, comboTier ? { color: comboTier.color } : undefined]}>
+        <Animated.View pointerEvents="none" style={[chat.rewardToast, { opacity: rewardOpacity }]}>
+          <BlurView intensity={24} tint="dark" style={chat.rewardToastInner}>
+            <Text style={[chat.rewardToastText, comboTier ? { color: comboTier.color } : undefined]}>
               {rewardText}
             </Text>
           </BlurView>
         </Animated.View>
       )}
 
-      {/* ── Screen content ─────────────────────────────────────── */}
-      <Animated.View
-        style={[
-          gStyles.screenContent,
-          {
-            opacity: sceneEntrance,
-            transform: [{ translateY: sceneEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-          },
-        ]}
-      >
-        {/* Top bar */}
-        <View style={gStyles.topBar}>
-          {/* Scene meta pill */}
-          <BlurView intensity={20} tint="dark" style={gStyles.sceneMeta}>
-            <Animated.View style={[gStyles.sceneMetaDot, { opacity: metaDotPulse }]} />
-            <Text style={gStyles.sceneMetaText} numberOfLines={1}>
-              <Text style={gStyles.sceneMetaLocation}>{scenario.location}</Text>
+      {/* Header */}
+      <View style={[chat.header, { paddingTop: insets.top + 6 }]}>
+        <TouchableOpacity onPress={onBack} style={chat.headerBtn} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={18} color={colors.inkPrimary} />
+        </TouchableOpacity>
+        <View style={chat.headerCenter}>
+          <View style={chat.headerAvatar}>
+            <Text style={chat.headerAvatarText}>{persona.name[0]}</Text>
+          </View>
+          <View style={chat.headerMeta}>
+            <Text style={chat.headerName} numberOfLines={1}>
+              {persona.name}{npcRoleTr ? <Text style={chat.headerRole}> · {npcRoleTr}</Text> : null}
             </Text>
-          </BlurView>
-
-          {/* Top actions */}
-          <View style={gStyles.topActions}>
-            {/* Turn counter */}
-            <BlurView intensity={20} tint="dark" style={gStyles.iconBtn}>
-              <Feather name="clock" size={16} color={colors.inkSecondary} />
-            </BlurView>
-            {/* Exit */}
-            <TouchableOpacity onPress={onBack} activeOpacity={0.7}>
-              <BlurView intensity={20} tint="dark" style={gStyles.iconBtn}>
-                <Feather name="x" size={16} color={colors.inkSecondary} />
-              </BlurView>
-            </TouchableOpacity>
+            <Text style={chat.headerLocation} numberOfLines={1}>{scenario.location}</Text>
           </View>
         </View>
+        <TouchableOpacity onPress={onBack} style={chat.headerBtn} activeOpacity={0.7}>
+          <Feather name="x" size={16} color={colors.inkSecondary} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Scene caption — frosted panel below photo area */}
-        <Animated.View
-          style={[
-            gStyles.sceneCaption,
-            {
-              opacity: sceneEntrance,
-              transform: [{ translateY: sceneEntrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
-            },
-          ]}
-        >
-          <BlurView intensity={28} tint="dark" style={gStyles.sceneCaptionBlur}>
-            <Text style={gStyles.sceneCaptionEyebrow}>SAHNE {String(turnNum).padStart(2, '0')}</Text>
-            <Text style={gStyles.sceneCaptionText}>{sceneCaptionText}</Text>
-          </BlurView>
-        </Animated.View>
-
-        {/* Timer — kept outside the scroll so it is visible as soon as the scene loads */}
-        {answerTimeLeft !== null && answerTimeTotal > 0 && selectedIdx === null && !!options && (
-          <Animated.View style={[gStyles.timerWrap, { opacity: timerGlow }]}>
-            <View style={gStyles.timerLabelRow}>
-              <Text style={gStyles.timerLabel}>KALAN SÜRE</Text>
-              <Text style={[gStyles.timerValue, answerTimeLeft <= 5 && gStyles.timerValueHot]}>{answerTimeLeft}s</Text>
+      {/* Chat scroll */}
+      <ScrollView
+        ref={scrollRef}
+        style={chat.scroll}
+        contentContainerStyle={chat.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Past turns as chat bubbles */}
+        {turnHistory.map((turn, i) => (
+          <View key={i}>
+            <View style={chat.npcRow}>
+              <View style={chat.npcBubble}>
+                <Text style={chat.npcText}>{turn.npcMessage}</Text>
+              </View>
             </View>
-            <View style={gStyles.timerTrack}>
+            <View style={chat.userRow}>
+              <View style={[chat.userBubble, { borderColor: qColor(turn.quality) + '55' }]}>
+                <Text style={chat.userText}>{turn.selectedText}</Text>
+              </View>
+            </View>
+            {turn.npcReaction ? (
+              <View style={chat.npcRow}>
+                <View style={[chat.npcBubble, chat.npcReactionBubble]}>
+                  <Text style={chat.npcText}>{turn.npcReaction}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ))}
+
+        {/* Current NPC message — always shows npcMessage, never replaced by reaction */}
+        {npcMessage ? (
+          <Animated.View
+            style={[
+              chat.npcRow,
+              {
+                opacity: npcEntrance,
+                transform: [{ translateX: npcEntrance.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
+              },
+            ]}
+          >
+            <View style={chat.npcBubble}>
+              <Text style={chat.npcText}>{npcMessage}</Text>
+              {npcTranslation ? (
+                <Text style={chat.npcTranslation}>{npcTranslation}</Text>
+              ) : null}
+            </View>
+            <TouchableOpacity style={chat.replayBtn} onPress={replayNpcLine} activeOpacity={0.7}>
+              <Feather name="volume-2" size={13} color={colors.inkTertiary} />
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+
+        {/* Current user response (after selection) */}
+        {selectedIdx !== null && options ? (() => {
+          const opt = options[selectedIdx];
+          if (!opt) return null;
+          const c = qColor(opt.quality);
+          const displayText = lastVoiceTranscript || opt.text;
+          return (
+            <>
               <Animated.View
                 style={[
-                  gStyles.timerFill,
+                  chat.userRow,
                   {
-                    width: timerProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-                    backgroundColor: answerTimeLeft <= 3 ? colors.errorDs : colors.accentWarmSoft,
+                    opacity: feedbackEntrance,
+                    transform: [{ translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
                   },
                 ]}
-              />
-            </View>
+              >
+                <View style={[chat.userBubble, { borderColor: c + '55' }]}>
+                  <Text style={chat.userText}>{displayText}</Text>
+                  <View style={[chat.qualityPill, { backgroundColor: c + '22' }]}>
+                    <Text style={[chat.qualityPillText, { color: c }]}>{qLabel(opt.quality)}</Text>
+                  </View>
+                  {opt.quality !== 'good' && opt.why ? (
+                    <Text style={chat.betterText}>{opt.why}</Text>
+                  ) : null}
+                </View>
+              </Animated.View>
+              {/* NPC reaction as a separate bubble below user response */}
+              {reactionVisible && npcReaction ? (
+                <Animated.View style={[chat.npcRow, { opacity: npcReplyEntrance }]}>
+                  <View style={[chat.npcBubble, chat.npcReactionBubble]}>
+                    <Text style={chat.npcText}>{npcReaction}</Text>
+                  </View>
+                </Animated.View>
+              ) : null}
+            </>
+          );
+        })() : null}
+
+        <View style={{ height: 8 }} />
+      </ScrollView>
+
+      {/* Input area */}
+      <View style={[chat.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+
+        {/* Options panel (slides up above input bar) */}
+        {showOptionsPanel && options && !optionsLoading && (
+          <Animated.View
+            style={[
+              chat.optionsPanel,
+              {
+                opacity: optionsPanelAnim,
+                transform: [{ translateY: optionsPanelAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+              },
+            ]}
+          >
+            {options.map((opt, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[chat.optionItem, hintIdx === idx && chat.optionItemHinted]}
+                onPress={() => { toggleOptionsPanel(); handleSelect(idx); }}
+                activeOpacity={0.72}
+              >
+                <Text style={chat.optionText}>{opt.text}</Text>
+              </TouchableOpacity>
+            ))}
           </Animated.View>
         )}
 
-        {/* Scrollable dialogue section */}
-        <ScrollView
-          ref={scrollRef}
-          style={gStyles.dialogueScroll}
-          contentContainerStyle={gStyles.dialogueScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Subtle turn history (dimmed) */}
-          {turnHistory.length > 0 && (
-            <View style={gStyles.historyWrap}>
-              {turnHistory.slice(-2).map((t, i) => (
-                <View key={i} style={gStyles.historyRow}>
-                  <View style={[gStyles.historyDot, { backgroundColor: qColor(t.quality) + '99' }]} />
-                  <Text style={gStyles.historyText} numberOfLines={1}>{t.selectedText}</Text>
-                </View>
-              ))}
+        {selectedIdx !== null ? (
+          /* After selection — continue / finish */
+          <AnimatedPressable style={chat.nextBtn} onPress={() => { void handleNext(); }} pressScale={0.97}>
+            <Text style={chat.nextBtnText}>
+              {sceneComplete || isLastTurn ? t('scenario.finish') : t('scenario.nextTurn')}
+            </Text>
+          </AnimatedPressable>
+
+        ) : sessionInputMode === 'voice' ? (
+          /* Voice mode */
+          optionsLoading ? (
+            <View style={chat.loadingRow}>
+              <Text style={chat.loadingText}>{t('scenario.thinking', { name: persona.name })}</Text>
             </View>
-          )}
-
-          {/* Combo / flow indicator (subtle) */}
-          {(comboTier || livePath === 'friction') && (
-            <Animated.View
-              style={[
-                gStyles.flowBadge,
-                {
-                  transform: [{ scale: flowPulse }],
-                  borderColor: livePath === 'smooth' && comboTier
-                    ? comboTier.color + '66'
-                    : livePath === 'friction'
-                    ? colors.errorDs + '88'
-                    : colors.hairlineStrong,
-                },
-              ]}
-            >
-              {comboTier ? (
-                <Text style={[gStyles.flowBadgeText, { color: comboTier.color }]}>
-                  {comboTier.emoji} {comboTier.hype}
+          ) : isVoiceCapturing ? (
+            /* Recording — waveform bar */
+            <View style={chat.voiceRecordBar}>
+              <View style={chat.waveform}>
+                {waveAnims.map((anim, idx) => (
+                  <Animated.View key={idx} style={[chat.waveBar, { transform: [{ scaleY: anim }] }]} />
+                ))}
+              </View>
+              {(voiceTranscriptRevealing || liveScenePartialText.trim()) ? (
+                <Text style={chat.liveTranscript} numberOfLines={1}>
+                  {voiceTranscriptRevealing ? `"${voiceTranscriptRevealing}"` : liveScenePartialText}
                 </Text>
+              ) : null}
+              {isRecording ? (
+                <TouchableOpacity style={chat.stopBtn} onPress={stopRecording} activeOpacity={0.8}>
+                  <View style={chat.stopBtnInner} />
+                </TouchableOpacity>
               ) : (
-                <Text style={[gStyles.flowBadgeText, { color: colors.errorDs }]}>
-                  Sahne akışı sarsıldı — toparla
-                </Text>
+                <Text style={chat.processingDots}>…</Text>
               )}
-            </Animated.View>
-          )}
-
-          {/* ── NPC card ─────────────────────────────────────────── */}
-          <Animated.View
-            style={[
-              gStyles.npcLine,
-              isRecording && { opacity: 0.52 },
-              {
-                opacity: npcEntrance,
-                transform: [
-                  { perspective: 900 },
-                  { translateX: npcEntrance.interpolate({ inputRange: [0, 1], outputRange: [64, 0] }) },
-                  { rotateY: npcCardRotation },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => { void flipNpcCard(visibleNpcLine); }}
-            >
-              {/* Top shimmer line */}
-              <LinearGradient
-                colors={['transparent', colors.accentWarm + '4D', 'transparent']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={gStyles.npcTopLine}
-              />
-              {/* NPC meta row */}
-              <View style={gStyles.npcMeta}>
-                <View style={gStyles.npcAvatar}>
-                  <Text style={gStyles.npcAvatarText}>{persona.name[0]}</Text>
-                </View>
-                <Text style={gStyles.npcName}>
-                  {npcCardSide === 'translation' ? t('scenario.translationBack') : persona.name}
-                  {npcCardSide === 'front' && npcRoleTr ? <Text style={gStyles.npcRole}> · {npcRoleTr}</Text> : null}
-                </Text>
-                {npcMood !== 'neutral' && npcCardSide === 'front' && (
-                  <Text style={gStyles.npcMoodEmoji}>{MOOD_EMOJI[npcMood]}</Text>
-                )}
-                <TouchableOpacity style={gStyles.speakerBtn} onPress={replayNpcLine} activeOpacity={0.72}>
-                  <Feather name={npcCardSide === 'translation' ? 'rotate-ccw' : 'volume-2'} size={13} color={colors.accentWarm} />
+            </View>
+          ) : (
+            /* Mic idle */
+            <View style={chat.voiceIdleRow}>
+              <View style={chat.micWrap}>
+                <Animated.View style={[chat.micRipple, { transform: [{ scale: ripple1Scale }], opacity: ripple1Opacity }]} />
+                <Animated.View style={[chat.micRipple, { transform: [{ scale: ripple2Scale }], opacity: ripple2Opacity }]} />
+                <TouchableOpacity
+                  style={chat.micBtn}
+                  onPress={() => { void startSceneVoiceReply(); }}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="mic" size={26} color={colors.bgDeep} />
                 </TouchableOpacity>
               </View>
-
-              {npcCardSide === 'translation' ? (
-                <View style={gStyles.npcTranslationFace}>
-                  <Text style={gStyles.npcTranslationLabel}>{t('scenario.translationLabel')}</Text>
-                  <Text style={gStyles.npcTranslationText}>
-                    {translationLoading ? t('scenario.translationLoading') : (npcTranslation ?? t('scenario.translationUnavailable'))}
-                  </Text>
-                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTapBack')}</Text>
-                </View>
-              ) : reactionVisible && npcReaction ? (
-                <>
-                  <Animated.View
-                    style={{
-                      opacity: npcReplyEntrance,
-                      transform: [{ translateY: npcReplyEntrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
-                    }}
-                  >
-                    <Text style={gStyles.npcText}>"{npcReaction}"</Text>
-                  </Animated.View>
-                  <Text style={gStyles.npcPrevText}>{npcMessage}</Text>
-                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTap')}</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={gStyles.npcText}>"{npcMessage}"</Text>
-                  <Text style={gStyles.npcTranslationHint}>{t('scenario.translationTap')}</Text>
-                </>
+              {canFinishEarly && (
+                <TouchableOpacity style={chat.earlyFinishLink} onPress={() => setPhase('done')} activeOpacity={0.7}>
+                  <Text style={chat.earlyFinishText}>{t('scenario.finish')}</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-          </Animated.View>
+            </View>
+          )
 
-          {/* ── User prompt card ─────────────────────────────────── */}
-          <Animated.View
-            style={[
-              gStyles.userPrompt,
-              {
-                opacity: optionsOpacity,
-                transform: [{ translateY: optionsEntrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-              },
-            ]}
-          >
-            <BlurView intensity={22} tint="dark" style={gStyles.userPromptBlur}>
-              {/* Prompt meta row */}
-              <View style={gStyles.promptMeta}>
-                <Text style={gStyles.promptLabel}>
-                  {selectedIdx !== null ? 'CEVABINI VERDİN' : 'SENIN SIRAN'}
-                </Text>
-                {selectedIdx === null && !isRecording && !!scenario.mission && (
-                  <Text style={gStyles.promptHint} numberOfLines={2}>
-                    {voiceInputMode === 'written' ? 'Yazılı seçeneklerden birini seçebilirsin.' : scenario.mission}
-                  </Text>
-                )}
-              </View>
-
-              {/* Recording / voice processing state */}
-              {isRecording || (voiceCaptureMode === 'scene' && voiceStep === 'processing') ? (
-                <View style={gStyles.recordingWrap}>
-                  {/* Waveform */}
-                  <View style={gStyles.waveform}>
-                    {waveAnims.map((anim, i) => (
-                      <Animated.View
-                        key={i}
-                        style={[
-                          gStyles.waveBar,
-                          { transform: [{ scaleY: anim }] },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                  <Text style={gStyles.recordingHint}>{voiceStep === 'processing' ? 'CEVABIN İŞLENİYOR' : t('scenario.listening')}</Text>
-                  <Text style={gStyles.recordingCountdown}>
-                    {voiceStep === 'processing' ? 'Söylediğin cümle sahneye çevriliyor' : `${recordingSecsLeft.toFixed(1)}s`}
-                  </Text>
-                  {voiceStep === 'processing' ? (
-                    <View style={gStyles.voiceProcessingIndicator}>
-                      <Animated.View style={gStyles.voiceProcessingDot} />
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={gStyles.stopBtn}
-                      onPress={stopRecording}
-                      activeOpacity={0.8}
-                    >
-                      <View style={gStyles.stopBtnInner} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ) : selectedIdx !== null ? (
-                /* Selected state — show result */
-                <Animated.View
-                  style={[
-                    gStyles.selectedWrap,
-                    {
-                      opacity: feedbackEntrance,
-                      transform: [{ translateY: feedbackEntrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
-                    },
-                  ]}
-                >
-                  {(() => {
-                    const opt = options?.[selectedIdx];
-                    if (!opt) return null;
-                    const c = qColor(opt.quality);
-                    return (
-                      <>
-                        <Text style={[gStyles.selectedText, { color: c }]}>
-                          "{opt.text}"
-                        </Text>
-                        <View>
-                          <Text style={[gStyles.qualityTag, { color: c }]}>{qLabel(opt.quality)}</Text>
-                        </View>
-                        {voiceStep !== 'idle' && (
-                          <View style={gStyles.voiceRepeatBox}>
-                            <Text style={gStyles.voiceRepeatEyebrow}>{t('scenario.voiceEyebrow')}</Text>
-                            <Text style={gStyles.voiceRepeatTitle}>{t('scenario.voicePrompt')}</Text>
-                            {voiceStep === 'processing' ? (
-                              <Text style={gStyles.voiceRepeatSub}>Ses işleniyor…</Text>
-                            ) : voiceStep === 'recording' ? (
-                              <Text style={gStyles.voiceRepeatSub}>{t('scenario.voiceRecording')}</Text>
-                            ) : currentVoiceAttempt ? (
-                              <Text style={gStyles.voiceRepeatSub}>
-                                {currentVoiceAttempt.transcript
-                                  ? currentVoiceAttempt.feedback
-                                  : 'Ses kaydedildi · Telaffuz değerlendirmesi bu cihazda yapılamadı.'}
-                              </Text>
-                            ) : voiceMessage ? (
-                              <Text style={gStyles.voiceRepeatSub}>{voiceMessage}</Text>
-                            ) : (
-                              <Text style={gStyles.voiceRepeatSub}>{t('scenario.voiceReady')}</Text>
-                            )}
-                            {voiceStep === 'ready' ? (
-                              <Text style={gStyles.voicePrivacy}>{t('scenario.voicePrivacy')}</Text>
-                            ) : null}
-                            {currentVoiceAttempt?.transcript ? (
-                              <Text style={gStyles.voiceTranscript} numberOfLines={2}>
-                                "{currentVoiceAttempt.transcript}"
-                              </Text>
-                            ) : null}
-                            <View style={gStyles.voiceActions}>
-                              {voiceStep === 'ready' || voiceStep === 'skipped' || voiceStep === 'locked' ? (
-                                <TouchableOpacity
-                                  style={[gStyles.voicePrimary, voiceStep === 'locked' && gStyles.voicePrimaryDisabled]}
-                                  onPress={startRecording}
-                                  disabled={voiceStep === 'locked'}
-                                  activeOpacity={0.82}
-                                >
-                                  <Feather name="mic" size={13} color={colors.bgDeep} />
-                                  <Text style={gStyles.voicePrimaryText}>{t('scenario.voiceStart')}</Text>
-                                </TouchableOpacity>
-                              ) : voiceStep === 'recording' ? (
-                                <TouchableOpacity style={gStyles.voicePrimary} onPress={stopRecording} activeOpacity={0.82}>
-                                  <Feather name="square" size={12} color={colors.bgDeep} />
-                                  <Text style={gStyles.voicePrimaryText}>{t('scenario.voiceStop')}</Text>
-                                </TouchableOpacity>
-                              ) : voiceStep === 'processing' ? (
-                                <View style={gStyles.voiceProcessingIndicator}>
-                                  <Animated.View style={gStyles.voiceProcessingDot} />
-                                </View>
-                              ) : null}
-                              {voiceStep !== 'processing' && (
-                                <TouchableOpacity style={gStyles.voiceSecondary} onPress={skipVoiceStep} activeOpacity={0.72}>
-                                  <Text style={gStyles.voiceSecondaryText}>{t('scenario.voiceSkip')}</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </View>
-                        )}
-                      </>
-                    );
-                  })()}
-                </Animated.View>
+        ) : (
+          /* Written mode */
+          optionsLoading ? (
+            <View style={chat.loadingRow}>
+              <Text style={chat.loadingText}>{t('scenario.thinking', { name: persona.name })}</Text>
+            </View>
+          ) : (
+            <View style={chat.writtenBar}>
+              <TextInput
+                style={chat.textInput}
+                value={customInputText}
+                onChangeText={setCustomInputText}
+                placeholder="Cevabını yaz…"
+                placeholderTextColor={colors.inkTertiary}
+                multiline
+                blurOnSubmit
+                onSubmitEditing={handleCustomText}
+              />
+              {customInputText.trim() ? (
+                <TouchableOpacity style={chat.sendBtn} onPress={handleCustomText} activeOpacity={0.8}>
+                  <Feather name="send" size={18} color={colors.bgDeep} />
+                </TouchableOpacity>
               ) : (
-                /* Idle — options list */
-                <>
-                  {/* Cue text */}
-                  {optionsLoading ? (
-                    <Text style={gStyles.loadingCue}>
-                      {t('scenario.thinking', { name: persona.name })}
-                    </Text>
-                  ) : (
-                    <View style={gStyles.optionsList}>
-                      {(options ?? []).map((opt, idx) => {
-                        const isHinted = hintIdx === idx;
-                        return (
-                          <TouchableOpacity
-                            key={idx}
-                            style={[gStyles.option, isHinted && gStyles.optionHinted]}
-                            onPress={() => handleSelect(idx)}
-                            activeOpacity={0.68}
-                          >
-                            <Text style={gStyles.optionText}>{opt.text}</Text>
-                            {isHinted && <View style={gStyles.optionHintDot} />}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
-
-                  {/* Mic row */}
-                  {!optionsLoading && (
-                    <View style={gStyles.micRow}>
-                      {/* Mic button with ripple */}
-                      <View style={gStyles.micButtonWrap}>
-                        {/* Ripple rings */}
-                        <Animated.View
-                          style={[
-                            gStyles.micRippleRing,
-                            { transform: [{ scale: ripple1Scale }], opacity: ripple1Opacity },
-                          ]}
-                        />
-                        <Animated.View
-                          style={[
-                            gStyles.micRippleRing,
-                            { transform: [{ scale: ripple2Scale }], opacity: ripple2Opacity },
-                          ]}
-                        />
-                        <TouchableOpacity
-                          style={gStyles.micButton}
-                          onPress={() => { void startSceneVoiceReply(); }}
-                          activeOpacity={0.85}
-                        >
-                          <Feather name="mic" size={22} color={colors.bgDeep} />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={gStyles.micInstruction}>
-                        <Text style={gStyles.micInstructionMain}>{t('scenario.speak')}</Text>
-                        <Text style={gStyles.micInstructionSub}>
-                          {voiceMessage || t('scenario.chooseAbove')}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </>
+                <TouchableOpacity style={chat.optionsToggle} onPress={toggleOptionsPanel} activeOpacity={0.75}>
+                  <Feather name={showOptionsPanel ? 'chevron-down' : 'list'} size={20} color={colors.accentWarm} />
+                </TouchableOpacity>
               )}
-            </BlurView>
-          </Animated.View>
-        </ScrollView>
-
-        {/* ── Bottom actions ─────────────────────────────────────── */}
-        <View style={gStyles.bottomActions}>
-          {/* Row 1: CTA pill — sadece seçim yapıldıysa veya erken bitirilebiliyorsa */}
-          {selectedIdx !== null ? (
-            <AnimatedPressable
-              style={gStyles.ctaBtn}
-              onPress={() => { void handleNext(); }}
-              pressScale={0.97}
-            >
-              <Text style={gStyles.ctaBtnText}>
-                {sceneComplete || isLastTurn ? t('scenario.finish') : t('scenario.nextTurn')}
-              </Text>
-            </AnimatedPressable>
-          ) : canFinishEarly ? (
-            <TouchableOpacity
-              style={gStyles.ctaBtnSecondary}
-              onPress={() => setPhase('done')}
-              activeOpacity={0.7}
-            >
-              <Text style={gStyles.ctaBtnSecondaryText}>{t('scenario.finish')}</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Row 2: Ghost links — mockup Variant A sol/sağ, Variant B kayıt sırasında */}
-          <View style={gStyles.bottomLinks}>
-            <TouchableOpacity
-              style={[gStyles.bottomLink, isRecording && { opacity: 0 }]}
-              onPress={replayNpcLine}
-              activeOpacity={0.6}
-            >
-              <View style={gStyles.bottomLinkInner}>
-                <Feather name="rotate-ccw" size={12} color={colors.inkTertiary} />
-                <Text style={gStyles.bottomLinkText}>{t('scenario.replay')}</Text>
-              </View>
-            </TouchableOpacity>
-
-            {isRecording ? (
-              <TouchableOpacity
-                style={gStyles.bottomLink}
-                activeOpacity={0.6}
-                onPress={() => { void stopRecording(); }}
-              >
-                <Text style={gStyles.bottomLinkText}>{t('scenario.release')}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={gStyles.bottomLink}
-                activeOpacity={0.6}
-                onPress={() => {
-                  setVoiceInputMode('written');
-                  setVoiceMessage('Yazılı seçenekler açık. İstersen cevabını buradan seç.');
-                  if (voiceCaptureMode === 'scene') {
-                    setVoiceCaptureMode(null);
-                    voiceCaptureModeRef.current = null;
-                  }
-                }}
-              >
-                <View style={gStyles.bottomLinkInner}>
-                  <Text style={gStyles.bottomLinkText}>{t('scenario.write')}</Text>
-                  <Feather name="edit-2" size={12} color={colors.inkTertiary} />
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </Animated.View>
+              {canFinishEarly && !showOptionsPanel && !customInputText.trim() && (
+                <TouchableOpacity style={chat.earlyFinishLink} onPress={() => setPhase('done')} activeOpacity={0.7}>
+                  <Text style={chat.earlyFinishText}>{t('scenario.finish')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )
+        )}
+      </View>
     </View>
   );
 }
@@ -3030,6 +3292,28 @@ const styles = StyleSheet.create({
   challengeIntroTitle: { fontFamily: 'Fraunces_300Light', color: colors.inkPrimary, fontSize: 18, letterSpacing: -0.3 },
   challengeIntroSub: { fontFamily: 'InterTight_400Regular', color: colors.inkSecondary, fontSize: 12 },
   challengeIntroTaunt: { fontFamily: 'Fraunces_300Light_Italic', color: colors.accentWarm, fontSize: 13, marginTop: 4 },
+
+  modePickCard: {
+    width: '100%',
+    backgroundColor: `${colors.bgMid}E6`,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    overflow: 'hidden',
+  },
+  modePickCardAccent: {
+    borderColor: 'rgba(232, 181, 118, 0.28)',
+    backgroundColor: 'rgba(26, 34, 48, 0.92)',
+  },
+  modePickCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+  },
+  modePickCardTitle: { fontFamily: 'InterTight_600SemiBold', fontSize: 15, color: colors.inkPrimary, letterSpacing: -0.15 },
+  modePickCardSub: { fontFamily: 'InterTight_400Regular', fontSize: 13, color: colors.inkSecondary, marginTop: 4, lineHeight: 20 },
 
   // Lost
   failReactionBox: { width: '100%', backgroundColor: colors.bgMid, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.hairlineStrong },
@@ -3891,6 +4175,36 @@ const gStyles = StyleSheet.create({
     borderRadius: 2,
   },
 
+  voiceCaptureArea: {
+    width: '100%',
+    minHeight: 42,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  voiceCursorChar: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 18,
+    color: colors.accentWarm,
+    lineHeight: 22,
+  },
+  voiceLiveTranscriptText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 17,
+    lineHeight: 26,
+    color: colors.inkPrimary,
+  },
+  voiceLivePlaceholder: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkTertiary,
+    flex: 1,
+  },
+
   recordingHint: {
     ...typography.eyebrow,
     fontSize: 10,
@@ -4090,6 +4404,42 @@ const gStyles = StyleSheet.create({
     color: colors.bgDeep,
   },
 
+  // ── Countdown screen (scene opening) ─────────────────────────
+  countdownScreen: {
+    flex: 1,
+    backgroundColor: colors.bgDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  countdownLabel: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkTertiary,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  countdownText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 110,
+    color: colors.inkPrimary,
+    letterSpacing: -4,
+    lineHeight: 120,
+  },
+  countdownTextGold: {
+    color: colors.accentWarm,
+  },
+
+  // ── Turn countdown overlay (in-game) ─────────────────────────
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(10,14,20,0.55)',
+  },
+
   // ── Reward toast ──────────────────────────────────────────────
   rewardToast: {
     position: 'absolute',
@@ -4113,5 +4463,503 @@ const gStyles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkPrimary,
     letterSpacing: 1.4,
+  },
+
+  // ── Transcript reveal (shown after Whisper returns, before review) ──────────
+  transcriptRevealWrap: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  transcriptRevealEyebrow: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.inkTertiary,
+  },
+  transcriptRevealText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 22,
+    color: colors.inkPrimary,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+
+  // ── Voice mode idle (centered mic, no options) ────────────────────────────
+  voiceIdleCenter: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 20,
+  },
+  voiceIdlePrompt: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 17,
+    color: colors.inkSecondary,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  micButtonLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.inkPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceIdleHint: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    textAlign: 'center',
+  },
+
+  // ── Voice scene review (transcript-first result) ──────────────────────────
+  voiceReviewWrap: {
+    gap: 12,
+    paddingTop: 4,
+  },
+  voiceReviewEyebrow: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.inkTertiary,
+  },
+  voiceReviewTranscript: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 20,
+    color: colors.inkPrimary,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+  },
+  voiceReviewBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  voiceReviewBadgeText: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 12,
+  },
+  voiceReviewFeedback: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkSecondary,
+    lineHeight: 19,
+  },
+  voiceReviewCorrection: {
+    gap: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  voiceReviewCorrectionLabel: {
+    ...typography.eyebrow,
+    fontSize: 9,
+    color: colors.accentWarmSoft,
+  },
+  voiceReviewCorrectionText: {
+    fontFamily: 'Fraunces_300Light_Italic',
+    fontSize: 14,
+    color: colors.accentWarm,
+    lineHeight: 20,
+    letterSpacing: -0.2,
+  },
+});
+
+// ─── Chat Styles (WhatsApp-style game phase) ───────────────────────────────
+
+const { width: CHAT_SW } = Dimensions.get('window');
+
+const chat = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bgDeep,
+  },
+  wallpaperOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10,14,20,0.52)',
+  },
+
+  // ── Header ───────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(10,14,20,0.75)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(232,181,118,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 16,
+    color: colors.accentWarm,
+  },
+  headerMeta: { gap: 1 },
+  headerName: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 14,
+    color: colors.inkPrimary,
+  },
+  headerRole: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 14,
+    color: colors.inkTertiary,
+  },
+  headerLocation: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 11,
+    color: colors.inkTertiary,
+  },
+
+  // ── Scroll / bubbles ─────────────────────────────────────────────
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    gap: 4,
+  },
+
+  // NPC bubble — left aligned
+  npcRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    gap: 6,
+    marginBottom: 4,
+  },
+  npcBubble: {
+    maxWidth: CHAT_SW * 0.75,
+    backgroundColor: 'rgba(28,20,14,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(232,181,118,0.18)',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  npcReactionBubble: {
+    borderColor: 'rgba(232,181,118,0.10)',
+    backgroundColor: 'rgba(20,14,10,0.88)',
+  },
+  npcText: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 16,
+    color: colors.inkPrimary,
+    lineHeight: 24,
+    letterSpacing: -0.2,
+  },
+  npcTranslation: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    lineHeight: 17,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    paddingTop: 6,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  replayBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+
+  // User bubble — right aligned
+  userRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 4,
+  },
+  userBubble: {
+    maxWidth: CHAT_SW * 0.75,
+    backgroundColor: 'rgba(26,34,48,0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  userText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 15,
+    color: colors.inkPrimary,
+    lineHeight: 22,
+  },
+  qualityPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  qualityPillText: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  betterText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    fontStyle: 'italic',
+    lineHeight: 17,
+  },
+
+  // ── Input area ───────────────────────────────────────────────────
+  inputArea: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(10,14,20,0.92)',
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+
+  // Options panel
+  optionsPanel: {
+    gap: 6,
+    paddingBottom: 4,
+  },
+  optionItem: {
+    backgroundColor: colors.bgMid,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  optionItemHinted: {
+    borderColor: colors.accentWarmSoft,
+  },
+  optionText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 14,
+    color: colors.inkPrimary,
+    lineHeight: 20,
+  },
+
+  // Next / finish button
+  nextBtn: {
+    backgroundColor: colors.inkPrimary,
+    borderRadius: 999,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  nextBtnText: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 15,
+    color: colors.bgDeep,
+  },
+
+  // Loading
+  loadingRow: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  loadingText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 13,
+    color: colors.inkTertiary,
+    fontStyle: 'italic',
+  },
+
+  // Voice recording bar
+  voiceRecordBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.bgMid,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+  },
+  waveform: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    height: 32,
+  },
+  waveBar: {
+    width: 3,
+    height: 24,
+    borderRadius: 2,
+    backgroundColor: colors.accentWarm,
+  },
+  liveTranscript: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+    flex: 1,
+  },
+  stopBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.errorDs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopBtnInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: 'white',
+  },
+  processingDots: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 18,
+    color: colors.inkTertiary,
+  },
+
+  // Voice idle
+  voiceIdleRow: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  micWrap: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micRipple: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: colors.inkPrimary,
+  },
+  micBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.inkPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Written input bar
+  writtenBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.bgMid,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    minHeight: 48,
+  },
+  textInput: {
+    flex: 1,
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 15,
+    color: colors.inkPrimary,
+    maxHeight: 96,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  optionsToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(232,181,118,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.inkPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Early finish
+  earlyFinishLink: { alignSelf: 'center', padding: 6 },
+  earlyFinishText: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 12,
+    color: colors.inkTertiary,
+  },
+
+  // Countdown overlay
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(10,14,20,0.55)',
+  },
+  countdownNum: {
+    fontFamily: 'Fraunces_300Light',
+    fontSize: 110,
+    color: colors.accentWarm,
+    letterSpacing: -4,
+    lineHeight: 120,
+  },
+
+  // Reward toast
+  rewardToast: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 60,
+    pointerEvents: 'none' as const,
+  },
+  rewardToastInner: {
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    overflow: 'hidden' as const,
+  },
+  rewardToastText: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 13,
+    color: colors.inkPrimary,
   },
 });

@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
 
   unlockCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
     marginBottom: 28,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     padding: 14,
     marginTop: -16,
     marginBottom: 28,
@@ -428,11 +428,11 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     gap: 6,
   },
   statValue: {
@@ -453,11 +453,11 @@ const styles = StyleSheet.create({
   // Chart
   chartCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 18,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
   },
   chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 100, gap: 4, marginBottom: 8 },
   chartCol: { flex: 1, alignItems: 'center', gap: 4 },
@@ -478,9 +478,9 @@ const styles = StyleSheet.create({
   // Stage breakdown
   stageCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     marginBottom: 28,
     overflow: 'hidden',
   },
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(232,181,118,0.2)',
     padding: 16,

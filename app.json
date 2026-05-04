@@ -35,7 +35,8 @@
           "microphonePermission": "Roleo needs microphone access so you can repeat selected rehearsal lines.",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ]
   }
 }

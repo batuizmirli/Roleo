@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   sentence: { fontSize: 16, color: colors.inkPrimary, lineHeight: 24, fontStyle: 'italic' },
   authorText: { fontSize: 13, color: colors.inkTertiary, marginTop: 2 },
   translation: { fontSize: 14, color: colors.accentWarm, lineHeight: 20, marginTop: 4 },
-  gameCard: { backgroundColor: colors.bgMid, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.hairlineStrong },
+  gameCard: { backgroundColor: colors.bgMid, borderRadius: 20, padding: 18, borderWidth: 1.5, borderColor: colors.hairlineStrong },
   gameTitle: { fontSize: 18, color: colors.accentWarm, fontFamily: 'InterTight_600SemiBold', marginBottom: 10 },
   gameProgress: { color: colors.inkSecondary, marginBottom: 8, fontSize: 13 },
   gamePrompt: { color: colors.inkSecondary, marginBottom: 10, fontSize: 14 },

@@ -8,6 +8,7 @@ export type StaticDialogOption = {
 export type StaticTurn = {
   id: string;
   npc_message: string;
+  npc_translation?: string;
   npc_mood: 'happy' | 'neutral' | 'confused' | 'impatient';
   options: [StaticDialogOption, StaticDialogOption, StaticDialogOption];
   scene_complete?: boolean;
@@ -30,6 +31,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-01',
       npc_message: '¡Buenos días! ¿Qué le pongo?',
+      npc_translation: `Günaydın! Size ne koyayım?`,
       npc_mood: 'happy',
       options: [
         {
@@ -54,6 +56,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-02',
       npc_message: '¿Grande o pequeño?',
+      npc_translation: `Büyük mü, küçük mü?`,
       npc_mood: 'neutral',
       options: [
         {
@@ -78,6 +81,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-03',
       npc_message: '¿Para tomar aquí o para llevar?',
+      npc_translation: `Burada mı içeceksiniz, yoksa götürecek misiniz?`,
       npc_mood: 'neutral',
       options: [
         {
@@ -102,6 +106,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-04',
       npc_message: '¿Le apetece algo de comer? Hoy tenemos croissants recién hechos.',
+      npc_translation: `Bir şey yemek ister misiniz? Bugün taze yapılmış croissantlarımız var.`,
       npc_mood: 'happy',
       options: [
         {
@@ -125,6 +130,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-05',
       npc_message: '¿Paga en efectivo o con tarjeta?',
+      npc_translation: `Nakit mi, yoksa kartla mı ödeyeceksiniz?`,
       npc_mood: 'neutral',
       options: [
         {
@@ -149,6 +155,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-06',
       npc_message: 'Son cinco minutos de espera, ¿le parece bien?',
+      npc_translation: `Beş dakika bekleme var, sorun olmaz mı?`,
       npc_mood: 'neutral',
       options: [
         {
@@ -173,6 +180,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-07',
       npc_message: 'Puede sentarse donde quiera. ¿Prefiere interior o terraza?',
+      npc_translation: `İstediğiniz yere oturabilirsiniz. İç kısımı mı, yoksa terasımızı mı tercih edersiniz?`,
       npc_mood: 'happy',
       options: [
         {
@@ -197,6 +205,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-08',
       npc_message: 'Perdone, se nos ha acabado el café con leche. ¿Le va bien un cortado?',
+      npc_translation: `Affedersiniz, kahveli süt bitti. Size bir cortado olur mu?`,
       npc_mood: 'confused',
       options: [
         {
@@ -221,6 +230,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-09',
       npc_message: 'Aquí tiene su pedido. Son tres euros con cincuenta.',
+      npc_translation: `İşte siparişiniz. Üç euro elli sent.`,
       npc_mood: 'neutral',
       options: [
         {
@@ -245,6 +255,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-10',
       npc_message: '¿Quiere un vaso de agua también? Es cortesía de la casa.',
+      npc_translation: `Bir bardak su da ister misiniz? Ev tarafından sunulur.`,
       npc_mood: 'happy',
       options: [
         {
@@ -268,6 +279,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-11',
       npc_message: '¿Necesita la contraseña del wifi?',
+      npc_translation: `Wifi şifresine ihtiyacınız var mı?`,
       npc_mood: 'neutral',
       options: [
         {
@@ -292,6 +304,7 @@ const cafeEs: ScenarioDialogue = {
     {
       id: 'cafe-es-12',
       npc_message: '¡Que disfrute! Si necesita algo más, avíseme.',
+      npc_translation: `Afiyet olsun! Bir şeye ihtiyacınız olursa, bana haber verin.`,
       npc_mood: 'happy',
       scene_complete: true,
       options: [
@@ -324,62 +337,74 @@ const travelEs: ScenarioDialogue = {
   language: 'es',
   sessionSize: 5,
   turns: [
-    { id: 'travel-es-01', npc_message: 'Buenos días, ¿a dónde va?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-01', npc_message: 'Buenos días, ¿a dónde va?',
+      npc_translation: `Günaydın, nereye gidiyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'Al centro, por favor. ¿Qué línea cojo?', quality: 'good', feedback: '"¿Qué línea cojo?" — yön sormak için doğal kalıp.' },
       { text: 'Al centro.', quality: 'ok', feedback: 'Anlaşılıyor ama yol tarifi istemedi.', correction: 'Al centro, por favor. ¿Cómo llego?' },
       { text: 'Quiero ir al centro de la ciudad.', quality: 'awkward', feedback: 'Çok uzun. Metro bağlamında doğrudan söyle.', correction: 'Al centro, ¿qué línea es?' },
     ]},
-    { id: 'travel-es-02', npc_message: 'Tiene que coger la línea dos hasta Callao y cambiar a la línea tres.', npc_mood: 'neutral', options: [
+    { id: 'travel-es-02', npc_message: 'Tiene que coger la línea dos hasta Callao y cambiar a la línea tres.',
+      npc_translation: `İki numaralı hattı Callao'ya kadar almalı ve üç numaralı hatta aktarma yapmalısınız.`, npc_mood: 'neutral', options: [
       { text: 'Perdone, ¿puede repetirlo más despacio?', quality: 'good', feedback: '"¿Puede repetirlo más despacio?" — anlamadığında en doğal istek.' },
       { text: 'No entiendo.', quality: 'ok', feedback: 'Dürüst ama çok kısa, daha açıklayıcı olabilirdin.', correction: 'Lo siento, ¿puede repetir?' },
       { text: 'Habla muy rápido.', quality: 'awkward', feedback: 'Şikayet gibi duyuluyor. Kibar bir tekrar isteği daha iyi.', correction: '¿Puede repetirlo, por favor?' },
     ]},
-    { id: 'travel-es-03', npc_message: '¿Tiene tarjeta de transporte o necesita un billete?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-03', npc_message: '¿Tiene tarjeta de transporte o necesita un billete?',
+      npc_translation: `Toplu taşıma kartınız var mı, yoksa bilet mi almanız gerekir?`, npc_mood: 'neutral', options: [
       { text: 'Necesito un billete sencillo, por favor.', quality: 'good', feedback: '"Billete sencillo" — tek yön bilet için standart ifade.' },
       { text: 'Un billete.', quality: 'ok', feedback: 'Anlaşılır ama hangi bilet olduğu belirsiz.', correction: 'Un billete sencillo, por favor.' },
       { text: 'No tengo nada.', quality: 'awkward', feedback: '"Hiçbir şeyim yok" — kafa karıştırıcı. Ne istediğini söyle.', correction: 'Un billete sencillo, por favor.' },
     ]},
-    { id: 'travel-es-04', npc_message: 'Son dos euros con cincuenta. ¿Paga en efectivo?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-04', npc_message: 'Son dos euros con cincuenta. ¿Paga en efectivo?',
+      npc_translation: `İki euro elli sent. Nakit mi ödeyeceksiniz?`, npc_mood: 'neutral', options: [
       { text: 'Sí, aquí tiene.', quality: 'good', feedback: 'Kısa ve doğal.' },
       { text: 'Sí.', quality: 'ok', feedback: 'Yeterli ama parayı uzatmadın.', correction: 'Sí, aquí tiene.' },
       { text: '¿No aceptan tarjeta?', quality: 'awkward', feedback: 'Soru sormak yerine nakit ödeyebilirdin.', correction: 'Sí, aquí tiene.' },
     ]},
-    { id: 'travel-es-05', npc_message: '¿Sabe dónde está la salida de Callao?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-05', npc_message: '¿Sabe dónde está la salida de Callao?',
+      npc_translation: `Callao çıkışının nerede olduğunu biliyor musunuz?`, npc_mood: 'neutral', options: [
       { text: 'No, es mi primera vez. ¿Podría indicarme?', quality: 'good', feedback: '"Es mi primera vez" açıklaması empati kuruyor.' },
       { text: 'No sé.', quality: 'ok', feedback: 'Dürüst ama yardım istemedi.', correction: 'No, ¿puede ayudarme?' },
       { text: 'Soy turista.', quality: 'awkward', feedback: 'İlgisiz bilgi. Yardım iste.', correction: 'No lo sé, ¿me puede ayudar?' },
     ]},
-    { id: 'travel-es-06', npc_message: 'El próximo tren sale en tres minutos, andén dos.', npc_mood: 'neutral', options: [
+    { id: 'travel-es-06', npc_message: 'El próximo tren sale en tres minutos, andén dos.',
+      npc_translation: `Sonraki tren üç dakika içinde kalkıyor, platform iki.`, npc_mood: 'neutral', options: [
       { text: 'Gracias, voy al andén dos ahora mismo.', quality: 'good', feedback: 'Bilgiyi teyit ederek kibarca kapanış.' },
       { text: 'Vale, gracias.', quality: 'ok', feedback: 'Yeterli ama andén numarasını tekrar etmek iyi olurdu.' },
       { text: '¿Tres minutos? ¿Por qué tanto?', quality: 'awkward', feedback: 'Şikayet tonu gereksiz.', correction: 'Gracias, ¿el andén dos?' },
     ]},
-    { id: 'travel-es-07', npc_message: '¿Va a la estación de Atocha?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-07', npc_message: '¿Va a la estación de Atocha?',
+      npc_translation: `Atocha istasyonuna mı gidiyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'Sí, ¿hay transbordo?', quality: 'good', feedback: '"¿Hay transbordo?" — aktarma olup olmadığını sormanın doğal yolu.' },
       { text: 'Sí.', quality: 'ok', feedback: 'Doğru ama aktarma bilgisi önemli, sorabilirdin.' },
       { text: 'No sé dónde está Atocha.', quality: 'awkward', feedback: 'Evet/hayır sorusuna bu cevap garip kaçar.', correction: 'Sí, ¿necesito cambiar de línea?' },
     ]},
-    { id: 'travel-es-08', npc_message: 'Esta línea no para en Atocha los domingos. Tiene que coger el autobús.', npc_mood: 'confused', options: [
+    { id: 'travel-es-08', npc_message: 'Esta línea no para en Atocha los domingos. Tiene que coger el autobús.',
+      npc_translation: `Bu hat pazar günleri Atocha'ya uğramıyor. Otobüs almanız gerekiyor.`, npc_mood: 'confused', options: [
       { text: 'Entendido. ¿En qué parada cojo el autobús?', quality: 'good', feedback: 'Durumu kabul edip pratik soru sormak — doğru tepki.' },
       { text: 'Ah, vale.', quality: 'ok', feedback: 'Kabul etti ama otobüs durağını sorması gerekirdi.' },
       { text: 'Eso es un problema.', quality: 'awkward', feedback: '"Bu bir problem" — şikayet tonu sahnede gereksiz.', correction: '¿Dónde está la parada de autobús?' },
     ]},
-    { id: 'travel-es-09', npc_message: '¿Le puedo ayudar con el equipaje?', npc_mood: 'happy', options: [
+    { id: 'travel-es-09', npc_message: '¿Le puedo ayudar con el equipaje?',
+      npc_translation: `Bagajınızla size yardımcı olabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Sí, muchas gracias, es muy amable.', quality: 'good', feedback: '"Muy amable" — İspanyolcada sıkça kullanılan sıcak yanıt.' },
       { text: 'No, gracias, puedo solo.', quality: 'ok', feedback: 'Kibar ret.' },
       { text: 'Es muy pesado.', quality: 'awkward', feedback: '"Çok ağır" — soruyu cevaplamıyor.', correction: 'Sí, gracias, si no le importa.' },
     ]},
-    { id: 'travel-es-10', npc_message: '¿Tiene billete de vuelta?', npc_mood: 'neutral', options: [
+    { id: 'travel-es-10', npc_message: '¿Tiene billete de vuelta?',
+      npc_translation: `Dönüş biletiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'No, ¿puedo comprar uno aquí?', quality: 'good', feedback: 'Durumu açıklayıp pratik çözüm arıyor.' },
       { text: 'No.', quality: 'ok', feedback: 'Dürüst ama nerede alabileceğini sorabilirdi.' },
       { text: 'No necesito.', quality: 'awkward', feedback: 'Gramer hatalı ve tuhaf.', correction: 'No, no necesito billete de vuelta.' },
     ]},
-    { id: 'travel-es-11', npc_message: 'Hay retraso de diez minutos por obras en la vía.', npc_mood: 'impatient', options: [
+    { id: 'travel-es-11', npc_message: 'Hay retraso de diez minutos por obras en la vía.',
+      npc_translation: `Hat çalışmaları nedeniyle on dakika gecikme var.`, npc_mood: 'impatient', options: [
       { text: 'Gracias por avisar. ¿Habrá más retrasos hoy?', quality: 'good', feedback: 'Teşekkür edip ek bilgi sormak — olgun tepki.' },
       { text: 'Vale, gracias.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Diez minutos es demasiado.', quality: 'awkward', feedback: 'Şikayet eder gibi — gereksiz.', correction: 'Entendido, gracias.' },
     ]},
-    { id: 'travel-es-12', npc_message: 'Ha llegado a su destino. ¡Buen viaje!', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'travel-es-12', npc_message: 'Ha llegado a su destino. ¡Buen viaje!',
+      npc_translation: `Varış noktanıza ulaştınız. İyi yolculuklar!`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Muchas gracias por su ayuda.', quality: 'good', feedback: 'Mükemmel kapanış.' },
       { text: 'Gracias.', quality: 'ok', feedback: 'Yeterli ama biraz soğuk.' },
       { text: 'Adiós.', quality: 'awkward', feedback: 'Çok ani. Daha sıcak bir kapanış daha iyi.', correction: 'Gracias, hasta luego.' },
@@ -394,62 +419,74 @@ const businessEs: ScenarioDialogue = {
   language: 'es',
   sessionSize: 5,
   turns: [
-    { id: 'biz-es-01', npc_message: 'Buenos días, ¿tiene cita?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-01', npc_message: 'Buenos días, ¿tiene cita?',
+      npc_translation: `Günaydın, randevunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sí, tengo una reunión con el señor García a las diez.', quality: 'good', feedback: 'Kişi adı ve saat — resepsiyon için doğal giriş.' },
       { text: 'Sí, tengo reunión.', quality: 'ok', feedback: 'Eksik bilgi. Kiminle olduğunu belirtmek daha profesyonel.', correction: 'Sí, con el señor García.' },
       { text: 'Sí, vine para una reunión.', quality: 'awkward', feedback: '"Vine" geçmiş zaman — "tengo" daha doğru.', correction: 'Sí, tengo cita con García.' },
     ]},
-    { id: 'biz-es-02', npc_message: '¿Puede decirme el propósito de la reunión?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-02', npc_message: '¿Puede decirme el propósito de la reunión?',
+      npc_translation: `Toplantının amacını söyler misiniz?`, npc_mood: 'neutral', options: [
       { text: 'Vengo a presentar nuestra propuesta de colaboración.', quality: 'good', feedback: 'Net ve profesyonel.' },
       { text: 'Para hablar de negocios.', quality: 'ok', feedback: 'Çok genel, daha spesifik olabilirdin.', correction: 'Para presentar una propuesta.' },
       { text: 'No sé exactamente.', quality: 'awkward', feedback: 'Toplantının amacını bilmemek profesyonel görünmüyor.', correction: 'Vengo a discutir una propuesta.' },
     ]},
-    { id: 'biz-es-03', npc_message: 'Por favor, tome asiento. El señor García llegará en unos minutos.', npc_mood: 'neutral', options: [
+    { id: 'biz-es-03', npc_message: 'Por favor, tome asiento. El señor García llegará en unos minutos.',
+      npc_translation: `Lütfen oturunuz. Señor García birkaç dakika içinde gelecek.`, npc_mood: 'neutral', options: [
       { text: 'Gracias. ¿Puedo dejar aquí mi abrigo?', quality: 'good', feedback: 'Kibarca pratik bir soru.' },
       { text: 'Gracias.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Estoy cansado de esperar.', quality: 'awkward', feedback: 'Henüz oturmadın bile — bu yorum erken ve itici.', correction: 'Gracias, le espero aquí.' },
     ]},
-    { id: 'biz-es-04', npc_message: 'Encantado de conocerle. He revisado su propuesta y tengo algunas preguntas.', npc_mood: 'neutral', options: [
+    { id: 'biz-es-04', npc_message: 'Encantado de conocerle. He revisado su propuesta y tengo algunas preguntas.',
+      npc_translation: `Tanıştığımıza memnun oldum. Teklifinizi inceledim ve bazı sorularım var.`, npc_mood: 'neutral', options: [
       { text: 'Igualmente. Por supuesto, estaré encantado de responder.', quality: 'good', feedback: '"Igualmente" + hazır olduğunu belirtmek — profesyonel açılış.' },
       { text: 'Encantado. Dígame.', quality: 'ok', feedback: 'Kısa ama kabul edilebilir.' },
       { text: 'Hola. ¿Qué preguntas?', quality: 'awkward', feedback: 'Çok gayri resmi ve aceleci.', correction: 'Igualmente, con mucho gusto.' },
     ]},
-    { id: 'biz-es-05', npc_message: 'El presupuesto que proponen parece elevado. ¿Hay margen de negociación?', npc_mood: 'impatient', options: [
+    { id: 'biz-es-05', npc_message: 'El presupuesto que proponen parece elevado. ¿Hay margen de negociación?',
+      npc_translation: `Önerdiğiniz bütçe biraz yüksek görünüyor. Pazarlık yapmak mümkün mü?`, npc_mood: 'impatient', options: [
       { text: 'Entiendo su preocupación. Podemos revisar las condiciones juntos.', quality: 'good', feedback: 'Empati + çözüm odaklı — müzakerede doğru ton.' },
       { text: 'Sí, podemos hablar del precio.', quality: 'ok', feedback: 'Açık ama biraz zayıf duruyor.' },
       { text: 'El precio es justo.', quality: 'awkward', feedback: 'Müşteriyi savunmaya geçiriyor — müzakere yerine çatışma.', correction: 'Podemos encontrar una solución.' },
     ]},
-    { id: 'biz-es-06', npc_message: '¿Cuándo podrían empezar si llegamos a un acuerdo?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-06', npc_message: '¿Cuándo podrían empezar si llegamos a un acuerdo?',
+      npc_translation: `Bir anlaşmaya varırsak ne zaman başlayabilirdiniz?`, npc_mood: 'neutral', options: [
       { text: 'Podríamos empezar a principios del mes que viene, si le parece bien.', quality: 'good', feedback: '"Si le parece bien" — karşı tarafı da sürece dahil ediyor.' },
       { text: 'El mes que viene.', quality: 'ok', feedback: 'Net ama biraz kısa.' },
       { text: 'Depende.', quality: 'awkward', feedback: '"Bağlı" — belirsiz ve profesyonelce değil.', correction: 'Podríamos empezar en dos o tres semanas.' },
     ]},
-    { id: 'biz-es-07', npc_message: 'Necesitamos referencias de proyectos similares.', npc_mood: 'neutral', options: [
+    { id: 'biz-es-07', npc_message: 'Necesitamos referencias de proyectos similares.',
+      npc_translation: `Benzer projelerin referanslarına ihtiyacımız var.`, npc_mood: 'neutral', options: [
       { text: 'Por supuesto, puedo enviarle tres referencias esta misma semana.', quality: 'good', feedback: 'Somut taahhüt ve zaman çerçevesi — güven veriyor.' },
       { text: 'Tenemos referencias.', quality: 'ok', feedback: 'Var mı yok mu belirsiz, gönderme taahhüdü eksik.', correction: 'Le envío las referencias mañana.' },
       { text: 'Todos nuestros clientes están contentos.', quality: 'awkward', feedback: 'İspat edilmemiş iddia — referans istenmiş, bunu ver.', correction: 'Le mando referencias concretas esta semana.' },
     ]},
-    { id: 'biz-es-08', npc_message: '¿Incluye el precio el soporte técnico después de la entrega?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-08', npc_message: '¿Incluye el precio el soporte técnico después de la entrega?',
+      npc_translation: `Fiyata teslimat sonrası teknik destek dahil mi?`, npc_mood: 'neutral', options: [
       { text: 'Sí, incluimos soporte técnico durante seis meses sin coste adicional.', quality: 'good', feedback: 'Net, somut, müşteriye değer katan cevap.' },
       { text: 'Sí, está incluido.', quality: 'ok', feedback: 'Doğru ama detay eksik.' },
       { text: 'Depende del contrato.', quality: 'awkward', feedback: '"Sözleşmeye bağlı" — belirsiz ve güvensiz duyuluyor.', correction: 'Sí, seis meses de soporte incluidos.' },
     ]},
-    { id: 'biz-es-09', npc_message: 'Voy a necesitar consultarlo con mi equipo antes de decidir.', npc_mood: 'neutral', options: [
+    { id: 'biz-es-09', npc_message: 'Voy a necesitar consultarlo con mi equipo antes de decidir.',
+      npc_translation: `Karar vermeden önce takımımla bunu görüşmem gerekiyor.`, npc_mood: 'neutral', options: [
       { text: 'Por supuesto. ¿Cuándo podría tener una respuesta?', quality: 'good', feedback: 'Baskı yapmadan zaman çerçevesi istemek — profesyonel.' },
       { text: 'Está bien.', quality: 'ok', feedback: 'Kabul etti ama ne zaman duyacağını sormadı.' },
       { text: 'Espero que decidan pronto.', quality: 'awkward', feedback: 'Hafif baskı tonu — erken.', correction: '¿Cuándo podré tener noticias?' },
     ]},
-    { id: 'biz-es-10', npc_message: '¿Puede dejarnos una copia de la propuesta?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-10', npc_message: '¿Puede dejarnos una copia de la propuesta?',
+      npc_translation: `Bize teklifin bir kopyasını bırakabilir misiniz?`, npc_mood: 'neutral', options: [
       { text: 'Claro, tengo copias impresas y también le envío la versión digital.', quality: 'good', feedback: 'İki format sunmak — hazırlıklı ve profesyonel.' },
       { text: 'Sí, aquí tiene.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'La propuesta está en mi email.', quality: 'awkward', feedback: 'Kendine göre pratik ama karşı tarafa zor.', correction: 'Aquí tiene una copia impresa.' },
     ]},
-    { id: 'biz-es-11', npc_message: '¿Tiene tarjeta de visita?', npc_mood: 'neutral', options: [
+    { id: 'biz-es-11', npc_message: '¿Tiene tarjeta de visita?',
+      npc_translation: `Kartvizitiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sí, aquí tiene. Y le añado también mi LinkedIn si me lo permite.', quality: 'good', feedback: 'Kart + LinkedIn — networking\'de doğal bağlantı kurma.' },
       { text: 'Sí, aquí tiene.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'No, pero tengo WhatsApp.', quality: 'awkward', feedback: 'Resmi iş görüşmesinde WhatsApp önermek uygunsuz.', correction: 'Sí, aquí tiene mi tarjeta.' },
     ]},
-    { id: 'biz-es-12', npc_message: 'Ha sido un placer. Le contactaremos la próxima semana.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'biz-es-12', npc_message: 'Ha sido un placer. Le contactaremos la próxima semana.',
+      npc_translation: `Çok hoş oldu. Gelecek hafta sizinle iletişime geçeceğiz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Igualmente, quedo a su disposición para cualquier consulta.', quality: 'good', feedback: '"Quedo a su disposición" — iş görüşmesi kapanışı için standart, olgun ifade.' },
       { text: 'Gracias, hasta pronto.', quality: 'ok', feedback: 'Yeterli kapanış.' },
       { text: 'Espero su llamada.', quality: 'awkward', feedback: 'Biraz iteleme tonu var.', correction: 'Muchas gracias, estoy a su disposición.' },
@@ -464,62 +501,74 @@ const socialEs: ScenarioDialogue = {
   language: 'es',
   sessionSize: 5,
   turns: [
-    { id: 'social-es-01', npc_message: '¡Hola! ¿Es tu primera vez aquí?', npc_mood: 'happy', options: [
+    { id: 'social-es-01', npc_message: '¡Hola! ¿Es tu primera vez aquí?',
+      npc_translation: `Merhaba! Burada ilk kez misin?`, npc_mood: 'happy', options: [
       { text: 'Sí, me lo recomendaron unos amigos. ¿Tú vienes mucho?', quality: 'good', feedback: 'Cevap verip karşı soruyla konuşmayı sürdürmek — sosyal akış.' },
       { text: 'Sí, primera vez.', quality: 'ok', feedback: 'Doğru ama konuşmayı ilerletmiyor.' },
       { text: 'No conozco a nadie aquí.', quality: 'awkward', feedback: 'Olumsuz açılış, ortamı soğutuyor.', correction: 'Sí, vine con unos amigos.' },
     ]},
-    { id: 'social-es-02', npc_message: '¿De dónde eres?', npc_mood: 'happy', options: [
+    { id: 'social-es-02', npc_message: '¿De dónde eres?',
+      npc_translation: `Sen nereli misin?`, npc_mood: 'happy', options: [
       { text: 'Soy de Turquía, de Estambul. ¿Y tú?', quality: 'good', feedback: 'Kendinle ilgili bilgi + karşı soru — sohbeti ikiye katlar.' },
       { text: 'De Turquía.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Soy extranjero.', quality: 'awkward', feedback: '"Yabancıyım" — soruyu cevaplamıyor.', correction: 'Soy de Turquía. ¿Y tú?' },
     ]},
-    { id: 'social-es-03', npc_message: '¿A qué te dedicas?', npc_mood: 'happy', options: [
+    { id: 'social-es-03', npc_message: '¿A qué te dedicas?',
+      npc_translation: `Ne işle uğraşıyorsun?`, npc_mood: 'happy', options: [
       { text: 'Trabajo en tecnología. ¿Y tú, a qué te dedicas?', quality: 'good', feedback: 'Kısa cevap + karşı soru — doğal sohbet ritmi.' },
       { text: 'Soy ingeniero.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Trabajo mucho.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Trabajo en tecnología, ¿y tú?' },
     ]},
-    { id: 'social-es-04', npc_message: '¿Qué te parece la música de esta noche?', npc_mood: 'happy', options: [
+    { id: 'social-es-04', npc_message: '¿Qué te parece la música de esta noche?',
+      npc_translation: `Bu gece müzik hakkında ne düşünüyorsun?`, npc_mood: 'happy', options: [
       { text: 'Me encanta, tiene mucha energía. ¿Conoces al grupo?', quality: 'good', feedback: 'Görüş + bilgi sorusu — sohbeti derinleştirir.' },
       { text: 'Está bien.', quality: 'ok', feedback: 'Kabul edilebilir ama heyecansız.' },
       { text: 'No entiendo esta música.', quality: 'awkward', feedback: 'Sosyal ortamda negatif yorum konuşmayı öldürür.', correction: 'Es interesante, ¿tú qué opinas?' },
     ]},
-    { id: 'social-es-05', npc_message: '¿Quieres tomar algo? Yo invito.', npc_mood: 'happy', options: [
+    { id: 'social-es-05', npc_message: '¿Quieres tomar algo? Yo invito.',
+      npc_translation: `Bir şey içmek ister misin? Benim hesabıma.`, npc_mood: 'happy', options: [
       { text: 'Muy amable, una cerveza estaría genial, gracias.', quality: 'good', feedback: '"Muy amable" kabul ederken nezaket gösteriyor.' },
       { text: 'Sí, gracias.', quality: 'ok', feedback: 'Yeterli ama ne istediğini söylemedin.' },
       { text: 'No, tengo bebida.', quality: 'awkward', feedback: 'İyi niyetli teklifi reddedişte "tengo bebida" soğuk.', correction: 'No gracias, ya tengo, pero gracias por ofrecerte.' },
     ]},
-    { id: 'social-es-06', npc_message: '¿Cuánto tiempo llevas en España?', npc_mood: 'happy', options: [
+    { id: 'social-es-06', npc_message: '¿Cuánto tiempo llevas en España?',
+      npc_translation: `İspanya'da ne kadar zamandır varsın?`, npc_mood: 'happy', options: [
       { text: 'Llevo tres meses. Todavía estoy aprendiendo el idioma.', quality: 'good', feedback: 'Kişisel detay + alçakgönüllülük — sempati çekiyor.' },
       { text: 'Tres meses.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'No mucho tiempo.', quality: 'awkward', feedback: 'Belirsiz cevap.', correction: 'Unos meses, todavía me estoy adaptando.' },
     ]},
-    { id: 'social-es-07', npc_message: '¿Conoces algún buen restaurante por aquí?', npc_mood: 'happy', options: [
+    { id: 'social-es-07', npc_message: '¿Conoces algún buen restaurante por aquí?',
+      npc_translation: `Burada iyi bir restoran biliyor musun?`, npc_mood: 'happy', options: [
       { text: 'Aún no mucho, soy nuevo. ¿Tú me recomiendas alguno?', quality: 'good', feedback: 'Bilmediğini kabul edip öneri istemek — dönüştürücü soru.' },
       { text: 'No sé.', quality: 'ok', feedback: 'Dürüst ama fırsatı kaçırıyor.' },
       { text: 'No conozco la ciudad.', quality: 'awkward', feedback: 'Konuşmayı bitiriyor.', correction: 'No mucho, ¿tú qué recomiendas?' },
     ]},
-    { id: 'social-es-08', npc_message: 'Oye, ¿bailas?', npc_mood: 'happy', options: [
+    { id: 'social-es-08', npc_message: 'Oye, ¿bailas?',
+      npc_translation: `Hey, dans eder misin?`, npc_mood: 'happy', options: [
       { text: 'Un poco, pero me apunto. ¡Vamos!', quality: 'good', feedback: '"Me apunto" — dahil olmak için doğal ve enerjik yanıt.' },
       { text: 'No sé bailar.', quality: 'ok', feedback: 'Dürüst ret.' },
       { text: 'No, estoy cansado.', quality: 'awkward', feedback: 'Partide yorgunluk bahanesi soğuk kaçar.', correction: 'No mucho, pero lo intento.' },
     ]},
-    { id: 'social-es-09', npc_message: 'Oye, te presento a mi amigo Carlos.', npc_mood: 'happy', options: [
+    { id: 'social-es-09', npc_message: 'Oye, te presento a mi amigo Carlos.',
+      npc_translation: `Hey, sana arkadaşım Carlos'u tanıştırıyorum.`, npc_mood: 'happy', options: [
       { text: 'Hola Carlos, encantado. ¿También eres de aquí?', quality: 'good', feedback: 'Selamlama + soru — tanışmayı hemen sohbete çeviriyor.' },
       { text: 'Hola, encantado.', quality: 'ok', feedback: 'Yeterli ama devam etmiyor.' },
       { text: 'Hola.', quality: 'awkward', feedback: 'Çok kısa tanışma, soğuk duyuluyor.', correction: 'Hola Carlos, mucho gusto.' },
     ]},
-    { id: 'social-es-10', npc_message: '¿Tienes Instagram? Podríamos seguirnos.', npc_mood: 'happy', options: [
+    { id: 'social-es-10', npc_message: '¿Tienes Instagram? Podríamos seguirnos.',
+      npc_translation: `Instagram'ın var mı? Birbirimizi takip edebiliriz.`, npc_mood: 'happy', options: [
       { text: 'Sí, claro. Te busco ahora mismo.', quality: 'good', feedback: 'Sıcak ve direkt kabul.' },
       { text: 'Sí, @nombre.', quality: 'ok', feedback: 'Doğru ama kullanıcı adı paylaşmak zaten yeterli.' },
       { text: 'No uso mucho Instagram.', quality: 'awkward', feedback: 'Gereksiz açıklama — ya kabul ya kibarca ret.', correction: 'Sí, te mando una solicitud.' },
     ]},
-    { id: 'social-es-11', npc_message: '¿Qué planes tienes para el fin de semana?', npc_mood: 'happy', options: [
+    { id: 'social-es-11', npc_message: '¿Qué planes tienes para el fin de semana?',
+      npc_translation: `Hafta sonu için ne planların var?`, npc_mood: 'happy', options: [
       { text: 'Quiero explorar el barrio. ¿Tú tienes algún plan?', quality: 'good', feedback: 'Cevap + karşı soru — sohbeti canlı tutuyor.' },
       { text: 'No sé todavía.', quality: 'ok', feedback: 'Dürüst ama devam etmiyor.' },
       { text: 'Probablemente dormir mucho.', quality: 'awkward', feedback: 'Negatif/kapanık mesaj, yeni bir arkadaşa garip kaçar.', correction: 'No tengo planes fijos, ¿tú?' },
     ]},
-    { id: 'social-es-12', npc_message: '¡Ha sido un placer! Espero verte pronto por aquí.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'social-es-12', npc_message: '¡Ha sido un placer! Espero verte pronto por aquí.',
+      npc_translation: `Çok hoştu! Umarım yakında burada seni göreceğim.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: '¡Igualmente! Me alegra haberte conocido. ¡Hasta pronto!', quality: 'good', feedback: 'Sıcak ve karşılıklı kapanış.' },
       { text: 'Gracias, hasta luego.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Adiós.', quality: 'awkward', feedback: 'Çok kuru — yeni bir arkadaşa bu kapanış soğuk.', correction: 'Ha sido un placer, ¡hasta pronto!' },
@@ -534,62 +583,74 @@ const cafeFr: ScenarioDialogue = {
   language: 'fr',
   sessionSize: 5,
   turns: [
-    { id: 'cafe-fr-01', npc_message: 'Bonjour, qu\'est-ce que je vous sers ?', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-01', npc_message: 'Bonjour, qu\'est-ce que je vous sers ?',
+      npc_translation: `Merhaba, ne ikram edeyim?`, npc_mood: 'neutral', options: [
       { text: 'Bonjour, un café crème, s\'il vous plaît.', quality: 'good', feedback: '"S\'il vous plaît" — Fransızcada naziklik için zorunlu.' },
       { text: 'Un café, merci.', quality: 'ok', feedback: 'Anlaşılır ama "crème/noir" gibi detay eklersen daha iyi.' },
       { text: 'Donnez-moi un café.', quality: 'awkward', feedback: '"Donnez-moi" emir kipi — garsonla bu ton kaba.', correction: 'Un café, s\'il vous plaît.' },
     ]},
-    { id: 'cafe-fr-02', npc_message: 'Vous le prenez sur place ou à emporter ?', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-02', npc_message: 'Vous le prenez sur place ou à emporter ?',
+      npc_translation: `Bunu burada mı yoksa götürmek için mi alıyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'Sur place, s\'il vous plaît.', quality: 'good', feedback: 'Net ve kibar.' },
       { text: 'Ici.', quality: 'ok', feedback: 'Anlaşılır ama "sur place" daha doğal kalıp.', correction: 'Sur place, merci.' },
       { text: 'Je reste.', quality: 'awkward', feedback: '"Kalıyorum" — bu bağlamda garip.', correction: 'Sur place, s\'il vous plaît.' },
     ]},
-    { id: 'cafe-fr-03', npc_message: 'Vous voulez quelque chose à manger ? Nous avons des croissants frais.', npc_mood: 'happy', options: [
+    { id: 'cafe-fr-03', npc_message: 'Vous voulez quelque chose à manger ? Nous avons des croissants frais.',
+      npc_translation: `Bir şey yemek ister misiniz? Taze croissantlarımız var.`, npc_mood: 'happy', options: [
       { text: 'Oui, un croissant aussi, s\'il vous plaît.', quality: 'good', feedback: 'Doğal kabul.' },
       { text: 'Non, merci.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'Je ne veux pas manger.', quality: 'awkward', feedback: '"Yemek istemiyorum" — kaba.', correction: 'Non, merci, juste le café.' },
     ]},
-    { id: 'cafe-fr-04', npc_message: 'Vous réglez comment ? Carte ou espèces ?', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-04', npc_message: 'Vous réglez comment ? Carte ou espèces ?',
+      npc_translation: `Nasıl ödeyeceksiniz? Kart mı yoksa nakit mi?`, npc_mood: 'neutral', options: [
       { text: 'Par carte, s\'il vous plaît.', quality: 'good', feedback: 'Net ve standart.' },
       { text: 'Carte.', quality: 'ok', feedback: 'Anlaşılır ama kısa.' },
       { text: 'J\'ai les deux.', quality: 'awkward', feedback: 'Seçim yapman lazım.', correction: 'Par carte, merci.' },
     ]},
-    { id: 'cafe-fr-05', npc_message: 'Il y a cinq minutes d\'attente, ça vous va ?', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-05', npc_message: 'Il y a cinq minutes d\'attente, ça vous va ?',
+      npc_translation: `Beş dakika bekleme var, sorun olur mu?`, npc_mood: 'neutral', options: [
       { text: 'Bien sûr, pas de problème.', quality: 'good', feedback: '"Pas de problème" — Fransızcada doğal onay.' },
       { text: 'D\'accord.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Cinq minutes c\'est long.', quality: 'awkward', feedback: 'Şikayet tonu gereksiz.', correction: 'Pas de souci, je patiente.' },
     ]},
-    { id: 'cafe-fr-06', npc_message: 'Vous préférez vous asseoir en salle ou en terrasse ?', npc_mood: 'happy', options: [
+    { id: 'cafe-fr-06', npc_message: 'Vous préférez vous asseoir en salle ou en terrasse ?',
+      npc_translation: `İçeride mi yoksa teras kısmında mı oturmayı tercih edersiniz?`, npc_mood: 'happy', options: [
       { text: 'En terrasse, s\'il vous plaît, s\'il y a de la place.', quality: 'good', feedback: '"S\'il y a de la place" — kibar ön koşul.' },
       { text: 'Dehors, merci.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Je veux être seul.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'En terrasse, si possible.' },
     ]},
-    { id: 'cafe-fr-07', npc_message: 'Désolé, nous n\'avons plus de café crème. Un noisette, ça vous convient ?', npc_mood: 'confused', options: [
+    { id: 'cafe-fr-07', npc_message: 'Désolé, nous n\'avons plus de café crème. Un noisette, ça vous convient ?',
+      npc_translation: `Üzgünüm, krema kahvemiz kalmadı. Fındık kahvesi olur mu?`, npc_mood: 'confused', options: [
       { text: 'Oui, un noisette, c\'est parfait, merci.', quality: 'good', feedback: 'Esnek ve kibar kabul.' },
       { text: 'D\'accord.', quality: 'ok', feedback: 'Yeterli ama biraz soğuk.' },
       { text: 'C\'est quoi un noisette ?', quality: 'awkward', feedback: 'Dürüst ama garsonla garip bir diyalog.', correction: 'Oui, sans problème, merci.' },
     ]},
-    { id: 'cafe-fr-08', npc_message: 'Voici votre commande. Ça fait quatre euros cinquante.', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-08', npc_message: 'Voici votre commande. Ça fait quatre euros cinquante.',
+      npc_translation: `İşte siparişiniz. Dört euro elli sent.`, npc_mood: 'neutral', options: [
       { text: 'Voilà, merci beaucoup.', quality: 'good', feedback: '"Voilà" — ödeme yaparken standart Fransızca.' },
       { text: 'Merci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'C\'est cher.', quality: 'awkward', feedback: 'Kafede fiyat şikayeti garip.', correction: 'Voilà, merci.' },
     ]},
-    { id: 'cafe-fr-09', npc_message: 'Vous voulez un verre d\'eau ? C\'est offert.', npc_mood: 'happy', options: [
+    { id: 'cafe-fr-09', npc_message: 'Vous voulez un verre d\'eau ? C\'est offert.',
+      npc_translation: `Bir bardak su ister misiniz? Bedava.`, npc_mood: 'happy', options: [
       { text: 'Oui, volontiers, merci beaucoup.', quality: 'good', feedback: '"Volontiers" — Fransızcada sıcak kabul ifadesi.' },
       { text: 'Oui, merci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Je n\'ai pas besoin d\'eau.', quality: 'awkward', feedback: 'Kaba ret.', correction: 'Non, merci, c\'est gentil.' },
     ]},
-    { id: 'cafe-fr-10', npc_message: 'Vous avez besoin du mot de passe wifi ?', npc_mood: 'neutral', options: [
+    { id: 'cafe-fr-10', npc_message: 'Vous avez besoin du mot de passe wifi ?',
+      npc_translation: `Wifi şifresine ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Oui, s\'il vous plaît, ce serait sympa.', quality: 'good', feedback: '"Ce serait sympa" — Fransızcada kibar rica.' },
       { text: 'Oui, s\'il vous plaît.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Donnez-moi le wifi.', quality: 'awkward', feedback: 'Emir kipi — kaba.', correction: 'Oui, s\'il vous plaît.' },
     ]},
-    { id: 'cafe-fr-11', npc_message: 'Vous avez l\'air de bien apprécier. Vous venez souvent dans le quartier ?', npc_mood: 'happy', options: [
+    { id: 'cafe-fr-11', npc_message: 'Vous avez l\'air de bien apprécier. Vous venez souvent dans le quartier ?',
+      npc_translation: `Çok beğendiğiniz anlaşılıyor. Sık sık mahallede gelir misiniz?`, npc_mood: 'happy', options: [
       { text: 'C\'est ma première fois ici, mais j\'adore l\'ambiance.', quality: 'good', feedback: 'Kişisel yorum + iltifat — sohbet açıyor.' },
       { text: 'Oui, parfois.', quality: 'ok', feedback: 'Yeterli ama ilgisiz.' },
       { text: 'Non, je ne connais pas Paris.', quality: 'awkward', feedback: 'Soruya aşırı geniş cevap.', correction: 'C\'est ma première visite, j\'aime bien.' },
     ]},
-    { id: 'cafe-fr-12', npc_message: 'Bonne journée ! À bientôt peut-être.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'cafe-fr-12', npc_message: 'Bonne journée ! À bientôt peut-être.',
+      npc_translation: `İyi günler! Belki yakında görüşürüz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Merci, bonne journée à vous aussi !', quality: 'good', feedback: '"À vous aussi" — Fransızca vedalaşmada standart karşılık.' },
       { text: 'Merci, au revoir.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce kullanmak Fransız kafesinde tuhaf.', correction: 'Merci, bonne journée !' },
@@ -604,62 +665,74 @@ const travelFr: ScenarioDialogue = {
   language: 'fr',
   sessionSize: 5,
   turns: [
-    { id: 'travel-fr-01', npc_message: 'Bonjour, je vous aide ?', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-01', npc_message: 'Bonjour, je vous aide ?',
+      npc_translation: `Merhaba, size yardımcı olabilir miyim?`, npc_mood: 'neutral', options: [
       { text: 'Oui, merci. Je cherche le métro direction Châtelet.', quality: 'good', feedback: '"Direction Châtelet" — metro yönü sormak için standart ifade.' },
       { text: 'Oui, le métro.', quality: 'ok', feedback: 'Eksik bilgi, nereye gittiğini söyle.' },
       { text: 'Je suis perdu.', quality: 'awkward', feedback: '"Kayboldum" — pratik değil, nereye gideceğini söyle.', correction: 'Je cherche le métro, s\'il vous plaît.' },
     ]},
-    { id: 'travel-fr-02', npc_message: 'Vous avez un carnet de tickets ou vous en achetez un ?', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-02', npc_message: 'Vous avez un carnet de tickets ou vous en achetez un ?',
+      npc_translation: `Bir bilet defteriniz var mı yoksa yeni bir tane mi alıyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'Je voudrais acheter un carnet, s\'il vous plaît.', quality: 'good', feedback: '"Je voudrais" — kibar istek formu.' },
       { text: 'Un ticket, merci.', quality: 'ok', feedback: 'Anlaşılır ama carnet daha ekonomik.' },
       { text: 'Combien ça coûte ?', quality: 'awkward', feedback: 'Soruya cevap vermeden fiyat sordu.', correction: 'Je prends un ticket simple, s\'il vous plaît.' },
     ]},
-    { id: 'travel-fr-03', npc_message: 'Vous descendez à quelle station ?', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-03', npc_message: 'Vous descendez à quelle station ?',
+      npc_translation: `Hangi istasyonda iniyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'À Châtelet-Les Halles, s\'il vous plaît.', quality: 'good', feedback: 'Net ve kibar.' },
       { text: 'Châtelet.', quality: 'ok', feedback: 'Anlaşılır ama "s\'il vous plaît" ekle.' },
       { text: 'Je ne sais pas exactement.', quality: 'awkward', feedback: 'Bilet almak için durağı bilmen lazım.', correction: 'À Châtelet, merci.' },
     ]},
-    { id: 'travel-fr-04', npc_message: 'Il y a une correspondance à Opéra, ligne trois.', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-04', npc_message: 'Il y a une correspondance à Opéra, ligne trois.',
+      npc_translation: `Opéra'da aktarma var, üç numaralı hat.`, npc_mood: 'neutral', options: [
       { text: 'D\'accord, je prends la ligne trois à Opéra. Merci.', quality: 'good', feedback: 'Bilgiyi teyit etmek — doğru anlama testi.' },
       { text: 'Merci.', quality: 'ok', feedback: 'Yeterli ama tekrar etmek iyi olurdu.' },
       { text: 'C\'est compliqué.', quality: 'awkward', feedback: '"Karmaşık" — bilgiyi reddetmek gibi görünüyor.', correction: 'D\'accord, merci de l\'information.' },
     ]},
-    { id: 'travel-fr-05', npc_message: 'Attention, la ligne est interrompue ce soir pour travaux.', npc_mood: 'impatient', options: [
+    { id: 'travel-fr-05', npc_message: 'Attention, la ligne est interrompue ce soir pour travaux.',
+      npc_translation: `Dikkat, hat bu akşam bakım nedeniyle kapalı.`, npc_mood: 'impatient', options: [
       { text: 'Ah bon ? Quelle est l\'alternative, s\'il vous plaît ?', quality: 'good', feedback: '"Quelle est l\'alternative ?" — pratik çözüm arıyor.' },
       { text: 'D\'accord.', quality: 'ok', feedback: 'Kabul etti ama alternatif sormadı.' },
       { text: 'Encore des travaux !', quality: 'awkward', feedback: 'Şikayet — Paris metrosunda yaygın durum, negatif ton yardım etmez.', correction: 'Y a-t-il un bus de remplacement ?' },
     ]},
-    { id: 'travel-fr-06', npc_message: 'Le bus de remplacement part devant la station dans dix minutes.', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-06', npc_message: 'Le bus de remplacement part devant la station dans dix minutes.',
+      npc_translation: `Yedek otobüs istasyonun önünden on dakika sonra kalkıyor.`, npc_mood: 'neutral', options: [
       { text: 'Merci beaucoup, je vais y aller tout de suite.', quality: 'good', feedback: 'Teşekkür + hemen harekete geçme — akıcı kapanış.' },
       { text: 'D\'accord, merci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Dix minutes c\'est long.', quality: 'awkward', feedback: 'Şikayet — beklemek zorundasın.', correction: 'Merci, je vais l\'attraper.' },
     ]},
-    { id: 'travel-fr-07', npc_message: 'Vous avez besoin d\'aide avec votre valise ?', npc_mood: 'happy', options: [
+    { id: 'travel-fr-07', npc_message: 'Vous avez besoin d\'aide avec votre valise ?',
+      npc_translation: `Valizenizde yardıma ihtiyacınız var mı?`, npc_mood: 'happy', options: [
       { text: 'Oui, volontiers, merci c\'est très gentil.', quality: 'good', feedback: '"C\'est très gentil" — yardım kabulünde sıcak ifade.' },
       { text: 'Non, ça va, merci.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'Elle est lourde.', quality: 'awkward', feedback: '"Ağır" — soruyu cevaplamıyor.', correction: 'Oui, s\'il vous plaît, merci.' },
     ]},
-    { id: 'travel-fr-08', npc_message: 'Votre ticket n\'est pas valide sur cette ligne.', npc_mood: 'impatient', options: [
+    { id: 'travel-fr-08', npc_message: 'Votre ticket n\'est pas valide sur cette ligne.',
+      npc_translation: `Biletiniz bu hat için geçerli değil.`, npc_mood: 'impatient', options: [
       { text: 'Oh pardon, qu\'est-ce que je dois faire ?', quality: 'good', feedback: 'Özür + çözüm istemek — doğru tepki.' },
       { text: 'Ah bon ?', quality: 'ok', feedback: 'Tepkisiz — ne yapacağını sorman lazım.' },
       { text: 'Mais si, c\'est valide !', quality: 'awkward', feedback: 'Görevliyle tartışmak problemi çözmez.', correction: 'Pardon, comment je régularise ?' },
     ]},
-    { id: 'travel-fr-09', npc_message: 'Le prochain train part dans deux minutes, quai B.', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-09', npc_message: 'Le prochain train part dans deux minutes, quai B.',
+      npc_translation: `Sonraki tren iki dakika sonra, B peronundan kalkıyor.`, npc_mood: 'neutral', options: [
       { text: 'Merci, je file au quai B.', quality: 'good', feedback: '"Je file" — hızlıca gitme için doğal ifade.' },
       { text: 'Merci, quai B.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Deux minutes, c\'est juste.', quality: 'awkward', feedback: 'Zaman daralsa da şikayet değil harekete geç.', correction: 'Merci, j\'y vais tout de suite !' },
     ]},
-    { id: 'travel-fr-10', npc_message: 'Vous connaissez Paris ?', npc_mood: 'happy', options: [
+    { id: 'travel-fr-10', npc_message: 'Vous connaissez Paris ?',
+      npc_translation: `Paris'i tanıyor musunuz?`, npc_mood: 'happy', options: [
       { text: 'Un peu, c\'est ma deuxième visite. J\'adore cette ville.', quality: 'good', feedback: 'Kişisel bilgi + iltifat — sohbeti sıcak tutuyor.' },
       { text: 'Non, pas vraiment.', quality: 'ok', feedback: 'Dürüst.' },
       { text: 'Je suis touriste.', quality: 'awkward', feedback: '"Turistim" — soru "Paris\'i biliyor musun?" idi.', correction: 'Un peu, je suis en visite.' },
     ]},
-    { id: 'travel-fr-11', npc_message: 'N\'oubliez pas de composter votre ticket.', npc_mood: 'neutral', options: [
+    { id: 'travel-fr-11', npc_message: 'N\'oubliez pas de composter votre ticket.',
+      npc_translation: `Biletinizi ütülemeyi unutmayın.`, npc_mood: 'neutral', options: [
       { text: 'Ah oui, merci du rappel !', quality: 'good', feedback: '"Merci du rappel" — hatırlatma için teşekkür etmek nazik.' },
       { text: 'D\'accord, merci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Je sais.', quality: 'awkward', feedback: '"Biliyorum" — biraz kaba duyuluyor.', correction: 'Ah oui, merci !' },
     ]},
-    { id: 'travel-fr-12', npc_message: 'Bon voyage ! Profitez bien de Paris.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'travel-fr-12', npc_message: 'Bon voyage ! Profitez bien de Paris.',
+      npc_translation: `İyi yolculuklar! Paris'in tadını çıkarın.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Merci beaucoup, vous êtes très aimable !', quality: 'good', feedback: '"Vous êtes très aimable" — Fransızca vedada sıcak kapanış.' },
       { text: 'Merci, au revoir.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ok, bye.', quality: 'awkward', feedback: 'İngilizce bitiş Fransız bağlamda garip.', correction: 'Merci, bonne journée !' },
@@ -674,62 +747,74 @@ const socialFr: ScenarioDialogue = {
   language: 'fr',
   sessionSize: 5,
   turns: [
-    { id: 'social-fr-01', npc_message: 'Salut ! C\'est la première fois que tu viens ici ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-01', npc_message: 'Salut ! C\'est la première fois que tu viens ici ?',
+      npc_translation: `Merhaba! İlk kez mi buradaysın?`, npc_mood: 'happy', options: [
       { text: 'Oui, des amis me l\'ont recommandé. Et toi, tu viens souvent ?', quality: 'good', feedback: 'Cevap + karşı soru — sohbeti sürdürüyor.' },
       { text: 'Oui, première fois.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Je ne connais personne ici.', quality: 'awkward', feedback: 'Olumsuz açılış.', correction: 'Oui, je suis venu avec des amis.' },
     ]},
-    { id: 'social-fr-02', npc_message: 'Tu viens d\'où ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-02', npc_message: 'Tu viens d\'où ?',
+      npc_translation: `Nereden geliyorsun?`, npc_mood: 'happy', options: [
       { text: 'Je viens de Turquie, d\'Istanbul. Et toi ?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'De Turquie.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Je suis étranger.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Je suis turc, d\'Istanbul. Et toi ?' },
     ]},
-    { id: 'social-fr-03', npc_message: 'Qu\'est-ce que tu fais dans la vie ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-03', npc_message: 'Qu\'est-ce que tu fais dans la vie ?',
+      npc_translation: `Hayatta ne yapıyorsun?`, npc_mood: 'happy', options: [
       { text: 'Je travaille dans la tech. Et toi ?', quality: 'good', feedback: 'Kısa + karşı soru.' },
       { text: 'Je suis ingénieur.', quality: 'ok', feedback: 'Doğru ama konuşmayı ilerletmiyor.' },
       { text: 'Je travaille beaucoup.', quality: 'awkward', feedback: 'Cevap değil.', correction: 'Je travaille dans l\'informatique, et toi ?' },
     ]},
-    { id: 'social-fr-04', npc_message: 'Qu\'est-ce que tu penses de la soirée ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-04', npc_message: 'Qu\'est-ce que tu penses de la soirée ?',
+      npc_translation: `Gecenin hakkında ne düşünüyorsun?`, npc_mood: 'happy', options: [
       { text: 'C\'est super, j\'adore l\'ambiance ! Tu connais les gens ici ?', quality: 'good', feedback: 'İltifat + soru — sohbet devam ediyor.' },
       { text: 'C\'est bien.', quality: 'ok', feedback: 'Yeterli ama ilgisiz.' },
       { text: 'Je ne comprends pas cette musique.', quality: 'awkward', feedback: 'Sosyal ortamda negatif yorum.', correction: 'C\'est sympa, j\'aime bien l\'ambiance.' },
     ]},
-    { id: 'social-fr-05', npc_message: 'Tu veux boire quelque chose ? Je t\'invite.', npc_mood: 'happy', options: [
+    { id: 'social-fr-05', npc_message: 'Tu veux boire quelque chose ? Je t\'invite.',
+      npc_translation: `Bir şey içmek ister misin? Benim hesabıma.`, npc_mood: 'happy', options: [
       { text: 'C\'est sympa, une bière ce serait parfait, merci !', quality: 'good', feedback: '"C\'est sympa" — teklifi kabul ederken sıcak.' },
       { text: 'Oui, merci.', quality: 'ok', feedback: 'Yeterli ama ne istediğini söylemedin.' },
       { text: 'Non, j\'ai déjà à boire.', quality: 'awkward', feedback: 'Sert ret.', correction: 'Non merci, c\'est gentil mais j\'ai déjà quelque chose.' },
     ]},
-    { id: 'social-fr-06', npc_message: 'Depuis combien de temps tu es en France ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-06', npc_message: 'Depuis combien de temps tu es en France ?',
+      npc_translation: `Fransa'da ne kadar zamandır varsın?`, npc_mood: 'happy', options: [
       { text: 'Trois mois. J\'apprends encore le français !', quality: 'good', feedback: 'Kişisel bilgi + alçakgönüllülük.' },
       { text: 'Trois mois.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Pas longtemps.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Quelques mois, je m\'adapte encore.' },
     ]},
-    { id: 'social-fr-07', npc_message: 'Tu connais un bon restaurant dans le coin ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-07', npc_message: 'Tu connais un bon restaurant dans le coin ?',
+      npc_translation: `Burada iyi bir restoran biliyor musun?`, npc_mood: 'happy', options: [
       { text: 'Pas encore, je suis nouveau. Tu aurais une suggestion ?', quality: 'good', feedback: 'Bilmediğini kabul + öneri istemek.' },
       { text: 'Non, je ne sais pas.', quality: 'ok', feedback: 'Dürüst ama fırsatı kaçırıyor.' },
       { text: 'Je ne connais pas Paris.', quality: 'awkward', feedback: 'Konuşmayı bitiriyor.', correction: 'Non, tu me conseilles quelque chose ?' },
     ]},
-    { id: 'social-fr-08', npc_message: 'On danse ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-08', npc_message: 'On danse ?',
+      npc_translation: `Dans edelim mi?`, npc_mood: 'happy', options: [
       { text: 'Pourquoi pas, allons-y !', quality: 'good', feedback: '"Pourquoi pas" — Fransızcada dans teklifini kabul için enerjik.' },
       { text: 'Je ne sais pas danser.', quality: 'ok', feedback: 'Dürüst ret.' },
       { text: 'Je suis fatigué.', quality: 'awkward', feedback: 'Partide yorgunluk soğuk.', correction: 'Pas vraiment, mais j\'essaie !' },
     ]},
-    { id: 'social-fr-09', npc_message: 'Je te présente mon ami Thomas.', npc_mood: 'happy', options: [
+    { id: 'social-fr-09', npc_message: 'Je te présente mon ami Thomas.',
+      npc_translation: `Sana arkadaşım Thomas'ı tanıştırayım.`, npc_mood: 'happy', options: [
       { text: 'Salut Thomas, enchanté ! Tu es aussi de Paris ?', quality: 'good', feedback: 'Selamlama + soru — tanışmayı sohbete çeviriyor.' },
       { text: 'Salut, enchanté.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Salut.', quality: 'awkward', feedback: 'Çok kısa.', correction: 'Salut Thomas, ravi de te rencontrer.' },
     ]},
-    { id: 'social-fr-10', npc_message: 'Tu es sur Instagram ? On pourrait se suivre.', npc_mood: 'happy', options: [
+    { id: 'social-fr-10', npc_message: 'Tu es sur Instagram ? On pourrait se suivre.',
+      npc_translation: `Instagram'da mısın? Birbirimizi takip edebiliriz.`, npc_mood: 'happy', options: [
       { text: 'Oui, bien sûr ! Je te cherche maintenant.', quality: 'good', feedback: 'Sıcak kabul.' },
       { text: 'Oui, @nom.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Je ne l\'utilise pas trop.', quality: 'awkward', feedback: 'Belirsiz cevap.', correction: 'Oui, je t\'envoie une demande.' },
     ]},
-    { id: 'social-fr-11', npc_message: 'Quels sont tes plans pour ce week-end ?', npc_mood: 'happy', options: [
+    { id: 'social-fr-11', npc_message: 'Quels sont tes plans pour ce week-end ?',
+      npc_translation: `Bu hafta sonu planların neler?`, npc_mood: 'happy', options: [
       { text: 'Je veux explorer le quartier. Tu as des plans, toi ?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Je ne sais pas encore.', quality: 'ok', feedback: 'Dürüst ama devam etmiyor.' },
       { text: 'Dormir probablement.', quality: 'awkward', feedback: 'Yeni bir arkadaşa negatif mesaj.', correction: 'Pas encore, et toi ?' },
     ]},
-    { id: 'social-fr-12', npc_message: 'C\'était sympa de te rencontrer ! À bientôt j\'espère.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'social-fr-12', npc_message: 'C\'était sympa de te rencontrer ! À bientôt j\'espère.',
+      npc_translation: `Seni tanımak çok hoştu! Umarım yakında görüşürüz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Pareil ! Ravi de t\'avoir rencontré. À bientôt !', quality: 'good', feedback: 'Sıcak ve karşılıklı kapanış.' },
       { text: 'Merci, à bientôt.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce bitiş garip.', correction: 'Enchanté, à la prochaine !' },
@@ -744,62 +829,74 @@ const businessFr: ScenarioDialogue = {
   language: 'fr',
   sessionSize: 5,
   turns: [
-    { id: 'biz-fr-01', npc_message: 'Bonjour, vous avez rendez-vous ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-01', npc_message: 'Bonjour, vous avez rendez-vous ?',
+      npc_translation: `Merhaba, randevunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Oui, j\'ai un rendez-vous avec Madame Dupont à dix heures.', quality: 'good', feedback: 'İsim ve saat — resepsiyon için standart.' },
       { text: 'Oui, un rendez-vous.', quality: 'ok', feedback: 'Eksik bilgi.' },
       { text: 'Je viens pour une réunion.', quality: 'awkward', feedback: 'Kiminle olduğunu belirt.', correction: 'Oui, avec Madame Dupont.' },
     ]},
-    { id: 'biz-fr-02', npc_message: 'Quel est l\'objet de votre visite ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-02', npc_message: 'Quel est l\'objet de votre visite ?',
+      npc_translation: `Ziyaretinizin amacı nedir?`, npc_mood: 'neutral', options: [
       { text: 'Je viens présenter notre proposition de partenariat.', quality: 'good', feedback: 'Net ve profesyonel.' },
       { text: 'Pour affaires.', quality: 'ok', feedback: 'Çok genel.' },
       { text: 'Je ne sais pas exactement.', quality: 'awkward', feedback: 'Ziyaretin amacını bilmemek profesyonel değil.', correction: 'Pour présenter une proposition commerciale.' },
     ]},
-    { id: 'biz-fr-03', npc_message: 'Enchantée. J\'ai étudié votre dossier et j\'ai quelques questions.', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-03', npc_message: 'Enchantée. J\'ai étudié votre dossier et j\'ai quelques questions.',
+      npc_translation: `Memnun oldum. Dosyanızı inceledim ve birkaç sorum var.`, npc_mood: 'neutral', options: [
       { text: 'Enchantée également. Je suis à votre disposition.', quality: 'good', feedback: '"Je suis à votre disposition" — Fransız iş dilinde standart.' },
       { text: 'Enchantée. Allez-y.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bonjour. Quelles questions ?', quality: 'awkward', feedback: 'Çok gayri resmi.', correction: 'Enchantée, avec plaisir.' },
     ]},
-    { id: 'biz-fr-04', npc_message: 'Votre budget semble élevé. Y a-t-il une marge de négociation ?', npc_mood: 'impatient', options: [
+    { id: 'biz-fr-04', npc_message: 'Votre budget semble élevé. Y a-t-il une marge de négociation ?',
+      npc_translation: `Bütçeniz oldukça yüksek görünüyor. Pazarlık için bir esneklik var mı?`, npc_mood: 'impatient', options: [
       { text: 'Je comprends votre préoccupation. Nous pouvons revoir les conditions ensemble.', quality: 'good', feedback: 'Empati + çözüm odaklı.' },
       { text: 'Oui, on peut discuter.', quality: 'ok', feedback: 'Açık ama zayıf.' },
       { text: 'Le prix est juste.', quality: 'awkward', feedback: 'Savunmaya geçiyor.', correction: 'Nous pouvons trouver un compromis.' },
     ]},
-    { id: 'biz-fr-05', npc_message: 'Quand pourriez-vous démarrer si nous nous mettons d\'accord ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-05', npc_message: 'Quand pourriez-vous démarrer si nous nous mettons d\'accord ?',
+      npc_translation: `Anlaşmaya varırsak ne zaman başlayabilirdiniz?`, npc_mood: 'neutral', options: [
       { text: 'Nous pourrions démarrer début du mois prochain, si cela vous convient.', quality: 'good', feedback: '"Si cela vous convient" — karşı tarafı sürece dahil ediyor.' },
       { text: 'Le mois prochain.', quality: 'ok', feedback: 'Net ama kısa.' },
       { text: 'Ça dépend.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Dans deux à trois semaines, si vous êtes d\'accord.' },
     ]},
-    { id: 'biz-fr-06', npc_message: 'Nous avons besoin de références de projets similaires.', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-06', npc_message: 'Nous avons besoin de références de projets similaires.',
+      npc_translation: `Benzer projelerden referanslara ihtiyacımız var.`, npc_mood: 'neutral', options: [
       { text: 'Bien sûr, je peux vous envoyer trois références cette semaine.', quality: 'good', feedback: 'Somut taahhüt + zaman çerçevesi.' },
       { text: 'Nous en avons.', quality: 'ok', feedback: 'Belirsiz.' },
       { text: 'Tous nos clients sont satisfaits.', quality: 'awkward', feedback: 'İspatsız iddia.', correction: 'Je vous transmets les références demain.' },
     ]},
-    { id: 'biz-fr-07', npc_message: 'Le support technique est-il inclus après la livraison ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-07', npc_message: 'Le support technique est-il inclus après la livraison ?',
+      npc_translation: `Teknik destek teslimat sonrası dahil mi?`, npc_mood: 'neutral', options: [
       { text: 'Oui, nous incluons six mois de support sans frais supplémentaires.', quality: 'good', feedback: 'Net, somut, değer katan.' },
       { text: 'Oui, c\'est inclus.', quality: 'ok', feedback: 'Doğru ama detay eksik.' },
       { text: 'Ça dépend du contrat.', quality: 'awkward', feedback: 'Belirsiz ve güvensiz.', correction: 'Oui, six mois de support inclus.' },
     ]},
-    { id: 'biz-fr-08', npc_message: 'Je dois en discuter avec mon équipe avant de décider.', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-08', npc_message: 'Je dois en discuter avec mon équipe avant de décider.',
+      npc_translation: `Karar vermeden önce bunu ekibimle tartışmam gerekiyor.`, npc_mood: 'neutral', options: [
       { text: 'Bien sûr. Dans quel délai pensez-vous avoir une réponse ?', quality: 'good', feedback: 'Baskısız zaman çerçevesi sorusu.' },
       { text: 'D\'accord.', quality: 'ok', feedback: 'Kabul etti ama ne zaman duyacağını sormadı.' },
       { text: 'J\'espère une décision rapide.', quality: 'awkward', feedback: 'Hafif baskı.', correction: 'Quand puis-je avoir votre retour ?' },
     ]},
-    { id: 'biz-fr-09', npc_message: 'Pouvez-vous nous laisser un exemplaire de la proposition ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-09', npc_message: 'Pouvez-vous nous laisser un exemplaire de la proposition ?',
+      npc_translation: `Bize teklif önerisinin bir kopyasını bırakabilir misiniz?`, npc_mood: 'neutral', options: [
       { text: 'Bien sûr, j\'ai des exemplaires imprimés et je vous envoie aussi la version numérique.', quality: 'good', feedback: 'İki format sunmak.' },
       { text: 'Oui, voilà.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'C\'est dans mon email.', quality: 'awkward', feedback: 'Karşı tarafa zor.', correction: 'Voici un exemplaire imprimé.' },
     ]},
-    { id: 'biz-fr-10', npc_message: 'Avez-vous une carte de visite ?', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-10', npc_message: 'Avez-vous une carte de visite ?',
+      npc_translation: `Bir kartvizitiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Oui, la voici. Je peux aussi vous ajouter sur LinkedIn si vous le souhaitez.', quality: 'good', feedback: 'Kart + LinkedIn — networking.' },
       { text: 'Oui, la voici.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non, mais j\'ai WhatsApp.', quality: 'awkward', feedback: 'Resmi toplantıda WhatsApp uygunsuz.', correction: 'Oui, voici ma carte.' },
     ]},
-    { id: 'biz-fr-11', npc_message: 'Nous reviendrons vers vous en début de semaine prochaine.', npc_mood: 'neutral', options: [
+    { id: 'biz-fr-11', npc_message: 'Nous reviendrons vers vous en début de semaine prochaine.',
+      npc_translation: `Gelecek haftanın başında size geri döneceğiz.`, npc_mood: 'neutral', options: [
       { text: 'Parfait, je reste disponible pour toute question d\'ici là.', quality: 'good', feedback: '"Je reste disponible" — profesyonel kapanış.' },
       { text: 'D\'accord, merci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'J\'attends votre appel.', quality: 'awkward', feedback: 'Hafif baskı tonu.', correction: 'Je suis à votre disposition, bonne semaine.' },
     ]},
-    { id: 'biz-fr-12', npc_message: 'Ça a été un plaisir. À bientôt.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'biz-fr-12', npc_message: 'Ça a été un plaisir. À bientôt.',
+      npc_translation: `Çok güzel oldu. Görüşmek üzere.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Tout le plaisir était pour moi. Bonne journée !', quality: 'good', feedback: '"Tout le plaisir était pour moi" — Fransız iş dilinde standart kapanış.' },
       { text: 'Merci, au revoir.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ok, bye.', quality: 'awkward', feedback: 'İngilizce ve gayri resmi.', correction: 'Merci, à très bientôt.' },
@@ -816,62 +913,74 @@ const cafeDe: ScenarioDialogue = {
   language: 'de',
   sessionSize: 5,
   turns: [
-    { id: 'cafe-de-01', npc_message: 'Guten Morgen! Was darf es sein?', npc_mood: 'happy', options: [
+    { id: 'cafe-de-01', npc_message: 'Guten Morgen! Was darf es sein?',
+      npc_translation: `Günaydın! Ne alabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Guten Morgen! Einen Kaffee mit Milch, bitte.', quality: 'good', feedback: '"Bitte" — Almancada her siparişte zorunlu nezaket.' },
       { text: 'Einen Kaffee, danke.', quality: 'ok', feedback: 'Anlaşılır ama "mit Milch" gibi detay ekle.' },
       { text: 'Kaffee.', quality: 'awkward', feedback: 'Tek kelime — çok kısa ve kaba.', correction: 'Einen Kaffee, bitte.' },
     ]},
-    { id: 'cafe-de-02', npc_message: 'Groß oder klein?', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-02', npc_message: 'Groß oder klein?',
+      npc_translation: `Büyük mü yoksa küçük mü?`, npc_mood: 'neutral', options: [
       { text: 'Groß, bitte.', quality: 'good', feedback: 'Net ve kibar.' },
       { text: 'Groß.', quality: 'ok', feedback: 'Doğru ama "bitte" eksik.' },
       { text: 'Den größten.', quality: 'awkward', feedback: '"En büyüğü" — garip.', correction: 'Groß, bitte.' },
     ]},
-    { id: 'cafe-de-03', npc_message: 'Für hier oder zum Mitnehmen?', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-03', npc_message: 'Für hier oder zum Mitnehmen?',
+      npc_translation: `Burada mı yoksa paket mi?`, npc_mood: 'neutral', options: [
       { text: 'Für hier, danke.', quality: 'good', feedback: 'Standart ifade.' },
       { text: 'Hier.', quality: 'ok', feedback: 'Anlaşılır ama kısa.' },
       { text: 'Ich bleibe.', quality: 'awkward', feedback: '"Kalıyorum" — bu bağlamda tuhaf.', correction: 'Für hier, bitte.' },
     ]},
-    { id: 'cafe-de-04', npc_message: 'Möchten Sie auch etwas essen? Wir haben frische Brötchen.', npc_mood: 'happy', options: [
+    { id: 'cafe-de-04', npc_message: 'Möchten Sie auch etwas essen? Wir haben frische Brötchen.',
+      npc_translation: `Bir şey yemek ister misiniz? Taze simit var.`, npc_mood: 'happy', options: [
       { text: 'Ja, ein Brötchen auch, bitte.', quality: 'good', feedback: 'Doğal kabul.' },
       { text: 'Nein, danke.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'Ich will nichts essen.', quality: 'awkward', feedback: '"Yemek istemiyorum" — kaba.', correction: 'Nein danke, nur den Kaffee.' },
     ]},
-    { id: 'cafe-de-05', npc_message: 'Bezahlen Sie bar oder mit Karte?', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-05', npc_message: 'Bezahlen Sie bar oder mit Karte?',
+      npc_translation: `Nakit mı yoksa kartla mı ödeyeceksiniz?`, npc_mood: 'neutral', options: [
       { text: 'Mit Karte, bitte.', quality: 'good', feedback: 'Net ve standart.' },
       { text: 'Karte.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Ich habe beides.', quality: 'awkward', feedback: 'Seçim yapman lazım.', correction: 'Mit Karte, bitte.' },
     ]},
-    { id: 'cafe-de-06', npc_message: 'Das macht drei Euro fünfzig, bitte.', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-06', npc_message: 'Das macht drei Euro fünfzig, bitte.',
+      npc_translation: `Bu üç euro elli sent, lütfen.`, npc_mood: 'neutral', options: [
       { text: 'Hier, bitte. Danke schön.', quality: 'good', feedback: '"Danke schön" — Almancada ödeme sırasında standart.' },
       { text: 'Bitte.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'So teuer?', quality: 'awkward', feedback: '"Bu kadar mı pahalı?" — gereksiz şikayet.', correction: 'Hier, bitte.' },
     ]},
-    { id: 'cafe-de-07', npc_message: 'Drinnen oder draußen sitzen?', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-07', npc_message: 'Drinnen oder draußen sitzen?',
+      npc_translation: `İçerde mi yoksa dışarda mı oturmak istersiniz?`, npc_mood: 'neutral', options: [
       { text: 'Draußen, bitte, wenn noch Platz ist.', quality: 'good', feedback: '"Wenn noch Platz ist" — kibar ön koşul.' },
       { text: 'Draußen.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Ich will allein sein.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Draußen, bitte.' },
     ]},
-    { id: 'cafe-de-08', npc_message: 'Tut mir leid, der Kaffee mit Milch ist leider aus. Geht ein Cappuccino?', npc_mood: 'confused', options: [
+    { id: 'cafe-de-08', npc_message: 'Tut mir leid, der Kaffee mit Milch ist leider aus. Geht ein Cappuccino?',
+      npc_translation: `Özür dilerim, sütlü kahve ne yazık ki bitti. Cappuccino olur mu?`, npc_mood: 'confused', options: [
       { text: 'Ja, ein Cappuccino ist prima, danke.', quality: 'good', feedback: '"Prima" — Almancada yaygın onay ifadesi.' },
       { text: 'Okay, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Was ist ein Cappuccino?', quality: 'awkward', feedback: 'Kafede cappuccino bilmemek garip.', correction: 'Ja, gerne, danke.' },
     ]},
-    { id: 'cafe-de-09', npc_message: 'Möchten Sie auch ein Glas Wasser? Das geht aufs Haus.', npc_mood: 'happy', options: [
+    { id: 'cafe-de-09', npc_message: 'Möchten Sie auch ein Glas Wasser? Das geht aufs Haus.',
+      npc_translation: `Bir bardak su ister misiniz? Bizim tarafımızdan.`, npc_mood: 'happy', options: [
       { text: 'Ja, sehr gerne, vielen Dank!', quality: 'good', feedback: '"Sehr gerne" — sıcak ve olumlu kabul.' },
       { text: 'Ja, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Kein Wasser nötig.', quality: 'awkward', feedback: 'Kaba ret.', correction: 'Nein danke, aber trotzdem nett.' },
     ]},
-    { id: 'cafe-de-10', npc_message: 'Brauchen Sie das WLAN-Passwort?', npc_mood: 'neutral', options: [
+    { id: 'cafe-de-10', npc_message: 'Brauchen Sie das WLAN-Passwort?',
+      npc_translation: `WiFi şifresine ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Ja, bitte, das wäre super.', quality: 'good', feedback: '"Das wäre super" — kibar rica.' },
       { text: 'Ja, bitte.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Geben Sie mir das Passwort.', quality: 'awkward', feedback: 'Emir kipi — kaba.', correction: 'Ja, wenn möglich, bitte.' },
     ]},
-    { id: 'cafe-de-11', npc_message: 'Kommen Sie öfter hier her?', npc_mood: 'happy', options: [
+    { id: 'cafe-de-11', npc_message: 'Kommen Sie öfter hier her?',
+      npc_translation: `Sık sık buraya gelir misiniz?`, npc_mood: 'happy', options: [
       { text: 'Nein, es ist mein erstes Mal. Aber es gefällt mir sehr gut hier.', quality: 'good', feedback: 'Kişisel bilgi + iltifat — sohbet açıyor.' },
       { text: 'Nein, zum ersten Mal.', quality: 'ok', feedback: 'Doğru.' },
       { text: 'Ich kenne Berlin nicht gut.', quality: 'awkward', feedback: 'Soruya aşırı geniş cevap.', correction: 'Erstes Mal, aber es gefällt mir!' },
     ]},
-    { id: 'cafe-de-12', npc_message: 'Schönen Tag noch! Bis zum nächsten Mal.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'cafe-de-12', npc_message: 'Schönen Tag noch! Bis zum nächsten Mal.',
+      npc_translation: `İyi günler! Bir daha görüşmek üzere.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Danke, Ihnen auch! Auf Wiedersehen.', quality: 'good', feedback: '"Auf Wiedersehen" — Almancada resmi veda.' },
       { text: 'Danke, tschüss.', quality: 'ok', feedback: 'Yeterli, biraz gayri resmi.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce veda Alman kafesinde garip.', correction: 'Danke, auf Wiedersehen!' },
@@ -886,62 +995,74 @@ const travelDe: ScenarioDialogue = {
   language: 'de',
   sessionSize: 5,
   turns: [
-    { id: 'travel-de-01', npc_message: 'Guten Tag! Kann ich Ihnen helfen?', npc_mood: 'neutral', options: [
+    { id: 'travel-de-01', npc_message: 'Guten Tag! Kann ich Ihnen helfen?',
+      npc_translation: `Merhaba! Size yardımcı olabilir miyim?`, npc_mood: 'neutral', options: [
       { text: 'Ja, danke. Ich suche den U-Bahnhof Alexanderplatz.', quality: 'good', feedback: '"Ich suche" — yön bulmak için standart ifade.' },
       { text: 'Ja, die U-Bahn.', quality: 'ok', feedback: 'Eksik bilgi.' },
       { text: 'Ich bin verloren.', quality: 'awkward', feedback: '"Kayboldum" yerine nereye gittiğini söyle.', correction: 'Ich suche den Alexanderplatz, bitte.' },
     ]},
-    { id: 'travel-de-02', npc_message: 'Haben Sie eine Fahrkarte oder brauchen Sie eine?', npc_mood: 'neutral', options: [
+    { id: 'travel-de-02', npc_message: 'Haben Sie eine Fahrkarte oder brauchen Sie eine?',
+      npc_translation: `Bilet var mı yoksa bilete ihtiyaç mı?`, npc_mood: 'neutral', options: [
       { text: 'Ich brauche eine Einzelfahrkarte, bitte.', quality: 'good', feedback: '"Einzelfahrkarte" — tek yön bilet için doğru kelime.' },
       { text: 'Eine Fahrkarte, bitte.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Wie viel kostet das?', quality: 'awkward', feedback: 'Soruya cevap vermeden fiyat sordu.', correction: 'Eine Einzelfahrkarte, bitte.' },
     ]},
-    { id: 'travel-de-03', npc_message: 'Sie müssen an der nächsten Station umsteigen, Linie zwei.', npc_mood: 'neutral', options: [
+    { id: 'travel-de-03', npc_message: 'Sie müssen an der nächsten Station umsteigen, Linie zwei.',
+      npc_translation: `Bir sonraki istasyonda aktarma yapmanız gerekiyor, hat iki.`, npc_mood: 'neutral', options: [
       { text: 'Verstanden. Linie zwei an der nächsten Station, danke.', quality: 'good', feedback: 'Bilgiyi tekrar etmek — doğru anlama testi.' },
       { text: 'Okay, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Das ist kompliziert.', quality: 'awkward', feedback: '"Karmaşık" — bilgiyi reddetmek gibi.', correction: 'Alright, nächste Station umsteigen, danke.' },
     ]},
-    { id: 'travel-de-04', npc_message: 'Wegen Bauarbeiten fährt die U-Bahn heute nicht bis zur Endstation.', npc_mood: 'impatient', options: [
+    { id: 'travel-de-04', npc_message: 'Wegen Bauarbeiten fährt die U-Bahn heute nicht bis zur Endstation.',
+      npc_translation: `İnşaat çalışmaları nedeniyle metro bugün son istasyona kadar gitmiyor.`, npc_mood: 'impatient', options: [
       { text: 'Ah, verstehe. Gibt es eine alternative Route?', quality: 'good', feedback: 'Durumu kabul edip alternatif arıyor.' },
       { text: 'Oh, okay.', quality: 'ok', feedback: 'Kabul etti ama ne yapacağını sormadı.' },
       { text: 'Schon wieder Baustellen!', quality: 'awkward', feedback: 'Şikayet yardım etmez.', correction: 'Welche Alternative gibt es?' },
     ]},
-    { id: 'travel-de-05', npc_message: 'Der Ersatzbus hält direkt vor dem Eingang.', npc_mood: 'neutral', options: [
+    { id: 'travel-de-05', npc_message: 'Der Ersatzbus hält direkt vor dem Eingang.',
+      npc_translation: `Yedek otobüs girişin tam önünde duruyor.`, npc_mood: 'neutral', options: [
       { text: 'Danke sehr, ich gehe gleich hin.', quality: 'good', feedback: 'Teşekkür + harekete geçme.' },
       { text: 'Danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Der Bus ist langsam.', quality: 'awkward', feedback: 'Şikayet — otobüs en iyi alternatif.', correction: 'Vielen Dank, ich fahre mit dem Bus.' },
     ]},
-    { id: 'travel-de-06', npc_message: 'Darf ich Ihnen mit dem Gepäck helfen?', npc_mood: 'happy', options: [
+    { id: 'travel-de-06', npc_message: 'Darf ich Ihnen mit dem Gepäck helfen?',
+      npc_translation: `Bagajınızda size yardımcı olabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Ja, gerne, das ist sehr nett von Ihnen.', quality: 'good', feedback: '"Das ist sehr nett von Ihnen" — yardım kabulünde sıcak.' },
       { text: 'Nein danke, ich komme schon klar.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'Es ist sehr schwer.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Ja, bitte, danke schön.' },
     ]},
-    { id: 'travel-de-07', npc_message: 'Ihr Ticket ist auf dieser Linie nicht gültig.', npc_mood: 'impatient', options: [
+    { id: 'travel-de-07', npc_message: 'Ihr Ticket ist auf dieser Linie nicht gültig.',
+      npc_translation: `Biletiniz bu hatta geçerli değil.`, npc_mood: 'impatient', options: [
       { text: 'Entschuldigung, was muss ich tun?', quality: 'good', feedback: 'Özür + çözüm istemek.' },
       { text: 'Oh, wirklich?', quality: 'ok', feedback: 'Tepkisiz — ne yapacağını sor.' },
       { text: 'Aber ich habe bezahlt!', quality: 'awkward', feedback: 'Görevliyle tartışmak işe yaramaz.', correction: 'Wie kann ich das lösen?' },
     ]},
-    { id: 'travel-de-08', npc_message: 'Der nächste Zug fährt in drei Minuten, Gleis vier.', npc_mood: 'neutral', options: [
+    { id: 'travel-de-08', npc_message: 'Der nächste Zug fährt in drei Minuten, Gleis vier.',
+      npc_translation: `Sonraki tren üç dakika içinde kalkar, platform dört.`, npc_mood: 'neutral', options: [
       { text: 'Danke, ich gehe schnell zu Gleis vier.', quality: 'good', feedback: 'Bilgiyi teyit + harekete geçme.' },
       { text: 'Danke, Gleis vier.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Drei Minuten, das ist knapp.', quality: 'awkward', feedback: 'Şikayet yerine koş.', correction: 'Danke! Ich beeil mich.' },
     ]},
-    { id: 'travel-de-09', npc_message: 'Kennen Sie sich in Berlin aus?', npc_mood: 'happy', options: [
+    { id: 'travel-de-09', npc_message: 'Kennen Sie sich in Berlin aus?',
+      npc_translation: `Berlin'i tanır mısınız?`, npc_mood: 'happy', options: [
       { text: 'Nicht so gut, es ist mein zweiter Besuch. Ich liebe diese Stadt.', quality: 'good', feedback: 'Kişisel bilgi + iltifat.' },
       { text: 'Nicht wirklich.', quality: 'ok', feedback: 'Dürüst.' },
       { text: 'Ich bin Tourist.', quality: 'awkward', feedback: '"Turistim" soruya tam cevap değil.', correction: 'Ein bisschen, ich bin zum zweiten Mal hier.' },
     ]},
-    { id: 'travel-de-10', npc_message: 'Vergessen Sie nicht, Ihren Fahrschein zu entwerten.', npc_mood: 'neutral', options: [
+    { id: 'travel-de-10', npc_message: 'Vergessen Sie nicht, Ihren Fahrschein zu entwerten.',
+      npc_translation: `Biletinizi geçitleme yapmayı unutmayın.`, npc_mood: 'neutral', options: [
       { text: 'Ah, stimmt! Danke für den Hinweis.', quality: 'good', feedback: '"Danke für den Hinweis" — hatırlatma için teşekkür.' },
       { text: 'Ja, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ich weiß.', quality: 'awkward', feedback: '"Biliyorum" — kaba.', correction: 'Ah ja, danke!' },
     ]},
-    { id: 'travel-de-11', npc_message: 'Haben Sie noch Fragen?', npc_mood: 'neutral', options: [
+    { id: 'travel-de-11', npc_message: 'Haben Sie noch Fragen?',
+      npc_translation: `Başka sorunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Nein, ich glaube, ich habe alles verstanden. Vielen Dank!', quality: 'good', feedback: 'Net kapanış ve teşekkür.' },
       { text: 'Nein, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Vielleicht.', quality: 'awkward', feedback: '"Belki" — belirsiz ve yardımcıyı asıyor.', correction: 'Nein, alles klar, danke.' },
     ]},
-    { id: 'travel-de-12', npc_message: 'Gute Reise! Genießen Sie Berlin.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'travel-de-12', npc_message: 'Gute Reise! Genießen Sie Berlin.',
+      npc_translation: `İyi yolculuklar! Berlin'in tadını çıkarın.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Danke, Ihnen auch einen schönen Tag!', quality: 'good', feedback: 'Sıcak karşılıklı kapanış.' },
       { text: 'Danke, auf Wiedersehen.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce garip.', correction: 'Danke sehr, auf Wiedersehen!' },
@@ -956,62 +1077,74 @@ const businessDe: ScenarioDialogue = {
   language: 'de',
   sessionSize: 5,
   turns: [
-    { id: 'biz-de-01', npc_message: 'Guten Morgen, haben Sie einen Termin?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-01', npc_message: 'Guten Morgen, haben Sie einen Termin?',
+      npc_translation: `Günaydın, bir randevunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Ja, ich habe einen Termin mit Herrn Müller um zehn Uhr.', quality: 'good', feedback: 'İsim ve saat — Alman iş kültüründe dakiklik çok önemli.' },
       { text: 'Ja, ich habe einen Termin.', quality: 'ok', feedback: 'Eksik bilgi.' },
       { text: 'Ich komme für ein Meeting.', quality: 'awkward', feedback: 'İngilizce "meeting" — "Besprechung" daha uygun.', correction: 'Ja, eine Besprechung mit Herrn Müller.' },
     ]},
-    { id: 'biz-de-02', npc_message: 'Was ist der Zweck Ihres Besuchs?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-02', npc_message: 'Was ist der Zweck Ihres Besuchs?',
+      npc_translation: `Ziyaretinizin amacı nedir?`, npc_mood: 'neutral', options: [
       { text: 'Ich komme, um unser Kooperationsangebot vorzustellen.', quality: 'good', feedback: 'Net ve profesyonel.' },
       { text: 'Für Geschäfte.', quality: 'ok', feedback: 'Çok genel.' },
       { text: 'Ich weiß es nicht genau.', quality: 'awkward', feedback: 'Ziyaretin amacını bilmemek profesyonel değil.', correction: 'Ich möchte ein Angebot präsentieren.' },
     ]},
-    { id: 'biz-de-03', npc_message: 'Sehr erfreut. Ich habe Ihr Angebot durchgesehen und habe einige Fragen.', npc_mood: 'neutral', options: [
+    { id: 'biz-de-03', npc_message: 'Sehr erfreut. Ich habe Ihr Angebot durchgesehen und habe einige Fragen.',
+      npc_translation: `Çok memnunum. Teklifinizi inceledim ve birkaç sorunum var.`, npc_mood: 'neutral', options: [
       { text: 'Ebenfalls, ich stehe Ihnen gerne zur Verfügung.', quality: 'good', feedback: '"Zur Verfügung stehen" — Alman iş dilinde standart.' },
       { text: 'Freut mich. Bitte.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Hallo. Was für Fragen?', quality: 'awkward', feedback: 'Çok gayri resmi.', correction: 'Sehr erfreut, gerne beantworte ich Ihre Fragen.' },
     ]},
-    { id: 'biz-de-04', npc_message: 'Das Budget erscheint hoch. Gibt es Verhandlungsspielraum?', npc_mood: 'impatient', options: [
+    { id: 'biz-de-04', npc_message: 'Das Budget erscheint hoch. Gibt es Verhandlungsspielraum?',
+      npc_translation: `Bütçe yüksek görünüyor. Pazarlık için bir alan var mı?`, npc_mood: 'impatient', options: [
       { text: 'Ich verstehe Ihre Bedenken. Wir können die Konditionen gemeinsam prüfen.', quality: 'good', feedback: 'Empati + çözüm odaklı.' },
       { text: 'Ja, wir können reden.', quality: 'ok', feedback: 'Açık ama zayıf.' },
       { text: 'Der Preis ist fair.', quality: 'awkward', feedback: 'Savunmaya geçiyor.', correction: 'Wir können eine Lösung finden.' },
     ]},
-    { id: 'biz-de-05', npc_message: 'Wann könnten Sie anfangen, wenn wir uns einigen?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-05', npc_message: 'Wann könnten Sie anfangen, wenn wir uns einigen?',
+      npc_translation: `Anlaşmaya varırsak ne zaman başlayabilirsiniz?`, npc_mood: 'neutral', options: [
       { text: 'Wir könnten Anfang nächsten Monats beginnen, wenn es Ihnen passt.', quality: 'good', feedback: '"Wenn es Ihnen passt" — karşı tarafı sürece dahil ediyor.' },
       { text: 'Nächsten Monat.', quality: 'ok', feedback: 'Net ama kısa.' },
       { text: 'Das hängt ab.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'In zwei bis drei Wochen, wenn Sie einverstanden sind.' },
     ]},
-    { id: 'biz-de-06', npc_message: 'Wir benötigen Referenzen ähnlicher Projekte.', npc_mood: 'neutral', options: [
+    { id: 'biz-de-06', npc_message: 'Wir benötigen Referenzen ähnlicher Projekte.',
+      npc_translation: `Benzer projelerin referanslarına ihtiyacımız var.`, npc_mood: 'neutral', options: [
       { text: 'Selbstverständlich, ich kann Ihnen diese Woche drei Referenzen schicken.', quality: 'good', feedback: 'Somut taahhüt + zaman çerçevesi.' },
       { text: 'Wir haben Referenzen.', quality: 'ok', feedback: 'Belirsiz.' },
       { text: 'Alle unsere Kunden sind zufrieden.', quality: 'awkward', feedback: 'İspatsız iddia.', correction: 'Ich sende Ihnen die Referenzen morgen zu.' },
     ]},
-    { id: 'biz-de-07', npc_message: 'Ist technischer Support nach der Lieferung inbegriffen?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-07', npc_message: 'Ist technischer Support nach der Lieferung inbegriffen?',
+      npc_translation: `Teslimat sonrası teknik destek dahil mi?`, npc_mood: 'neutral', options: [
       { text: 'Ja, wir bieten sechs Monate Support ohne zusätzliche Kosten.', quality: 'good', feedback: 'Net, somut.' },
       { text: 'Ja, ist dabei.', quality: 'ok', feedback: 'Doğru ama detay eksik.' },
       { text: 'Das kommt auf den Vertrag an.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Ja, sechs Monate inklusive.' },
     ]},
-    { id: 'biz-de-08', npc_message: 'Ich muss das vorher mit meinem Team besprechen.', npc_mood: 'neutral', options: [
+    { id: 'biz-de-08', npc_message: 'Ich muss das vorher mit meinem Team besprechen.',
+      npc_translation: `Bunu önce ekibimle konuşmam gerekiyor.`, npc_mood: 'neutral', options: [
       { text: 'Natürlich. Bis wann können wir mit einer Antwort rechnen?', quality: 'good', feedback: 'Baskısız zaman çerçevesi sorusu.' },
       { text: 'Okay.', quality: 'ok', feedback: 'Kabul etti ama ne zaman duyacağını sormadı.' },
       { text: 'Ich hoffe auf eine schnelle Entscheidung.', quality: 'awkward', feedback: 'Hafif baskı.', correction: 'Wann darf ich mit einer Rückmeldung rechnen?' },
     ]},
-    { id: 'biz-de-09', npc_message: 'Können Sie uns ein Exemplar des Angebots dalassen?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-09', npc_message: 'Können Sie uns ein Exemplar des Angebots dalassen?',
+      npc_translation: `Bize teklifin bir kopyasını bırakabilir misiniz?`, npc_mood: 'neutral', options: [
       { text: 'Natürlich, ich habe ausgedruckte Exemplare und schicke Ihnen auch die digitale Version.', quality: 'good', feedback: 'İki format — hazırlıklı.' },
       { text: 'Ja, hier bitte.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Es ist in meiner E-Mail.', quality: 'awkward', feedback: 'Karşı tarafa zor.', correction: 'Hier ist ein gedrucktes Exemplar.' },
     ]},
-    { id: 'biz-de-10', npc_message: 'Haben Sie eine Visitenkarte?', npc_mood: 'neutral', options: [
+    { id: 'biz-de-10', npc_message: 'Haben Sie eine Visitenkarte?',
+      npc_translation: `Bir kartvizitiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Ja, hier bitte. Ich kann Sie auch auf LinkedIn hinzufügen, wenn Sie möchten.', quality: 'good', feedback: 'Kart + LinkedIn.' },
       { text: 'Ja, bitte sehr.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Nein, aber ich habe WhatsApp.', quality: 'awkward', feedback: 'Resmi toplantıda WhatsApp uygunsuz.', correction: 'Ja, hier ist meine Karte.' },
     ]},
-    { id: 'biz-de-11', npc_message: 'Wir melden uns Anfang nächster Woche bei Ihnen.', npc_mood: 'neutral', options: [
+    { id: 'biz-de-11', npc_message: 'Wir melden uns Anfang nächster Woche bei Ihnen.',
+      npc_translation: `Gelecek haftanın başında size haber vereceğiz.`, npc_mood: 'neutral', options: [
       { text: 'Gut, ich stehe bis dahin für Fragen zur Verfügung.', quality: 'good', feedback: '"Zur Verfügung stehen" — profesyonel kapanış.' },
       { text: 'In Ordnung, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ich warte auf Ihren Anruf.', quality: 'awkward', feedback: 'Hafif baskı.', correction: 'Gerne, ich freue mich auf Ihre Rückmeldung.' },
     ]},
-    { id: 'biz-de-12', npc_message: 'Es war ein Vergnügen. Auf Wiedersehen.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'biz-de-12', npc_message: 'Es war ein Vergnügen. Auf Wiedersehen.',
+      npc_translation: `Çok hoştu. Hoşça kalın.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Ganz meinerseits. Ich wünsche Ihnen einen schönen Tag!', quality: 'good', feedback: '"Ganz meinerseits" — Alman iş dilinde standart kapanış.' },
       { text: 'Danke, auf Wiedersehen.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye, tschüss.', quality: 'awkward', feedback: 'İngilizce+Almanca karışık.', correction: 'Auf Wiedersehen, vielen Dank!' },
@@ -1026,62 +1159,74 @@ const socialDe: ScenarioDialogue = {
   language: 'de',
   sessionSize: 5,
   turns: [
-    { id: 'social-de-01', npc_message: 'Hey! Bist du zum ersten Mal hier?', npc_mood: 'happy', options: [
+    { id: 'social-de-01', npc_message: 'Hey! Bist du zum ersten Mal hier?',
+      npc_translation: `Hey! İlk kez mi buradasın?`, npc_mood: 'happy', options: [
       { text: 'Ja, Freunde haben es mir empfohlen. Kommst du öfter?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Ja, erstes Mal.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Ich kenne hier niemanden.', quality: 'awkward', feedback: 'Olumsuz açılış.', correction: 'Ja, ein Freund hat es empfohlen.' },
     ]},
-    { id: 'social-de-02', npc_message: 'Woher kommst du?', npc_mood: 'happy', options: [
+    { id: 'social-de-02', npc_message: 'Woher kommst du?',
+      npc_translation: `Nereden geliyorsun?`, npc_mood: 'happy', options: [
       { text: 'Aus der Türkei, aus Istanbul. Und du?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Aus der Türkei.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Ich bin Ausländer.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Aus Istanbul, und du?' },
     ]},
-    { id: 'social-de-03', npc_message: 'Was machst du beruflich?', npc_mood: 'happy', options: [
+    { id: 'social-de-03', npc_message: 'Was machst du beruflich?',
+      npc_translation: `Meslek olarak ne yapıyorsun?`, npc_mood: 'happy', options: [
       { text: 'Ich arbeite in der IT. Und du?', quality: 'good', feedback: 'Kısa + karşı soru.' },
       { text: 'Ich bin Ingenieur.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Ich arbeite viel.', quality: 'awkward', feedback: 'Cevap değil.', correction: 'Ich bin in der Technik tätig, und du?' },
     ]},
-    { id: 'social-de-04', npc_message: 'Was hältst du von der Party?', npc_mood: 'happy', options: [
+    { id: 'social-de-04', npc_message: 'Was hältst du von der Party?',
+      npc_translation: `Partiden ne düşünüyorsun?`, npc_mood: 'happy', options: [
       { text: 'Super, tolle Atmosphäre! Kennst du die Leute hier?', quality: 'good', feedback: 'İltifat + soru.' },
       { text: 'Ganz gut.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ich verstehe diese Musik nicht.', quality: 'awkward', feedback: 'Sosyal ortamda negatif yorum.', correction: 'Mir gefällt es hier, und dir?' },
     ]},
-    { id: 'social-de-05', npc_message: 'Kann ich dir etwas zu trinken anbieten?', npc_mood: 'happy', options: [
+    { id: 'social-de-05', npc_message: 'Kann ich dir etwas zu trinken anbieten?',
+      npc_translation: `Sana içecek bir şey sunabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Sehr gerne, ein Bier wäre toll, danke!', quality: 'good', feedback: '"Sehr gerne" — sıcak kabul.' },
       { text: 'Ja, danke.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ich habe schon was.', quality: 'awkward', feedback: 'Sert ret.', correction: 'Nein danke, ich hab schon was, aber nett von dir.' },
     ]},
-    { id: 'social-de-06', npc_message: 'Wie lange bist du schon in Deutschland?', npc_mood: 'happy', options: [
+    { id: 'social-de-06', npc_message: 'Wie lange bist du schon in Deutschland?',
+      npc_translation: `Almanya'da ne kadar zamandır varsın?`, npc_mood: 'happy', options: [
       { text: 'Drei Monate. Ich lerne noch Deutsch!', quality: 'good', feedback: 'Kişisel bilgi + alçakgönüllülük.' },
       { text: 'Drei Monate.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Nicht lange.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Ein paar Monate, ich lerne noch die Sprache.' },
     ]},
-    { id: 'social-de-07', npc_message: 'Kennst du ein gutes Restaurant in der Nähe?', npc_mood: 'happy', options: [
+    { id: 'social-de-07', npc_message: 'Kennst du ein gutes Restaurant in der Nähe?',
+      npc_translation: `Yakında iyi bir restoran biliyor musun?`, npc_mood: 'happy', options: [
       { text: 'Noch nicht so gut, ich bin neu. Hast du eine Empfehlung?', quality: 'good', feedback: 'Bilmediğini kabul + öneri istemek.' },
       { text: 'Nein, weiß ich nicht.', quality: 'ok', feedback: 'Dürüst ama fırsatı kaçırıyor.' },
       { text: 'Ich kenne Berlin nicht.', quality: 'awkward', feedback: 'Konuşmayı bitiriyor.', correction: 'Nicht wirklich, hast du eine Empfehlung?' },
     ]},
-    { id: 'social-de-08', npc_message: 'Tanzt du?', npc_mood: 'happy', options: [
+    { id: 'social-de-08', npc_message: 'Tanzt du?',
+      npc_translation: `Dans ediyor musun?`, npc_mood: 'happy', options: [
       { text: 'Ein bisschen, aber ich mach mit. Los!', quality: 'good', feedback: '"Ich mach mit" — katılmak için doğal Almanca.' },
       { text: 'Ich kann nicht tanzen.', quality: 'ok', feedback: 'Dürüst ret.' },
       { text: 'Ich bin müde.', quality: 'awkward', feedback: 'Partide yorgunluk bahanesi soğuk.', correction: 'Nicht so gut, aber ich versuche es!' },
     ]},
-    { id: 'social-de-09', npc_message: 'Darf ich dich meinem Freund Jonas vorstellen?', npc_mood: 'happy', options: [
+    { id: 'social-de-09', npc_message: 'Darf ich dich meinem Freund Jonas vorstellen?',
+      npc_translation: `Seni arkadaşım Jonas'a tanıştırabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Hallo Jonas, freut mich! Bist du auch aus Berlin?', quality: 'good', feedback: 'Selamlama + soru.' },
       { text: 'Hallo, freut mich.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Hallo.', quality: 'awkward', feedback: 'Çok kısa.', correction: 'Hi Jonas, schön dich kennenzulernen.' },
     ]},
-    { id: 'social-de-10', npc_message: 'Bist du auf Instagram? Wir könnten uns folgen.', npc_mood: 'happy', options: [
+    { id: 'social-de-10', npc_message: 'Bist du auf Instagram? Wir könnten uns folgen.',
+      npc_translation: `Instagram'da mısın? Birbirimizi takip edebiliriz.`, npc_mood: 'happy', options: [
       { text: 'Ja klar! Ich suche dich gleich.', quality: 'good', feedback: 'Sıcak kabul.' },
       { text: 'Ja, @name.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ich nutze das nicht oft.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Ja, ich schicke dir eine Anfrage.' },
     ]},
-    { id: 'social-de-11', npc_message: 'Was machst du am Wochenende?', npc_mood: 'happy', options: [
+    { id: 'social-de-11', npc_message: 'Was machst du am Wochenende?',
+      npc_translation: `Hafta sonunda ne yapıyorsun?`, npc_mood: 'happy', options: [
       { text: 'Ich will die Stadt erkunden. Und du, hast du Pläne?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Weiß noch nicht.', quality: 'ok', feedback: 'Dürüst ama devam etmiyor.' },
       { text: 'Wahrscheinlich schlafen.', quality: 'awkward', feedback: 'Yeni tanışılan birine negatif mesaj.', correction: 'Noch nichts fest, und du?' },
     ]},
-    { id: 'social-de-12', npc_message: 'Es war schön, dich kennenzulernen! Bis bald.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'social-de-12', npc_message: 'Es war schön, dich kennenzulernen! Bis bald.',
+      npc_translation: `Seni tanımak çok güzeldi! Yakında görüşürüz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Ganz meinerseits! Hat mich gefreut. Tschüss!', quality: 'good', feedback: 'Sıcak kapanış.' },
       { text: 'Danke, bis bald.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce bitiş garip.', correction: 'Ebenfalls, bis zum nächsten Mal!' },
@@ -1096,62 +1241,74 @@ const cafeIt: ScenarioDialogue = {
   language: 'it',
   sessionSize: 5,
   turns: [
-    { id: 'cafe-it-01', npc_message: 'Buongiorno! Cosa prende?', npc_mood: 'happy', options: [
+    { id: 'cafe-it-01', npc_message: 'Buongiorno! Cosa prende?',
+      npc_translation: `Günaydın! Ne alırsınız?`, npc_mood: 'happy', options: [
       { text: 'Buongiorno! Un caffè, per favore.', quality: 'good', feedback: '"Per favore" — İtalyancada her siparişte kibar standarttır.' },
       { text: 'Un caffè, grazie.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Dammi un caffè.', quality: 'awkward', feedback: '"Dammi" emir kipi — barda kaba.', correction: 'Un caffè, per favore.' },
     ]},
-    { id: 'cafe-it-02', npc_message: 'Al banco o al tavolo?', npc_mood: 'neutral', options: [
+    { id: 'cafe-it-02', npc_message: 'Al banco o al tavolo?',
+      npc_translation: `Kasada mı yoksa masada mı?`, npc_mood: 'neutral', options: [
       { text: 'Al banco, grazie.', quality: 'good', feedback: '"Al banco" — İtalya\'da espresso barda içilir, bu doğal tercih.' },
       { text: 'Al tavolo.', quality: 'ok', feedback: 'Doğru ama barda içmek daha İtalyan.' },
       { text: 'Dove vuole lei.', quality: 'awkward', feedback: '"Nereye isterseniz" — garip.', correction: 'Al banco, grazie.' },
     ]},
-    { id: 'cafe-it-03', npc_message: 'Vuole anche un cornetto? Sono appena sfornati.', npc_mood: 'happy', options: [
+    { id: 'cafe-it-03', npc_message: 'Vuole anche un cornetto? Sono appena sfornati.',
+      npc_translation: `Bir de taze çıkmış bir korneto ister misiniz?`, npc_mood: 'happy', options: [
       { text: 'Sì, un cornetto anche, per favore.', quality: 'good', feedback: 'Doğal kabul.' },
       { text: 'No, grazie.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'Non voglio mangiare niente.', quality: 'awkward', feedback: 'Kaba.', correction: 'No, grazie, solo il caffè.' },
     ]},
-    { id: 'cafe-it-04', npc_message: 'Paga in contanti o con carta?', npc_mood: 'neutral', options: [
+    { id: 'cafe-it-04', npc_message: 'Paga in contanti o con carta?',
+      npc_translation: `Nakit mi yoksa kartla mı ödeyeceksiniz?`, npc_mood: 'neutral', options: [
       { text: 'Con carta, per favore.', quality: 'good', feedback: 'Net.' },
       { text: 'Carta.', quality: 'ok', feedback: 'Anlaşılır ama kısa.' },
       { text: 'Ho tutti e due.', quality: 'awkward', feedback: 'Seçim yapman lazım.', correction: 'Con carta, grazie.' },
     ]},
-    { id: 'cafe-it-05', npc_message: 'Sono un euro e settanta.', npc_mood: 'neutral', options: [
+    { id: 'cafe-it-05', npc_message: 'Sono un euro e settanta.',
+      npc_translation: `Bir euro yetmiş sent.`, npc_mood: 'neutral', options: [
       { text: 'Ecco a lei, grazie.', quality: 'good', feedback: '"Ecco a lei" — İtalyancada ödeme sırasında standart.' },
       { text: 'Grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Così caro?', quality: 'awkward', feedback: 'Şikayet.', correction: 'Ecco, grazie.' },
     ]},
-    { id: 'cafe-it-06', npc_message: 'Il caffè è pronto. Vuole lo zucchero?', npc_mood: 'neutral', options: [
+    { id: 'cafe-it-06', npc_message: 'Il caffè è pronto. Vuole lo zucchero?',
+      npc_translation: `Kahve hazır. Şeker ister misiniz?`, npc_mood: 'neutral', options: [
       { text: 'No grazie, lo prendo amaro.', quality: 'good', feedback: '"Amaro" (şekersiz) — İtalyancada espresso kültüründe doğru kelime.' },
       { text: 'No, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non mi piace lo zucchero.', quality: 'awkward', feedback: 'Çok fazla bilgi.', correction: 'No, senza zucchero, grazie.' },
     ]},
-    { id: 'cafe-it-07', npc_message: 'Può spostarsi un attimo? C\'è molto movimento.', npc_mood: 'impatient', options: [
+    { id: 'cafe-it-07', npc_message: 'Può spostarsi un attimo? C\'è molto movimento.',
+      npc_translation: `Biraz yer değiştirir misiniz? Çok kalabalık.`, npc_mood: 'impatient', options: [
       { text: 'Certo, mi scusi.', quality: 'good', feedback: '"Mi scusi" — İtalyancada kibarca özür.' },
       { text: 'Sì, va bene.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Perché devo spostarmi?', quality: 'awkward', feedback: 'Barda yer açma talebine karşı çıkmak kaba.', correction: 'Certo, subito. Mi scusi.' },
     ]},
-    { id: 'cafe-it-08', npc_message: 'Scusi, abbiamo finito il caffè normale. Va bene un ristretto?', npc_mood: 'confused', options: [
+    { id: 'cafe-it-08', npc_message: 'Scusi, abbiamo finito il caffè normale. Va bene un ristretto?',
+      npc_translation: `Özür dilerim, normal kahve bitti. Ristretto olur mu?`, npc_mood: 'confused', options: [
       { text: 'Sì, un ristretto va benissimo, grazie.', quality: 'good', feedback: 'Esnek kabul.' },
       { text: 'Va bene.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non so cos\'è un ristretto.', quality: 'awkward', feedback: 'İtalyan baristesine bunu sormak garip.', correction: 'Sì, certo, grazie.' },
     ]},
-    { id: 'cafe-it-09', npc_message: 'Vuole un bicchiere d\'acqua? È compreso.', npc_mood: 'happy', options: [
+    { id: 'cafe-it-09', npc_message: 'Vuole un bicchiere d\'acqua? È compreso.',
+      npc_translation: `Bir bardak su ister misiniz? Dahil.`, npc_mood: 'happy', options: [
       { text: 'Sì, volentieri, grazie mille.', quality: 'good', feedback: '"Volentieri" — İtalyancada sıcak kabul ifadesi.' },
       { text: 'Sì, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non ne ho bisogno.', quality: 'awkward', feedback: 'Kaba ret.', correction: 'No grazie, molto gentile.' },
     ]},
-    { id: 'cafe-it-10', npc_message: 'Ha bisogno della password del wifi?', npc_mood: 'neutral', options: [
+    { id: 'cafe-it-10', npc_message: 'Ha bisogno della password del wifi?',
+      npc_translation: `Wifi şifresine ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sì, per favore, sarebbe gentile.', quality: 'good', feedback: '"Sarebbe gentile" — İtalyancada kibar rica.' },
       { text: 'Sì, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Datemi il wifi.', quality: 'awkward', feedback: 'Emir kipi — kaba.', correction: 'Sì, se possibile, grazie.' },
     ]},
-    { id: 'cafe-it-11', npc_message: 'È la prima volta che viene da noi?', npc_mood: 'happy', options: [
+    { id: 'cafe-it-11', npc_message: 'È la prima volta che viene da noi?',
+      npc_translation: `İlk kez mi geliyorsunuz?`, npc_mood: 'happy', options: [
       { text: 'Sì, un amico me l\'ha consigliato. È davvero accogliente qui.', quality: 'good', feedback: 'Kişisel bilgi + iltifat.' },
       { text: 'Sì, prima volta.', quality: 'ok', feedback: 'Doğru.' },
       { text: 'Non conosco Roma.', quality: 'awkward', feedback: 'Soruya aşırı geniş cevap.', correction: 'Sì, prima volta, mi piace molto.' },
     ]},
-    { id: 'cafe-it-12', npc_message: 'Buona giornata! Torni presto.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'cafe-it-12', npc_message: 'Buona giornata! Torni presto.',
+      npc_translation: `İyi günler! Çabuk gelin.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Grazie, anche a lei! Arrivederci.', quality: 'good', feedback: '"Arrivederci" — resmi İtalyanca veda.' },
       { text: 'Grazie, ciao.', quality: 'ok', feedback: 'Yeterli, biraz gayri resmi.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce garip.', correction: 'Grazie mille, arrivederci!' },
@@ -1166,62 +1323,74 @@ const travelIt: ScenarioDialogue = {
   language: 'it',
   sessionSize: 5,
   turns: [
-    { id: 'travel-it-01', npc_message: 'Buongiorno, posso aiutarla?', npc_mood: 'neutral', options: [
+    { id: 'travel-it-01', npc_message: 'Buongiorno, posso aiutarla?',
+      npc_translation: `Günaydın, size yardımcı olabilir miyim?`, npc_mood: 'neutral', options: [
       { text: 'Sì, grazie. Cerco la metropolitana per il Colosseo.', quality: 'good', feedback: '"Cerco" — yön aramak için standart İtalyanca.' },
       { text: 'Sì, la metro.', quality: 'ok', feedback: 'Eksik bilgi.' },
       { text: 'Sono perso.', quality: 'awkward', feedback: 'Nereye gittiğini söyle.', correction: 'Cerco la metro per il Colosseo.' },
     ]},
-    { id: 'travel-it-02', npc_message: 'Ha bisogno di un biglietto?', npc_mood: 'neutral', options: [
+    { id: 'travel-it-02', npc_message: 'Ha bisogno di un biglietto?',
+      npc_translation: `Bilet mi lazım?`, npc_mood: 'neutral', options: [
       { text: 'Sì, un biglietto singolo, per favore.', quality: 'good', feedback: '"Biglietto singolo" — tek yön için doğru ifade.' },
       { text: 'Sì, un biglietto.', quality: 'ok', feedback: 'Anlaşılır.' },
       { text: 'Quanto costa?', quality: 'awkward', feedback: 'Soruya cevap vermeden fiyat sordu.', correction: 'Sì, un biglietto singolo.' },
     ]},
-    { id: 'travel-it-03', npc_message: 'Deve cambiare alla stazione Termini, linea A.', npc_mood: 'neutral', options: [
+    { id: 'travel-it-03', npc_message: 'Deve cambiare alla stazione Termini, linea A.',
+      npc_translation: `Termini istasyonunda aktarma yapacaksınız, A hattı.`, npc_mood: 'neutral', options: [
       { text: 'Capito. Linea A a Termini, grazie.', quality: 'good', feedback: 'Bilgiyi tekrar etmek — doğru anlama.' },
       { text: 'Ok, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'È complicato.', quality: 'awkward', feedback: '"Karmaşık" — bilgiyi reddetmek gibi.', correction: 'Capito, cambio a Termini.' },
     ]},
-    { id: 'travel-it-04', npc_message: 'Attenzione, la linea è soppressa stasera per lavori.', npc_mood: 'impatient', options: [
+    { id: 'travel-it-04', npc_message: 'Attenzione, la linea è soppressa stasera per lavori.',
+      npc_translation: `Dikkat, bu akşam işler nedeniyle hat kapalı.`, npc_mood: 'impatient', options: [
       { text: 'Capisco. C\'è un\'alternativa?', quality: 'good', feedback: 'Durumu kabul + alternatif istemek.' },
       { text: 'Ah, capito.', quality: 'ok', feedback: 'Ne yapacağını sormadı.' },
       { text: 'Sempre questi lavori!', quality: 'awkward', feedback: 'Şikayet yardım etmez.', correction: 'C\'è un autobus sostitutivo?' },
     ]},
-    { id: 'travel-it-05', npc_message: 'Il prossimo treno parte tra cinque minuti, binario tre.', npc_mood: 'neutral', options: [
+    { id: 'travel-it-05', npc_message: 'Il prossimo treno parte tra cinque minuti, binario tre.',
+      npc_translation: `Sonraki tren beş dakika içinde kalkıyor, platform üç.`, npc_mood: 'neutral', options: [
       { text: 'Grazie, vado subito al binario tre.', quality: 'good', feedback: 'Bilgiyi teyit + harekete geçme.' },
       { text: 'Grazie, binario tre.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Cinque minuti, è troppo.', quality: 'awkward', feedback: 'Şikayet.', correction: 'Grazie! Vado subito.' },
     ]},
-    { id: 'travel-it-06', npc_message: 'Posso aiutarla con il bagaglio?', npc_mood: 'happy', options: [
+    { id: 'travel-it-06', npc_message: 'Posso aiutarla con il bagaglio?',
+      npc_translation: `Bagajınızda yardımcı olabilir miyim?`, npc_mood: 'happy', options: [
       { text: 'Sì, grazie mille, è molto gentile.', quality: 'good', feedback: '"Molto gentile" — yardım kabulünde sıcak.' },
       { text: 'No, grazie, ce la faccio.', quality: 'ok', feedback: 'Kibarca ret.' },
       { text: 'È pesante.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Sì, se non le dispiace, grazie.' },
     ]},
-    { id: 'travel-it-07', npc_message: 'Il suo biglietto non è valido su questa tratta.', npc_mood: 'impatient', options: [
+    { id: 'travel-it-07', npc_message: 'Il suo biglietto non è valido su questa tratta.',
+      npc_translation: `Biletiniz bu hat için geçerli değil.`, npc_mood: 'impatient', options: [
       { text: 'Mi scusi, cosa devo fare?', quality: 'good', feedback: 'Özür + çözüm istemek.' },
       { text: 'Ah, davvero?', quality: 'ok', feedback: 'Tepkisiz.' },
       { text: 'Ma io ho pagato!', quality: 'awkward', feedback: 'Tartışmak işe yaramaz.', correction: 'Come posso regolarizzare?' },
     ]},
-    { id: 'travel-it-08', npc_message: 'Conosce Roma?', npc_mood: 'happy', options: [
+    { id: 'travel-it-08', npc_message: 'Conosce Roma?',
+      npc_translation: `Roma'yı tanıyor musunuz?`, npc_mood: 'happy', options: [
       { text: 'Un po\', è la mia seconda visita. Adoro questa città.', quality: 'good', feedback: 'Kişisel bilgi + iltifat.' },
       { text: 'Non molto.', quality: 'ok', feedback: 'Dürüst.' },
       { text: 'Sono turista.', quality: 'awkward', feedback: '"Turistim" tam cevap değil.', correction: 'Un po\', sto ancora scoprendo.' },
     ]},
-    { id: 'travel-it-09', npc_message: 'Non dimentichi di timbrare il biglietto.', npc_mood: 'neutral', options: [
+    { id: 'travel-it-09', npc_message: 'Non dimentichi di timbrare il biglietto.',
+      npc_translation: `Biletinizi damgalamayı unutmayın.`, npc_mood: 'neutral', options: [
       { text: 'Ah, giusto! Grazie del promemoria.', quality: 'good', feedback: '"Grazie del promemoria" — hatırlatma için teşekkür.' },
       { text: 'Sì, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Lo so.', quality: 'awkward', feedback: '"Biliyorum" — kaba.', correction: 'Ah sì, grazie!' },
     ]},
-    { id: 'travel-it-10', npc_message: 'Ha ancora domande?', npc_mood: 'neutral', options: [
+    { id: 'travel-it-10', npc_message: 'Ha ancora domande?',
+      npc_translation: `Hâlâ sorunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'No, credo di aver capito tutto. Grazie mille!', quality: 'good', feedback: 'Net kapanış.' },
       { text: 'No, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Forse.', quality: 'awkward', feedback: '"Belki" — belirsiz.', correction: 'No, è tutto chiaro, grazie.' },
     ]},
-    { id: 'travel-it-11', npc_message: 'Questa è la sua fermata.', npc_mood: 'neutral', options: [
+    { id: 'travel-it-11', npc_message: 'Questa è la sua fermata.',
+      npc_translation: `Burası sizin durak noktanız.`, npc_mood: 'neutral', options: [
       { text: 'Grazie mille, arrivederci!', quality: 'good', feedback: 'Teşekkür + veda.' },
       { text: 'Grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ok, ciao.', quality: 'awkward', feedback: '"Ciao" resmi bağlamda çok gayri resmi.', correction: 'Grazie, buona giornata!' },
     ]},
-    { id: 'travel-it-12', npc_message: 'Buon viaggio! Godetevi Roma.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'travel-it-12', npc_message: 'Buon viaggio! Godetevi Roma.',
+      npc_translation: `İyi yolculuklar! Roma'nın tadını çıkarın.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Grazie, molto gentile! Arrivederci.', quality: 'good', feedback: 'Sıcak kapanış.' },
       { text: 'Grazie, ciao.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce garip.', correction: 'Grazie mille, arrivederci!' },
@@ -1236,62 +1405,74 @@ const businessIt: ScenarioDialogue = {
   language: 'it',
   sessionSize: 5,
   turns: [
-    { id: 'biz-it-01', npc_message: 'Buongiorno, ha un appuntamento?', npc_mood: 'neutral', options: [
+    { id: 'biz-it-01', npc_message: 'Buongiorno, ha un appuntamento?',
+      npc_translation: `Günaydın, randevunuz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sì, ho un appuntamento con il signor Rossi alle dieci.', quality: 'good', feedback: 'İsim ve saat.' },
       { text: 'Sì, ho un appuntamento.', quality: 'ok', feedback: 'Eksik bilgi.' },
       { text: 'Vengo per una riunione.', quality: 'awkward', feedback: 'Kiminle olduğunu belirt.', correction: 'Sì, con il signor Rossi.' },
     ]},
-    { id: 'biz-it-02', npc_message: 'Piacere. Ho esaminato la sua proposta e ho alcune domande.', npc_mood: 'neutral', options: [
+    { id: 'biz-it-02', npc_message: 'Piacere. Ho esaminato la sua proposta e ho alcune domande.',
+      npc_translation: `Memnun oldum. Önerinizi inceledim ve birkaç sorunum var.`, npc_mood: 'neutral', options: [
       { text: 'Piacere mio. Sono a sua completa disposizione.', quality: 'good', feedback: '"A sua disposizione" — İtalyan iş dilinde standart.' },
       { text: 'Piacere. Dica pure.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ciao. Quali domande?', quality: 'awkward', feedback: '"Ciao" resmi toplantıda uygunsuz.', correction: 'Piacere, con piacere rispondo.' },
     ]},
-    { id: 'biz-it-03', npc_message: 'Il budget proposto sembra elevato. C\'è margine di trattativa?', npc_mood: 'impatient', options: [
+    { id: 'biz-it-03', npc_message: 'Il budget proposto sembra elevato. C\'è margine di trattativa?',
+      npc_translation: `Önerilen bütçe yüksek görünüyor. Pazarlık için bir alan var mı?`, npc_mood: 'impatient', options: [
       { text: 'Capisco la sua preoccupazione. Possiamo rivedere i termini insieme.', quality: 'good', feedback: 'Empati + çözüm odaklı.' },
       { text: 'Sì, possiamo parlare del prezzo.', quality: 'ok', feedback: 'Açık ama zayıf.' },
       { text: 'Il prezzo è giusto.', quality: 'awkward', feedback: 'Savunmaya geçiyor.', correction: 'Possiamo trovare un accordo vantaggioso.' },
     ]},
-    { id: 'biz-it-04', npc_message: 'Quando potreste iniziare se raggiungiamo un accordo?', npc_mood: 'neutral', options: [
+    { id: 'biz-it-04', npc_message: 'Quando potreste iniziare se raggiungiamo un accordo?',
+      npc_translation: `Anlaşmaya varırsak ne zaman başlayabilirsiniz?`, npc_mood: 'neutral', options: [
       { text: 'Potremmo iniziare a inizio mese prossimo, se per lei va bene.', quality: 'good', feedback: '"Se per lei va bene" — karşı tarafı dahil ediyor.' },
       { text: 'Il mese prossimo.', quality: 'ok', feedback: 'Net ama kısa.' },
       { text: 'Dipende.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Tra due o tre settimane, se è d\'accordo.' },
     ]},
-    { id: 'biz-it-05', npc_message: 'Abbiamo bisogno di referenze di progetti simili.', npc_mood: 'neutral', options: [
+    { id: 'biz-it-05', npc_message: 'Abbiamo bisogno di referenze di progetti simili.',
+      npc_translation: `Benzer projelerden referanslara ihtiyacımız var.`, npc_mood: 'neutral', options: [
       { text: 'Certamente, posso inviarle tre referenze entro questa settimana.', quality: 'good', feedback: 'Somut taahhüt.' },
       { text: 'Abbiamo referenze.', quality: 'ok', feedback: 'Belirsiz.' },
       { text: 'Tutti i clienti sono soddisfatti.', quality: 'awkward', feedback: 'İspatsız iddia.', correction: 'Le mando le referenze domani.' },
     ]},
-    { id: 'biz-it-06', npc_message: 'Il supporto tecnico è incluso dopo la consegna?', npc_mood: 'neutral', options: [
+    { id: 'biz-it-06', npc_message: 'Il supporto tecnico è incluso dopo la consegna?',
+      npc_translation: `Teknik destek teslimattan sonra dahil mi?`, npc_mood: 'neutral', options: [
       { text: 'Sì, includiamo sei mesi di supporto senza costi aggiuntivi.', quality: 'good', feedback: 'Net, somut.' },
       { text: 'Sì, è incluso.', quality: 'ok', feedback: 'Doğru ama detay eksik.' },
       { text: 'Dipende dal contratto.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Sì, sei mesi inclusi.' },
     ]},
-    { id: 'biz-it-07', npc_message: 'Devo consultarmi con il mio team prima di decidere.', npc_mood: 'neutral', options: [
+    { id: 'biz-it-07', npc_message: 'Devo consultarmi con il mio team prima di decidere.',
+      npc_translation: `Karar vermeden önce ekibimle konuşmam gerekiyor.`, npc_mood: 'neutral', options: [
       { text: 'Certamente. Entro quando possiamo aspettarci una risposta?', quality: 'good', feedback: 'Baskısız zaman çerçevesi sorusu.' },
       { text: 'Va bene.', quality: 'ok', feedback: 'Ne zaman duyacağını sormadı.' },
       { text: 'Spero in una decisione rapida.', quality: 'awkward', feedback: 'Hafif baskı.', correction: 'Quando posso avere un suo feedback?' },
     ]},
-    { id: 'biz-it-08', npc_message: 'Può lasciarci una copia della proposta?', npc_mood: 'neutral', options: [
+    { id: 'biz-it-08', npc_message: 'Può lasciarci una copia della proposta?',
+      npc_translation: `Bize önerinizin bir kopyasını bırakabilir misiniz?`, npc_mood: 'neutral', options: [
       { text: 'Certo, ho copie cartacee e le mando anche la versione digitale.', quality: 'good', feedback: 'İki format.' },
       { text: 'Sì, eccola.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'È nella mia email.', quality: 'awkward', feedback: 'Karşı tarafa zor.', correction: 'Ecco una copia stampata.' },
     ]},
-    { id: 'biz-it-09', npc_message: 'Ha un biglietto da visita?', npc_mood: 'neutral', options: [
+    { id: 'biz-it-09', npc_message: 'Ha un biglietto da visita?',
+      npc_translation: `Bir kartvizitiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sì, eccolo. Posso aggiungerla anche su LinkedIn se lo desidera.', quality: 'good', feedback: 'Kart + LinkedIn.' },
       { text: 'Sì, eccolo.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'No, ma ho WhatsApp.', quality: 'awkward', feedback: 'Resmi toplantıda WhatsApp uygunsuz.', correction: 'Sì, ecco il mio biglietto.' },
     ]},
-    { id: 'biz-it-10', npc_message: 'La ricontatteremo all\'inizio della settimana prossima.', npc_mood: 'neutral', options: [
+    { id: 'biz-it-10', npc_message: 'La ricontatteremo all\'inizio della settimana prossima.',
+      npc_translation: `Gelecek haftanın başında sizinle iletişime geçeceğiz.`, npc_mood: 'neutral', options: [
       { text: 'Perfetto, sono disponibile per qualsiasi domanda nel frattempo.', quality: 'good', feedback: '"Disponibile" — profesyonel kapanış.' },
       { text: 'Grazie, arrivederci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Aspetto la sua chiamata.', quality: 'awkward', feedback: 'Hafif baskı.', correction: 'La ringrazio, sono a disposizione.' },
     ]},
-    { id: 'biz-it-11', npc_message: 'È stato un piacere. A presto.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'biz-it-11', npc_message: 'È stato un piacere. A presto.',
+      npc_translation: `Tanışmak benim için bir zevkti. Yakında görüşürüz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Il piacere è stato mio. Buona giornata!', quality: 'good', feedback: '"Il piacere è stato mio" — İtalyan iş kapanışı.' },
       { text: 'Grazie, arrivederci.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ok, bye.', quality: 'awkward', feedback: 'İngilizce ve gayri resmi.', correction: 'Grazie a lei, a presto!' },
     ]},
-    { id: 'biz-it-12', npc_message: 'Buona fortuna con il progetto!', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'biz-it-12', npc_message: 'Buona fortuna con il progetto!',
+      npc_translation: `Proje için başarı dilerim!`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Grazie mille, contiamo sulla sua collaborazione!', quality: 'good', feedback: 'İşbirliğine vurgu.' },
       { text: 'Grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Sì, ciao.', quality: 'awkward', feedback: '"Ciao" resmi bağlamda gayri resmi.', correction: 'Grazie, a presto!' },
@@ -1306,62 +1487,74 @@ const socialIt: ScenarioDialogue = {
   language: 'it',
   sessionSize: 5,
   turns: [
-    { id: 'social-it-01', npc_message: 'Ciao! È la prima volta che vieni qui?', npc_mood: 'happy', options: [
+    { id: 'social-it-01', npc_message: 'Ciao! È la prima volta che vieni qui?',
+      npc_translation: `Merhaba! Burada ilk kez misin?`, npc_mood: 'happy', options: [
       { text: 'Sì, me l\'hanno consigliato degli amici. E tu, ci vieni spesso?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Sì, prima volta.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Non conosco nessuno qui.', quality: 'awkward', feedback: 'Olumsuz açılış.', correction: 'Sì, sono venuto con degli amici.' },
     ]},
-    { id: 'social-it-02', npc_message: 'Di dove sei?', npc_mood: 'happy', options: [
+    { id: 'social-it-02', npc_message: 'Di dove sei?',
+      npc_translation: `Nereli sin?`, npc_mood: 'happy', options: [
       { text: 'Sono della Turchia, di Istanbul. E tu?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Della Turchia.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Sono straniero.', quality: 'awkward', feedback: 'Soruya cevap vermiyor.', correction: 'Sono turco, di Istanbul. E tu?' },
     ]},
-    { id: 'social-it-03', npc_message: 'Cosa fai nella vita?', npc_mood: 'happy', options: [
+    { id: 'social-it-03', npc_message: 'Cosa fai nella vita?',
+      npc_translation: `Hayatta ne yapıyorsun?`, npc_mood: 'happy', options: [
       { text: 'Lavoro nell\'informatica. E tu?', quality: 'good', feedback: 'Kısa + karşı soru.' },
       { text: 'Sono ingegnere.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Lavoro tanto.', quality: 'awkward', feedback: 'Cevap değil.', correction: 'Lavoro in tecnologia, e tu?' },
     ]},
-    { id: 'social-it-04', npc_message: 'Cosa ne pensi della serata?', npc_mood: 'happy', options: [
+    { id: 'social-it-04', npc_message: 'Cosa ne pensi della serata?',
+      npc_translation: `Bu akşamı nasıl buluyorsun?`, npc_mood: 'happy', options: [
       { text: 'Bellissima, adoro l\'atmosfera! Conosci la gente qui?', quality: 'good', feedback: 'İltifat + soru.' },
       { text: 'Abbastanza bene.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non capisco questa musica.', quality: 'awkward', feedback: 'Sosyal ortamda negatif.', correction: 'Mi piace molto, e a te?' },
     ]},
-    { id: 'social-it-05', npc_message: 'Ti offro qualcosa da bere?', npc_mood: 'happy', options: [
+    { id: 'social-it-05', npc_message: 'Ti offro qualcosa da bere?',
+      npc_translation: `Sana bir içki ısmarlasam?`, npc_mood: 'happy', options: [
       { text: 'Volentieri, una birra sarebbe perfetta, grazie!', quality: 'good', feedback: '"Volentieri" — sıcak kabul.' },
       { text: 'Sì, grazie.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ho già da bere.', quality: 'awkward', feedback: 'Sert ret.', correction: 'No grazie, ho già qualcosa, ma grazie lo stesso.' },
     ]},
-    { id: 'social-it-06', npc_message: 'Da quanto tempo sei in Italia?', npc_mood: 'happy', options: [
+    { id: 'social-it-06', npc_message: 'Da quanto tempo sei in Italia?',
+      npc_translation: `Ne kamdır İtalya'da sın?`, npc_mood: 'happy', options: [
       { text: 'Tre mesi. Sto ancora imparando l\'italiano!', quality: 'good', feedback: 'Alçakgönüllülük.' },
       { text: 'Tre mesi.', quality: 'ok', feedback: 'Doğru ama devam etmiyor.' },
       { text: 'Non molto.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Qualche mese, mi sto ancora adattando.' },
     ]},
-    { id: 'social-it-07', npc_message: 'Conosci un buon ristorante qui vicino?', npc_mood: 'happy', options: [
+    { id: 'social-it-07', npc_message: 'Conosci un buon ristorante qui vicino?',
+      npc_translation: `Burada yakınlarda iyi bir restoran biliyor musun?`, npc_mood: 'happy', options: [
       { text: 'Non ancora, sono nuovo. Tu ne consiglieresti uno?', quality: 'good', feedback: 'Öneri istemek.' },
       { text: 'Non lo so.', quality: 'ok', feedback: 'Dürüst ama fırsatı kaçırıyor.' },
       { text: 'Non conosco Roma.', quality: 'awkward', feedback: 'Konuşmayı bitiriyor.', correction: 'Non ancora, tu cosa consiglieresti?' },
     ]},
-    { id: 'social-it-08', npc_message: 'Ti andrebbe di ballare?', npc_mood: 'happy', options: [
+    { id: 'social-it-08', npc_message: 'Ti andrebbe di ballare?',
+      npc_translation: `Biraz dans etmek ister misin?`, npc_mood: 'happy', options: [
       { text: 'Perché no, dai andiamo!', quality: 'good', feedback: '"Dai andiamo" — İtalyancada enerjik kabul.' },
       { text: 'Non so ballare.', quality: 'ok', feedback: 'Dürüst ret.' },
       { text: 'Sono stanco.', quality: 'awkward', feedback: 'Partide yorgunluk bahanesi soğuk.', correction: 'Non molto, ma ci provo!' },
     ]},
-    { id: 'social-it-09', npc_message: 'Ti presento il mio amico Marco.', npc_mood: 'happy', options: [
+    { id: 'social-it-09', npc_message: 'Ti presento il mio amico Marco.',
+      npc_translation: `Sana arkadaşım Marco'yu tanıştırıyorum.`, npc_mood: 'happy', options: [
       { text: 'Ciao Marco, piacere! Sei anche tu di Roma?', quality: 'good', feedback: 'Selamlama + soru.' },
       { text: 'Ciao, piacere.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Ciao.', quality: 'awkward', feedback: 'Çok kısa.', correction: 'Ciao Marco, molto piacere.' },
     ]},
-    { id: 'social-it-10', npc_message: 'Sei su Instagram? Potremmo seguirci.', npc_mood: 'happy', options: [
+    { id: 'social-it-10', npc_message: 'Sei su Instagram? Potremmo seguirci.',
+      npc_translation: `Instagram'da mısın? Birbirimi takip edebiliriz.`, npc_mood: 'happy', options: [
       { text: 'Sì, certo! Ti cerco adesso.', quality: 'good', feedback: 'Sıcak kabul.' },
       { text: 'Sì, @nome.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Non lo uso molto.', quality: 'awkward', feedback: 'Belirsiz.', correction: 'Sì, ti mando una richiesta.' },
     ]},
-    { id: 'social-it-11', npc_message: 'Che programmi hai per il weekend?', npc_mood: 'happy', options: [
+    { id: 'social-it-11', npc_message: 'Che programmi hai per il weekend?',
+      npc_translation: `Hafta sonu ne planları var?`, npc_mood: 'happy', options: [
       { text: 'Voglio esplorare il quartiere. E tu, hai programmi?', quality: 'good', feedback: 'Cevap + karşı soru.' },
       { text: 'Non lo so ancora.', quality: 'ok', feedback: 'Dürüst ama devam etmiyor.' },
       { text: 'Probabilmente dormire.', quality: 'awkward', feedback: 'Yeni tanışılan birine negatif mesaj.', correction: 'Niente di preciso, e tu?' },
     ]},
-    { id: 'social-it-12', npc_message: 'È stato un piacere conoscerti! A presto spero.', npc_mood: 'happy', scene_complete: true, options: [
+    { id: 'social-it-12', npc_message: 'È stato un piacere conoscerti! A presto spero.',
+      npc_translation: `Tanışmak benim için bir zevkti! Umarım yakında görüşürüz.`, npc_mood: 'happy', scene_complete: true, options: [
       { text: 'Altrettanto! Mi ha fatto piacere. A presto!', quality: 'good', feedback: 'Sıcak kapanış.' },
       { text: 'Grazie, a presto.', quality: 'ok', feedback: 'Yeterli.' },
       { text: 'Bye.', quality: 'awkward', feedback: 'İngilizce garip.', correction: 'Piacere mio, a presto!' },
@@ -1376,62 +1569,74 @@ const survivalEs: ScenarioDialogue = {
   language: 'es',
   sessionSize: 5,
   turns: [
-    { id: 'survival-es-01', npc_message: 'Disculpe, ¿necesita ayuda?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-01', npc_message: 'Disculpe, ¿necesita ayuda?',
+      npc_translation: `Affedersiniz, yardıma ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sí, por favor — estoy un poco perdido.', quality: 'good', feedback: '"Estoy un poco perdido" suena natural y tranquilo.' },
       { text: 'Sí, estoy perdido.', quality: 'ok', feedback: 'Correcto y claro.', correction: 'Sí, ¿podría ayudarme? Estoy perdido.' },
       { text: 'No sé dónde voy ahora.', quality: 'awkward', feedback: 'La idea se entiende, pero "estoy perdido" es la frase natural.', correction: 'Estoy perdido — ¿podría ayudarme?' },
     ]},
-    { id: 'survival-es-02', npc_message: '¿Está bien? Parece que necesita algo.', npc_mood: 'neutral', options: [
+    { id: 'survival-es-02', npc_message: '¿Está bien? Parece que necesita algo.',
+      npc_translation: `İyi misiniz? Bir şeye ihtiyacınız var gibi görünüyor.`, npc_mood: 'neutral', options: [
       { text: 'Estoy bien, gracias — necesito encontrar una farmacia.', quality: 'good', feedback: 'Tranquilo, educado y directo.' },
       { text: 'Necesito farmacia.', quality: 'ok', feedback: 'Se entiende, pero falta el artículo.', correction: 'Necesito encontrar una farmacia.' },
       { text: 'Busco tienda de medicina.', quality: 'awkward', feedback: '"Tienda de medicina" no suena natural; usa "farmacia".', correction: 'Busco una farmacia, por favor.' },
     ]},
-    { id: 'survival-es-03', npc_message: '¿Qué le pasa?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-03', npc_message: '¿Qué le pasa?',
+      npc_translation: `Size ne oldu?`, npc_mood: 'neutral', options: [
       { text: 'Me duele mucho la cabeza — ¿tiene algo para el dolor?', quality: 'good', feedback: '"Me duele..." es la forma natural de explicar una molestia.' },
       { text: 'Tengo dolor de cabeza. Dame medicina.', quality: 'ok', feedback: '"Dame" suena brusco; una pregunta es más amable.', correction: 'Tengo dolor de cabeza — ¿me puede recomendar algo?' },
       { text: 'Mi cabeza tiene dolor dentro.', quality: 'awkward', feedback: 'Demasiado literal; "me duele la cabeza" es suficiente.', correction: 'Me duele mucho la cabeza.' },
     ]},
-    { id: 'survival-es-04', npc_message: '¿Ha tomado algo ya?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-04', npc_message: '¿Ha tomado algo ya?',
+      npc_translation: `Daha bir şey yediniz mi?`, npc_mood: 'neutral', options: [
       { text: 'No, todavía no — por eso vine aquí.', quality: 'good', feedback: 'Natural y explica la situación.' },
       { text: 'No. Nada.', quality: 'ok', feedback: 'Claro; una frase completa suena mejor.', correction: 'No, todavía no.' },
       { text: 'Antes de venir aquí no tomé píldoras.', quality: 'awkward', feedback: 'Correcto pero poco natural.', correction: 'No, todavía no he tomado nada.' },
     ]},
-    { id: 'survival-es-05', npc_message: 'Le recomiendo ibuprofeno. ¿Tiene alguna alergia?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-05', npc_message: 'Le recomiendo ibuprofeno. ¿Tiene alguna alergia?',
+      npc_translation: `İbuprofeni öneriyorum. Herhangi bir alerjiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Que yo sepa, no.', quality: 'good', feedback: '"Que yo sepa" es muy natural para alergias conocidas.' },
       { text: 'No tengo alergia.', quality: 'ok', feedback: 'Correcto; en plural suena más natural.', correction: 'No, no tengo alergias.' },
       { text: 'No sé sobre mis alergias.', quality: 'awkward', feedback: 'Suena raro; mejor usar una frase corta.', correction: 'Que yo sepa, no.' },
     ]},
-    { id: 'survival-es-06', npc_message: 'Son 6 euros. ¿Cómo quiere pagar?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-06', npc_message: 'Son 6 euros. ¿Cómo quiere pagar?',
+      npc_translation: `6 euro. Nasıl ödeme yapmak istiyorsunuz?`, npc_mood: 'neutral', options: [
       { text: 'Con tarjeta, por favor.', quality: 'good', feedback: 'Directo y natural.' },
       { text: 'Tarjeta.', quality: 'ok', feedback: 'Funciona, pero añadir "por favor" suaviza el tono.', correction: 'Con tarjeta, por favor.' },
       { text: 'Uso mi tarjeta para pagar ahora.', quality: 'awkward', feedback: 'Demasiado largo para la caja.', correction: 'Pago con tarjeta, por favor.' },
     ]},
-    { id: 'survival-es-07', npc_message: 'Tome dos comprimidos con agua cada seis horas.', npc_mood: 'neutral', options: [
+    { id: 'survival-es-07', npc_message: 'Tome dos comprimidos con agua cada seis horas.',
+      npc_translation: `Her altı saatte bir suyla birlikte iki tablet alın.`, npc_mood: 'neutral', options: [
       { text: 'Entendido — dos comprimidos cada seis horas. Gracias.', quality: 'good', feedback: 'Repetir la instrucción confirma que entendiste.' },
       { text: 'Vale, entiendo.', quality: 'ok', feedback: 'Correcto; repetir la dosis sería mejor.', correction: 'Vale, dos comprimidos cada seis horas.' },
       { text: 'Como dos comprimido con agua, ¿sí?', quality: 'awkward', feedback: 'Con medicinas se usa "tomar", no "comer"; y "comprimidos" en plural.', correction: 'Tomo dos comprimidos con agua cada seis horas, ¿verdad?' },
     ]},
-    { id: 'survival-es-08', npc_message: 'Si no mejora, vaya al médico.', npc_mood: 'neutral', options: [
+    { id: 'survival-es-08', npc_message: 'Si no mejora, vaya al médico.',
+      npc_translation: `İyileşmezseniz doktora gidin.`, npc_mood: 'neutral', options: [
       { text: 'De acuerdo — gracias por el consejo.', quality: 'good', feedback: 'Natural y agradecido.' },
       { text: 'OK. Voy al médico si sigue.', quality: 'ok', feedback: 'Se entiende; "si no mejora" es más natural.', correction: 'De acuerdo, iré al médico si no mejora.' },
       { text: 'El médico es caro aquí.', quality: 'awkward', feedback: 'Se sale del objetivo; confirma que entendiste el consejo.', correction: 'Entendido, gracias por avisarme.' },
     ]},
-    { id: 'survival-es-09', npc_message: '¿Necesita algo más?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-09', npc_message: '¿Necesita algo más?',
+      npc_translation: `Başka bir şey gerekli mi?`, npc_mood: 'neutral', options: [
       { text: 'No, creo que eso es todo — muchas gracias.', quality: 'good', feedback: '"Eso es todo" cierra la interacción de forma natural.' },
       { text: 'No, gracias.', quality: 'ok', feedback: 'Correcto y educado.' },
       { text: 'No quiero más cosas. Adiós.', quality: 'awkward', feedback: '"Más cosas" suena poco natural.', correction: 'No, eso es todo. Gracias.' },
     ]},
-    { id: 'survival-es-10', npc_message: '¡Que se mejore!', npc_mood: 'happy', options: [
+    { id: 'survival-es-10', npc_message: '¡Que se mejore!',
+      npc_translation: `Geçmiş olsun!`, npc_mood: 'happy', options: [
       { text: 'Muchas gracias, muy amable.', quality: 'good', feedback: 'Cálido y natural.' },
       { text: 'Gracias. Adiós.', quality: 'ok', feedback: 'Educado, aunque un poco seco.', correction: 'Gracias, que tenga buen día.' },
       { text: 'Sí, yo también mejoro.', quality: 'awkward', feedback: 'No suena natural; basta con agradecer.', correction: 'Gracias, eso espero.' },
     ]},
-    { id: 'survival-es-11', npc_message: 'Perdone, ¿sabe dónde está el supermercado más cercano?', npc_mood: 'neutral', options: [
+    { id: 'survival-es-11', npc_message: 'Perdone, ¿sabe dónde está el supermercado más cercano?',
+      npc_translation: `Affedersiniz, en yakın süpermarket nerede biliyor musunuz?`, npc_mood: 'neutral', options: [
       { text: 'Claro — hay uno en la esquina, a dos minutos.', quality: 'good', feedback: '"En la esquina" y "a dos minutos" dan una ayuda concreta.' },
       { text: 'Supermercado cerca aquí.', quality: 'ok', feedback: 'Se entiende; falta estructura.', correction: 'Hay un supermercado cerca de aquí.' },
       { text: 'No sé. Quizá por allí.', quality: 'awkward', feedback: 'Si no sabes, dilo con claridad y disculpa.', correction: 'No estoy seguro, lo siento.' },
     ]},
-    { id: 'survival-es-12', npc_message: '¿Alguien habla español? Necesito ayuda con mi teléfono.', npc_mood: 'neutral', scene_complete: true, options: [
+    { id: 'survival-es-12', npc_message: '¿Alguien habla español? Necesito ayuda con mi teléfono.',
+      npc_translation: `Birisi İspanyolca konuşuyor mu? Telefonomla ilgili yardıma ihtiyacım var.`, npc_mood: 'neutral', scene_complete: true, options: [
       { text: 'Yo hablo español — ¿qué problema tiene?', quality: 'good', feedback: 'Natural, directo y útil.' },
       { text: 'Sí. ¿Qué problema?', quality: 'ok', feedback: 'Funciona, pero la frase completa suena mejor.', correction: 'Sí, hablo español — ¿qué le pasa al teléfono?' },
       { text: 'Yo español también. Teléfono problema?', quality: 'awkward', feedback: 'Telegráfico; forma una pregunta completa.', correction: 'Hablo español — ¿cuál es el problema con el teléfono?' },
@@ -1446,62 +1651,74 @@ const survivalFr: ScenarioDialogue = {
   language: 'fr',
   sessionSize: 5,
   turns: [
-    { id: 'survival-fr-01', npc_message: 'Excusez-moi, vous avez besoin d’aide ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-01', npc_message: 'Excusez-moi, vous avez besoin d’aide ?',
+      npc_translation: `Affedersiniz, yardıma ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Oui, s’il vous plaît — je suis un peu perdu.', quality: 'good', feedback: '"Un peu perdu" est naturel et calme.' },
       { text: 'Oui, je suis perdu.', quality: 'ok', feedback: 'Clair et correct.', correction: 'Oui, pourriez-vous m’aider ? Je suis perdu.' },
       { text: 'Je ne sais pas où je vais maintenant.', quality: 'awkward', feedback: 'Trop littéral; "je suis perdu" suffit.', correction: 'Je suis perdu — pouvez-vous m’aider ?' },
     ]},
-    { id: 'survival-fr-02', npc_message: 'Ça va ? Vous avez l’air d’avoir besoin d’aide.', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-02', npc_message: 'Ça va ? Vous avez l’air d’avoir besoin d’aide.',
+      npc_translation: `Nasılsınız? Yardıma ihtiyacınız varmış gibi görünüyorsunuz.`, npc_mood: 'neutral', options: [
       { text: 'Ça va, merci — je cherche une pharmacie.', quality: 'good', feedback: 'Naturel, poli et précis.' },
       { text: 'Je besoin pharmacie.', quality: 'ok', feedback: 'Compréhensible, mais la structure est incorrecte.', correction: 'Je cherche une pharmacie.' },
       { text: 'Je cherche magasin de médicaments.', quality: 'awkward', feedback: 'On dit simplement "pharmacie".', correction: 'Je cherche une pharmacie, s’il vous plaît.' },
     ]},
-    { id: 'survival-fr-03', npc_message: 'Quel est le problème ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-03', npc_message: 'Quel est le problème ?',
+      npc_translation: `Sorun nedir?`, npc_mood: 'neutral', options: [
       { text: 'J’ai très mal à la tête — vous avez quelque chose contre la douleur ?', quality: 'good', feedback: '"Avoir mal à..." est la structure naturelle.' },
       { text: 'J’ai douleur tête. Donnez médicament.', quality: 'ok', feedback: 'Trop direct; formulez une demande polie.', correction: 'J’ai mal à la tête — vous pouvez me conseiller quelque chose ?' },
       { text: 'Ma tête fait douleur dedans.', quality: 'awkward', feedback: 'Trop littéral; dites "j’ai mal à la tête".', correction: 'J’ai très mal à la tête.' },
     ]},
-    { id: 'survival-fr-04', npc_message: 'Vous avez déjà pris quelque chose ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-04', npc_message: 'Vous avez déjà pris quelque chose ?',
+      npc_translation: `Zaten bir şey aldınız mı?`, npc_mood: 'neutral', options: [
       { text: 'Non, pas encore — c’est pour ça que je suis venu.', quality: 'good', feedback: 'Naturel et clair.' },
       { text: 'Non. Rien.', quality: 'ok', feedback: 'Clair; une phrase complète est plus fluide.', correction: 'Non, pas encore.' },
       { text: 'Avant venir ici je n’ai pas pris pilules.', quality: 'awkward', feedback: 'Structure incorrecte et peu naturelle.', correction: 'Non, je n’ai encore rien pris.' },
     ]},
-    { id: 'survival-fr-05', npc_message: 'Je vous conseille de l’ibuprofène. Vous avez des allergies ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-05', npc_message: 'Je vous conseille de l’ibuprofène. Vous avez des allergies ?',
+      npc_translation: `Size ibuprofen tavsiye ederim. Alerjiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Pas à ma connaissance.', quality: 'good', feedback: 'Formule très naturelle pour les allergies.' },
       { text: 'Non, pas d’allergie.', quality: 'ok', feedback: 'Correct et clair.', correction: 'Non, pas d’allergies connues.' },
       { text: 'Je ne sais pas mes allergies.', quality: 'awkward', feedback: 'Il manque une structure naturelle.', correction: 'Pas à ma connaissance.' },
     ]},
-    { id: 'survival-fr-06', npc_message: 'Ça fait 6 euros. Vous payez comment ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-06', npc_message: 'Ça fait 6 euros. Vous payez comment ?',
+      npc_translation: `Bu 6 euro tutuyor. Nasıl ödeyeceksiniz?`, npc_mood: 'neutral', options: [
       { text: 'Par carte, s’il vous plaît.', quality: 'good', feedback: 'Simple et naturel.' },
       { text: 'Carte.', quality: 'ok', feedback: 'Compréhensible; ajoutez la préposition.', correction: 'Par carte, s’il vous plaît.' },
       { text: 'J’utilise ma carte pour payer maintenant.', quality: 'awkward', feedback: 'Trop formel et long pour la caisse.', correction: 'Je paie par carte, s’il vous plaît.' },
     ]},
-    { id: 'survival-fr-07', npc_message: 'Prenez deux comprimés avec de l’eau toutes les six heures.', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-07', npc_message: 'Prenez deux comprimés avec de l’eau toutes les six heures.',
+      npc_translation: `Altı saatte bir su ile iki tablet alınız.`, npc_mood: 'neutral', options: [
       { text: 'D’accord — deux comprimés toutes les six heures. Merci.', quality: 'good', feedback: 'Répéter la posologie confirme que vous avez compris.' },
       { text: 'OK, j’ai compris.', quality: 'ok', feedback: 'Correct; répéter la dose serait encore mieux.', correction: 'D’accord, deux comprimés toutes les six heures.' },
       { text: 'Je mange deux comprimé avec eau ?', quality: 'awkward', feedback: 'Pour les médicaments, on dit "prendre", pas "manger".', correction: 'Je prends deux comprimés avec de l’eau, c’est ça ?' },
     ]},
-    { id: 'survival-fr-08', npc_message: 'Si ça ne s’améliore pas, consultez un médecin.', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-08', npc_message: 'Si ça ne s’améliore pas, consultez un médecin.',
+      npc_translation: `Düzelmezse, bir doktora danışınız.`, npc_mood: 'neutral', options: [
       { text: 'D’accord — merci pour le conseil.', quality: 'good', feedback: 'Naturel et reconnaissant.' },
       { text: 'OK. Je vais médecin si continue.', quality: 'ok', feedback: 'Compréhensible; il manque "chez le".', correction: 'D’accord, j’irai chez le médecin si ça continue.' },
       { text: 'Le médecin est cher ici.', quality: 'awkward', feedback: 'Hors sujet; confirmez plutôt le conseil.', correction: 'D’accord, merci de m’avoir prévenu.' },
     ]},
-    { id: 'survival-fr-09', npc_message: 'Vous avez besoin d’autre chose ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-09', npc_message: 'Vous avez besoin d’autre chose ?',
+      npc_translation: `Başka bir şey gerekli mi?`, npc_mood: 'neutral', options: [
       { text: 'Non, je crois que c’est tout — merci beaucoup.', quality: 'good', feedback: '"C’est tout" ferme naturellement l’échange.' },
       { text: 'Non, merci.', quality: 'ok', feedback: 'Correct et poli.' },
       { text: 'Je ne veux pas plus de choses. Au revoir.', quality: 'awkward', feedback: '"Plus de choses" sonne peu naturel.', correction: 'Non, c’est tout. Merci.' },
     ]},
-    { id: 'survival-fr-10', npc_message: 'Bon rétablissement !', npc_mood: 'happy', options: [
+    { id: 'survival-fr-10', npc_message: 'Bon rétablissement !',
+      npc_translation: `Geçmiş olsun!`, npc_mood: 'happy', options: [
       { text: 'Merci beaucoup, c’est gentil.', quality: 'good', feedback: 'Chaleureux et naturel.' },
       { text: 'Merci. Au revoir.', quality: 'ok', feedback: 'Poli mais un peu sec.', correction: 'Merci, bonne journée.' },
       { text: 'Oui, moi aussi je rétablis.', quality: 'awkward', feedback: 'Formulation incorrecte; remerciez simplement.', correction: 'Merci, j’espère aussi.' },
     ]},
-    { id: 'survival-fr-11', npc_message: 'Excusez-moi, vous savez où est le supermarché le plus proche ?', npc_mood: 'neutral', options: [
+    { id: 'survival-fr-11', npc_message: 'Excusez-moi, vous savez où est le supermarché le plus proche ?',
+      npc_translation: `Affedersiniz, en yakın süpermarket nerede olduğunu biliyor musunuz?`, npc_mood: 'neutral', options: [
       { text: 'Bien sûr — il y en a un au coin de la rue.', quality: 'good', feedback: '"Au coin de la rue" est une indication naturelle.' },
       { text: 'Supermarché proche ici.', quality: 'ok', feedback: 'Compréhensible; structurez la phrase.', correction: 'Il y a un supermarché près d’ici.' },
       { text: 'Je ne sais pas. Peut-être là-bas.', quality: 'awkward', feedback: 'Si vous n’êtes pas sûr, dites-le clairement.', correction: 'Je ne suis pas sûr, désolé.' },
     ]},
-    { id: 'survival-fr-12', npc_message: 'Quelqu’un parle français ? J’ai besoin d’aide avec mon téléphone.', npc_mood: 'neutral', scene_complete: true, options: [
+    { id: 'survival-fr-12', npc_message: 'Quelqu’un parle français ? J’ai besoin d’aide avec mon téléphone.',
+      npc_translation: `Birisi Fransızca konuşuyor mu? Telefonumla ilgili yardıma ihtiyacım var.`, npc_mood: 'neutral', scene_complete: true, options: [
       { text: 'Je parle français — quel est le problème ?', quality: 'good', feedback: 'Naturel, direct et utile.' },
       { text: 'Oui. Quel problème ?', quality: 'ok', feedback: 'Fonctionne; la phrase complète est plus naturelle.', correction: 'Oui, je parle français — qu’est-ce qui ne va pas ?' },
       { text: 'Moi français aussi. Téléphone problème ?', quality: 'awkward', feedback: 'Télégraphique; formez une question complète.', correction: 'Je parle français — quel est le problème avec votre téléphone ?' },
@@ -1516,62 +1733,74 @@ const survivalDe: ScenarioDialogue = {
   language: 'de',
   sessionSize: 5,
   turns: [
-    { id: 'survival-de-01', npc_message: 'Entschuldigung, brauchen Sie Hilfe?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-01', npc_message: 'Entschuldigung, brauchen Sie Hilfe?',
+      npc_translation: `Affedersiniz, yardıma ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Ja, bitte — ich habe mich ein bisschen verlaufen.', quality: 'good', feedback: '"Ein bisschen verlaufen" klingt natürlich und ruhig.' },
       { text: 'Ja, ich bin verloren.', quality: 'ok', feedback: 'Verständlich, aber "ich habe mich verlaufen" ist natürlicher.', correction: 'Ja, können Sie mir helfen? Ich habe mich verlaufen.' },
       { text: 'Ich weiß nicht, wo ich jetzt gehe.', quality: 'awkward', feedback: 'Wörtlich übersetzt; nutze "sich verlaufen".', correction: 'Ich habe mich verlaufen — können Sie mir helfen?' },
     ]},
-    { id: 'survival-de-02', npc_message: 'Alles in Ordnung? Sie sehen aus, als bräuchten Sie Hilfe.', npc_mood: 'neutral', options: [
+    { id: 'survival-de-02', npc_message: 'Alles in Ordnung? Sie sehen aus, als bräuchten Sie Hilfe.',
+      npc_translation: `Sorun yok mu? Yardıma ihtiyacınız varmış gibi görünüyorsunuz.`, npc_mood: 'neutral', options: [
       { text: 'Alles gut, danke — ich suche eine Apotheke.', quality: 'good', feedback: 'Natürlich, höflich und konkret.' },
       { text: 'Ich brauche Apotheke.', quality: 'ok', feedback: 'Verständlich; der Artikel fehlt.', correction: 'Ich suche eine Apotheke.' },
       { text: 'Ich suche Medizinladen.', quality: 'awkward', feedback: 'Man sagt "Apotheke", nicht "Medizinladen".', correction: 'Ich suche eine Apotheke, bitte.' },
     ]},
-    { id: 'survival-de-03', npc_message: 'Was ist das Problem?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-03', npc_message: 'Was ist das Problem?',
+      npc_translation: `Sorun nedir?`, npc_mood: 'neutral', options: [
       { text: 'Ich habe starke Kopfschmerzen — haben Sie etwas gegen Schmerzen?', quality: 'good', feedback: '"Etwas gegen Schmerzen" ist natürliche Apothekensprache.' },
       { text: 'Ich habe Kopfweh. Gib mir Medizin.', quality: 'ok', feedback: '"Gib mir" ist zu direkt; frage höflicher.', correction: 'Ich habe Kopfschmerzen — können Sie mir etwas empfehlen?' },
       { text: 'Mein Kopf hat Schmerz innen.', quality: 'awkward', feedback: 'Zu wörtlich; "ich habe Kopfschmerzen" reicht.', correction: 'Ich habe starke Kopfschmerzen.' },
     ]},
-    { id: 'survival-de-04', npc_message: 'Haben Sie schon etwas dagegen genommen?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-04', npc_message: 'Haben Sie schon etwas dagegen genommen?',
+      npc_translation: `Zaten bir şey aldınız mı?`, npc_mood: 'neutral', options: [
       { text: 'Nein, noch nicht — deshalb bin ich hier.', quality: 'good', feedback: 'Natürlich und klar.' },
       { text: 'Nein. Nichts.', quality: 'ok', feedback: 'Klar; ein ganzer Satz klingt flüssiger.', correction: 'Nein, noch nichts.' },
       { text: 'Bevor ich hier kam, nahm ich keine Pillen.', quality: 'awkward', feedback: 'Grammatikalisch holprig und unnatürlich.', correction: 'Nein, ich habe noch nichts genommen.' },
     ]},
-    { id: 'survival-de-05', npc_message: 'Ich empfehle Ibuprofen. Haben Sie Allergien?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-05', npc_message: 'Ich empfehle Ibuprofen. Haben Sie Allergien?',
+      npc_translation: `Size ibuprofen tavsiye ederim. Alerjiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Nicht, dass ich wüsste.', quality: 'good', feedback: 'Sehr natürliche Antwort bei bekannten Allergien.' },
       { text: 'Keine Allergie.', quality: 'ok', feedback: 'Verständlich; im Plural natürlicher.', correction: 'Nein, ich habe keine Allergien.' },
       { text: 'Ich weiß nicht über meine Allergien.', quality: 'awkward', feedback: 'Unnatürliche Struktur.', correction: 'Nicht, dass ich wüsste.' },
     ]},
-    { id: 'survival-de-06', npc_message: 'Das macht 6 Euro. Wie möchten Sie bezahlen?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-06', npc_message: 'Das macht 6 Euro. Wie möchten Sie bezahlen?',
+      npc_translation: `Bu 6 euro tutuyor. Nasıl ödemek istersiniz?`, npc_mood: 'neutral', options: [
       { text: 'Mit Karte, bitte.', quality: 'good', feedback: 'Kurz, höflich und natürlich.' },
       { text: 'Karte.', quality: 'ok', feedback: 'Funktioniert, aber "mit Karte" ist natürlicher.', correction: 'Mit Karte, bitte.' },
       { text: 'Ich benutze meine Karte, um jetzt zu bezahlen.', quality: 'awkward', feedback: 'Zu lang für die Kasse.', correction: 'Ich zahle mit Karte, bitte.' },
     ]},
-    { id: 'survival-de-07', npc_message: 'Nehmen Sie zwei Tabletten mit Wasser, alle sechs Stunden.', npc_mood: 'neutral', options: [
+    { id: 'survival-de-07', npc_message: 'Nehmen Sie zwei Tabletten mit Wasser, alle sechs Stunden.',
+      npc_translation: `Altı saatte bir su ile iki tablet alınız.`, npc_mood: 'neutral', options: [
       { text: 'Verstanden — zwei Tabletten alle sechs Stunden. Danke.', quality: 'good', feedback: 'Die Dosierung zu wiederholen zeigt, dass du verstanden hast.' },
       { text: 'Okay, ich verstehe.', quality: 'ok', feedback: 'Korrekt; die Dosis zu wiederholen wäre besser.', correction: 'Okay, zwei Tabletten alle sechs Stunden.' },
       { text: 'Ich esse zwei Tablette mit Wasser?', quality: 'awkward', feedback: 'Bei Medikamenten sagt man "nehmen", nicht "essen"; "Tabletten" im Plural.', correction: 'Ich nehme zwei Tabletten mit Wasser, richtig?' },
     ]},
-    { id: 'survival-de-08', npc_message: 'Wenn es nicht besser wird, gehen Sie bitte zum Arzt.', npc_mood: 'neutral', options: [
+    { id: 'survival-de-08', npc_message: 'Wenn es nicht besser wird, gehen Sie bitte zum Arzt.',
+      npc_translation: `Düzelmezse, lütfen doktora gidiniz.`, npc_mood: 'neutral', options: [
       { text: 'Mache ich — danke für den Hinweis.', quality: 'good', feedback: '"Mache ich" ist natürlich und bestätigt die Empfehlung.' },
       { text: 'OK. Ich gehe Arzt wenn weiter.', quality: 'ok', feedback: 'Verständlich; "zum Arzt" und "wenn es nicht besser wird" sind nötig.', correction: 'Okay, ich gehe zum Arzt, wenn es nicht besser wird.' },
       { text: 'Der Arzt ist hier teuer.', quality: 'awkward', feedback: 'Das weicht aus; bestätige lieber den Rat.', correction: 'Verstanden, danke für den Hinweis.' },
     ]},
-    { id: 'survival-de-09', npc_message: 'Brauchen Sie sonst noch etwas?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-09', npc_message: 'Brauchen Sie sonst noch etwas?',
+      npc_translation: `Başka bir şey gerekli mi?`, npc_mood: 'neutral', options: [
       { text: 'Nein, ich glaube, das ist alles — vielen Dank.', quality: 'good', feedback: '"Das ist alles" beendet die Szene natürlich.' },
       { text: 'Nein, danke.', quality: 'ok', feedback: 'Korrekt und höflich.' },
       { text: 'Ich will keine mehr Dinge. Tschüss.', quality: 'awkward', feedback: 'Unnatürlich; nutze "das ist alles".', correction: 'Nein, das ist alles. Danke.' },
     ]},
-    { id: 'survival-de-10', npc_message: 'Gute Besserung!', npc_mood: 'happy', options: [
+    { id: 'survival-de-10', npc_message: 'Gute Besserung!',
+      npc_translation: `Geçmiş olsun!`, npc_mood: 'happy', options: [
       { text: 'Vielen Dank, sehr freundlich.', quality: 'good', feedback: 'Warm und natürlich.' },
       { text: 'Danke. Auf Wiedersehen.', quality: 'ok', feedback: 'Höflich, aber etwas knapp.', correction: 'Danke, Ihnen einen schönen Tag.' },
       { text: 'Ja, ich besser auch.', quality: 'awkward', feedback: 'Nicht natürlich; einfach bedanken.', correction: 'Danke, das hoffe ich auch.' },
     ]},
-    { id: 'survival-de-11', npc_message: 'Entschuldigung, wissen Sie, wo der nächste Supermarkt ist?', npc_mood: 'neutral', options: [
+    { id: 'survival-de-11', npc_message: 'Entschuldigung, wissen Sie, wo der nächste Supermarkt ist?',
+      npc_translation: `Affedersiniz, en yakın süpermarket nerede olduğunu biliyor musunuz?`, npc_mood: 'neutral', options: [
       { text: 'Natürlich — da vorne an der Ecke ist einer.', quality: 'good', feedback: '"An der Ecke" ist eine konkrete, natürliche Wegangabe.' },
       { text: 'Supermarkt ist nah hier.', quality: 'ok', feedback: 'Verständlich; "in der Nähe" klingt natürlicher.', correction: 'Hier in der Nähe ist ein Supermarkt.' },
       { text: 'Ich weiß nicht. Vielleicht dort.', quality: 'awkward', feedback: 'Wenn du unsicher bist, sag es klar.', correction: 'Ich bin nicht sicher, tut mir leid.' },
     ]},
-    { id: 'survival-de-12', npc_message: 'Spricht hier jemand Deutsch? Ich brauche Hilfe mit meinem Handy.', npc_mood: 'neutral', scene_complete: true, options: [
+    { id: 'survival-de-12', npc_message: 'Spricht hier jemand Deutsch? Ich brauche Hilfe mit meinem Handy.',
+      npc_translation: `Birisi Almanca konuşuyor mu? Cep telefonumla ilgili yardıma ihtiyacım var.`, npc_mood: 'neutral', scene_complete: true, options: [
       { text: 'Ich spreche Deutsch — was ist das Problem?', quality: 'good', feedback: 'Natürlich, direkt und hilfreich.' },
       { text: 'Ja. Was Problem?', quality: 'ok', feedback: 'Verständlich; Wortstellung fehlt.', correction: 'Ja, ich spreche Deutsch — was ist los?' },
       { text: 'Ich Deutsch auch. Handy Problem?', quality: 'awkward', feedback: 'Telegraphisch; bilde eine vollständige Frage.', correction: 'Ich spreche Deutsch — was ist mit dem Handy passiert?' },
@@ -1586,62 +1815,74 @@ const survivalIt: ScenarioDialogue = {
   language: 'it',
   sessionSize: 5,
   turns: [
-    { id: 'survival-it-01', npc_message: 'Mi scusi, ha bisogno di aiuto?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-01', npc_message: 'Mi scusi, ha bisogno di aiuto?',
+      npc_translation: `Affedersiniz, yardıma ihtiyacınız var mı?`, npc_mood: 'neutral', options: [
       { text: 'Sì, per favore — mi sono un po’ perso.', quality: 'good', feedback: '"Mi sono perso" è naturale e chiaro.' },
       { text: 'Sì, sono perso.', quality: 'ok', feedback: 'Si capisce, ma "mi sono perso" è più naturale.', correction: 'Sì, può aiutarmi? Mi sono perso.' },
       { text: 'Non so dove vado adesso.', quality: 'awkward', feedback: 'Troppo letterale; usa "mi sono perso".', correction: 'Mi sono perso — può aiutarmi?' },
     ]},
-    { id: 'survival-it-02', npc_message: 'Tutto bene? Sembra che abbia bisogno di aiuto.', npc_mood: 'neutral', options: [
+    { id: 'survival-it-02', npc_message: 'Tutto bene? Sembra che abbia bisogno di aiuto.',
+      npc_translation: `Sorun yok mu? Yardıma ihtiyacınız varmış gibi görünüyorsunuz.`, npc_mood: 'neutral', options: [
       { text: 'Sto bene, grazie — devo trovare una farmacia.', quality: 'good', feedback: 'Naturale, educato e preciso.' },
       { text: 'Ho bisogno farmacia.', quality: 'ok', feedback: 'Si capisce, ma manca la preposizione.', correction: 'Ho bisogno di trovare una farmacia.' },
       { text: 'Cerco negozio di medicine.', quality: 'awkward', feedback: 'Si dice semplicemente "farmacia".', correction: 'Cerco una farmacia, per favore.' },
     ]},
-    { id: 'survival-it-03', npc_message: 'Qual è il problema?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-03', npc_message: 'Qual è il problema?',
+      npc_translation: `Sorun nedir?`, npc_mood: 'neutral', options: [
       { text: 'Ho un forte mal di testa — ha qualcosa per il dolore?', quality: 'good', feedback: '"Mal di testa" è l’espressione naturale.' },
       { text: 'Ho dolore testa. Dammi medicina.', quality: 'ok', feedback: '"Dammi" è troppo diretto; meglio chiedere con cortesia.', correction: 'Ho mal di testa — può consigliarmi qualcosa?' },
       { text: 'La mia testa ha dolore dentro.', quality: 'awkward', feedback: 'Troppo letterale; basta "ho mal di testa".', correction: 'Ho un forte mal di testa.' },
     ]},
-    { id: 'survival-it-04', npc_message: 'Ha già preso qualcosa?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-04', npc_message: 'Ha già preso qualcosa?',
+      npc_translation: `Zaten bir şey aldınız mı?`, npc_mood: 'neutral', options: [
       { text: 'No, non ancora — per questo sono venuto qui.', quality: 'good', feedback: 'Naturale e chiaro.' },
       { text: 'No. Niente.', quality: 'ok', feedback: 'Chiaro; una frase completa scorre meglio.', correction: 'No, non ancora.' },
       { text: 'Prima di venire qui non ho preso pillole.', quality: 'awkward', feedback: 'Si capisce, ma suona poco naturale.', correction: 'No, non ho ancora preso niente.' },
     ]},
-    { id: 'survival-it-05', npc_message: 'Le consiglio l’ibuprofene. Ha allergie?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-05', npc_message: 'Le consiglio l’ibuprofene. Ha allergie?',
+      npc_translation: `Size ibuprofen tavsiye ederim. Alerjiniz var mı?`, npc_mood: 'neutral', options: [
       { text: 'Non che io sappia.', quality: 'good', feedback: 'Formula molto naturale per allergie conosciute.' },
       { text: 'Non ho allergia.', quality: 'ok', feedback: 'Corretto ma il plurale suona meglio.', correction: 'No, non ho allergie.' },
       { text: 'Non so sulle mie allergie.', quality: 'awkward', feedback: 'Struttura poco naturale.', correction: 'Non che io sappia.' },
     ]},
-    { id: 'survival-it-06', npc_message: 'Sono 6 euro. Come preferisce pagare?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-06', npc_message: 'Sono 6 euro. Come preferisce pagare?',
+      npc_translation: `Bu 6 euro tutuyor. Nasıl ödemek istersiniz?`, npc_mood: 'neutral', options: [
       { text: 'Con carta, per favore.', quality: 'good', feedback: 'Semplice e naturale.' },
       { text: 'Carta.', quality: 'ok', feedback: 'Funziona, ma "con carta" è più naturale.', correction: 'Con carta, per favore.' },
       { text: 'Uso la mia carta per pagare adesso.', quality: 'awkward', feedback: 'Troppo lungo per la cassa.', correction: 'Pago con carta, per favore.' },
     ]},
-    { id: 'survival-it-07', npc_message: 'Prenda due compresse con acqua ogni sei ore.', npc_mood: 'neutral', options: [
+    { id: 'survival-it-07', npc_message: 'Prenda due compresse con acqua ogni sei ore.',
+      npc_translation: `Altı saatte bir su ile iki tablet alınız.`, npc_mood: 'neutral', options: [
       { text: 'Capito — due compresse ogni sei ore. Grazie.', quality: 'good', feedback: 'Ripetere la dose conferma che hai capito.' },
       { text: 'OK, ho capito.', quality: 'ok', feedback: 'Corretto; ripetere la dose sarebbe meglio.', correction: 'Va bene, due compresse ogni sei ore.' },
       { text: 'Mangio due compressa con acqua?', quality: 'awkward', feedback: 'Per medicine si dice "prendere", non "mangiare"; "compresse" al plurale.', correction: 'Prendo due compresse con acqua, giusto?' },
     ]},
-    { id: 'survival-it-08', npc_message: 'Se non migliora, consulti un medico.', npc_mood: 'neutral', options: [
+    { id: 'survival-it-08', npc_message: 'Se non migliora, consulti un medico.',
+      npc_translation: `Düzelmezse, bir doktora danışınız.`, npc_mood: 'neutral', options: [
       { text: 'D’accordo — grazie per il consiglio.', quality: 'good', feedback: 'Naturale e riconoscente.' },
       { text: 'OK. Vado medico se continua.', quality: 'ok', feedback: 'Si capisce; serve "dal medico".', correction: 'D’accordo, andrò dal medico se non migliora.' },
       { text: 'Il medico qui è caro.', quality: 'awkward', feedback: 'Fuori tema; conferma il consiglio.', correction: 'Ho capito, grazie per l’avviso.' },
     ]},
-    { id: 'survival-it-09', npc_message: 'Ha bisogno di qualcos’altro?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-09', npc_message: 'Ha bisogno di qualcos’altro?',
+      npc_translation: `Başka bir şey gerekli mi?`, npc_mood: 'neutral', options: [
       { text: 'No, credo sia tutto — grazie mille.', quality: 'good', feedback: '"Credo sia tutto" chiude naturalmente lo scambio.' },
       { text: 'No, grazie.', quality: 'ok', feedback: 'Corretto ed educato.' },
       { text: 'Non voglio più cose. Ciao.', quality: 'awkward', feedback: '"Più cose" suona poco naturale.', correction: 'No, è tutto. Grazie.' },
     ]},
-    { id: 'survival-it-10', npc_message: 'Buona guarigione!', npc_mood: 'happy', options: [
+    { id: 'survival-it-10', npc_message: 'Buona guarigione!',
+      npc_translation: `Geçmiş olsun!`, npc_mood: 'happy', options: [
       { text: 'Grazie mille, molto gentile.', quality: 'good', feedback: 'Caldo e naturale.' },
       { text: 'Grazie. Arrivederci.', quality: 'ok', feedback: 'Educato, anche se un po’ asciutto.', correction: 'Grazie, buona giornata.' },
       { text: 'Sì, io miglioro anche.', quality: 'awkward', feedback: 'Non suona naturale; basta ringraziare.', correction: 'Grazie, lo spero anch’io.' },
     ]},
-    { id: 'survival-it-11', npc_message: 'Mi scusi, sa dov’è il supermercato più vicino?', npc_mood: 'neutral', options: [
+    { id: 'survival-it-11', npc_message: 'Mi scusi, sa dov’è il supermercato più vicino?',
+      npc_translation: `Affedersiniz, en yakın süpermarket nerede olduğunu biliyor musunuz?`, npc_mood: 'neutral', options: [
       { text: 'Certo — ce n’è uno all’angolo, a due minuti.', quality: 'good', feedback: '"All’angolo" è un’indicazione concreta e naturale.' },
       { text: 'Supermercato vicino qui.', quality: 'ok', feedback: 'Si capisce; manca la struttura.', correction: 'C’è un supermercato qui vicino.' },
       { text: 'Non lo so. Forse lì.', quality: 'awkward', feedback: 'Se non sei sicuro, meglio dirlo chiaramente.', correction: 'Non sono sicuro, mi dispiace.' },
     ]},
-    { id: 'survival-it-12', npc_message: 'Qualcuno parla italiano? Ho bisogno di aiuto con il telefono.', npc_mood: 'neutral', scene_complete: true, options: [
+    { id: 'survival-it-12', npc_message: 'Qualcuno parla italiano? Ho bisogno di aiuto con il telefono.',
+      npc_translation: `Birisi İtalyanca konuşuyor mu? Telefonumla ilgili yardıma ihtiyacım var.`, npc_mood: 'neutral', scene_complete: true, options: [
       { text: 'Io parlo italiano — qual è il problema?', quality: 'good', feedback: 'Naturale, diretto e utile.' },
       { text: 'Sì. Che problema?', quality: 'ok', feedback: 'Funziona, ma la frase completa è più naturale.', correction: 'Sì, parlo italiano — che problema ha il telefono?' },
       { text: 'Io italiano anche. Telefono problema?', quality: 'awkward', feedback: 'Telegrafico; forma una domanda completa.', correction: 'Parlo italiano — qual è il problema con il telefono?' },
@@ -1659,6 +1900,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-01',
       npc_message: 'Hi there! What can I get started for you?',
+      npc_translation: `Merhaba! Sana ne getirebilirim?`,
       npc_mood: 'happy',
       options: [
         { text: 'Could I get a flat white, please?', quality: 'good', feedback: 'Perfect — polite, natural, native-level phrasing.' },
@@ -1669,6 +1911,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-02',
       npc_message: 'What size would you like — small, medium, or large?',
+      npc_translation: `Ne kadar istiyorsun — küçük, orta, yoksa büyük?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Medium, please.', quality: 'good', feedback: 'Short and perfectly natural.' },
@@ -1679,6 +1922,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-03',
       npc_message: 'Would you like anything to eat with that?',
+      npc_translation: `Bununla birlikte yemek ister misin?`,
       npc_mood: 'happy',
       options: [
         { text: 'No thanks, just the coffee.', quality: 'good', feedback: 'Polite refusal — exactly right.' },
@@ -1689,6 +1933,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-04',
       npc_message: 'Is that for here or to go?',
+      npc_translation: `Burası için mi, yoksa götürmek için mi?`,
       npc_mood: 'neutral',
       options: [
         { text: 'To go, please.', quality: 'good', feedback: 'Classic, correct response.' },
@@ -1699,6 +1944,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-05',
       npc_message: 'Can I get a name for the order?',
+      npc_translation: `Sipariş için bir isim alabilir miyim?`,
       npc_mood: 'neutral',
       options: [
         { text: 'It\'s Alex.', quality: 'good', feedback: 'Smooth and natural.' },
@@ -1709,6 +1955,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-06',
       npc_message: 'That\'ll be four fifty. Cash or card?',
+      npc_translation: `Dört buçuk lira olacak. Nakit mi, kartla mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Card, please.', quality: 'good', feedback: 'Simple and perfectly natural.' },
@@ -1719,6 +1966,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-07',
       npc_message: 'Do you have our loyalty card?',
+      npc_translation: `Sadakat kartımız var mı?`,
       npc_mood: 'happy',
       options: [
         { text: 'No, but I\'d love to sign up.', quality: 'good', feedback: 'Natural and shows engagement.' },
@@ -1729,6 +1977,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-08',
       npc_message: 'Your order will be ready in about three minutes.',
+      npc_translation: `Siparişin yaklaşık üç dakika içinde hazır olacak.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Great, I\'ll wait over there.', quality: 'good', feedback: 'Natural and considerate.' },
@@ -1739,6 +1988,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-09',
       npc_message: 'One flat white for Alex!',
+      npc_translation: `Bir flat white Alex için!`,
       npc_mood: 'happy',
       options: [
         { text: 'That\'s me — thank you!', quality: 'good', feedback: 'Warm and natural.' },
@@ -1749,6 +1999,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-10',
       npc_message: 'Enjoy your coffee! Have a great day.',
+      npc_translation: `Kahvenin tadını çıkar! Harika bir gün geçir.`,
       npc_mood: 'happy',
       options: [
         { text: 'Thanks, you too!', quality: 'good', feedback: 'Perfect warm closing.' },
@@ -1759,6 +2010,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-11',
       npc_message: 'Sorry, we\'re out of oat milk today. Would almond milk work?',
+      npc_translation: `Üzgünüm, bugün yulaf sütü tamamlandı. Badem sütü olabilir mi?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sure, almond milk is fine.', quality: 'good', feedback: 'Flexible and natural.' },
@@ -1769,6 +2021,7 @@ const cafeEn: ScenarioDialogue = {
     {
       id: 'cafe-en-12',
       npc_message: 'We have a special today — buy one get one free on pastries.',
+      npc_translation: `Bugün özel var — pastalar için bir al bir bedava.`,
       npc_mood: 'happy',
       options: [
         { text: 'Oh nice! I\'ll grab a croissant then.', quality: 'good', feedback: '"Grab" is natural spoken English — sounds like a local.', correction: undefined },
@@ -1789,6 +2042,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-01',
       npc_message: 'Good morning! Where are you headed today?',
+      npc_translation: `Günaydın! Bugün nereye gidiyorsun?`,
       npc_mood: 'happy',
       options: [
         { text: 'I\'m heading to Edinburgh, please.', quality: 'good', feedback: 'Clear and polite — exactly right.' },
@@ -1799,6 +2053,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-02',
       npc_message: 'Would you like a window or aisle seat?',
+      npc_translation: `Pencere mi yoksa koridor tarafı koltuk mu istiyorsun?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Window, please — I love the views.', quality: 'good', feedback: 'Natural with a nice personal touch.' },
@@ -1809,6 +2064,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-03',
       npc_message: 'Do you have any luggage to check in?',
+      npc_translation: `Kontrol ettirecek bagajın var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Yes, one suitcase please.', quality: 'good', feedback: 'Perfect — clear and polite.' },
@@ -1819,6 +2075,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-04',
       npc_message: 'Your train is on platform 3. It departs in 12 minutes.',
+      npc_translation: `Trenin 3. platformda. 12 dakika içinde kalkıyor.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Thanks — is that far from here?', quality: 'good', feedback: 'Practical follow-up question — very natural.' },
@@ -1829,6 +2086,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-05',
       npc_message: 'Excuse me, is this seat taken?',
+      npc_translation: `Affedersin, bu koltuk boş mu?`,
       npc_mood: 'neutral',
       options: [
         { text: 'No, please go ahead.', quality: 'good', feedback: 'Warm and perfectly natural.' },
@@ -1839,6 +2097,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-06',
       npc_message: 'The ticket inspector is coming. Do you have your ticket?',
+      npc_translation: `Bilet kontrolörü geliyor. Biletini var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Yes, I have it right here.', quality: 'good', feedback: 'Confident and natural.' },
@@ -1849,6 +2108,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-07',
       npc_message: 'I\'m sorry, this train is delayed by 20 minutes.',
+      npc_translation: `Üzgünüm, bu tren 20 dakika gecikmeli.`,
       npc_mood: 'neutral',
       options: [
         { text: 'That\'s alright — will I still make my connection?', quality: 'good', feedback: 'Practical and polite — great real-life question.' },
@@ -1859,6 +2119,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-08',
       npc_message: 'Next stop: Edinburgh Waverley. Doors open on the right.',
+      npc_translation: `Sonraki durak: Edinburgh Waverley. Kapılar sağ taraftan açılıyor.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Thank you, that\'s my stop!', quality: 'good', feedback: 'Natural and enthusiastic.' },
@@ -1869,6 +2130,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-09',
       npc_message: 'Welcome to Edinburgh! Can I help you find your way?',
+      npc_translation: `Edinburgh'a hoş geldin! Yolunu bulman konusunda sana yardımcı olabilir miyim?`,
       npc_mood: 'happy',
       options: [
         { text: 'Yes please — I\'m looking for the Old Town.', quality: 'good', feedback: 'Perfect use of "looking for" — sounds natural.' },
@@ -1879,6 +2141,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-10',
       npc_message: 'The castle is about a 15-minute walk up the Royal Mile.',
+      npc_translation: `Şato Royal Mile'ın yukarısında yaklaşık 15 dakikalık yürüyüş uzaklığında.`,
       npc_mood: 'happy',
       options: [
         { text: 'Perfect, I\'ll head that way. Thanks so much!', quality: 'good', feedback: '"Head that way" is a very natural expression.' },
@@ -1889,6 +2152,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-11',
       npc_message: 'Do you need a map of the city?',
+      npc_translation: `Şehrin haritasına ihtiyacın var mı?`,
       npc_mood: 'happy',
       options: [
         { text: 'That would be lovely, thank you.', quality: 'good', feedback: '"That would be lovely" is warm and natural British English.' },
@@ -1899,6 +2163,7 @@ const travelEn: ScenarioDialogue = {
     {
       id: 'travel-en-12',
       npc_message: 'Have a wonderful visit! Enjoy Edinburgh.',
+      npc_translation: `Harika bir ziyaret geçir! Edinburgh'un tadını çıkar.`,
       npc_mood: 'happy',
       options: [
         { text: 'Thank you so much — I can\'t wait to explore!', quality: 'good', feedback: '"I can\'t wait to explore" is enthusiastic and natural.' },
@@ -1919,6 +2184,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-01',
       npc_message: 'Good morning! I believe we have a meeting scheduled. I\'m Sarah Chen.',
+      npc_translation: `Günaydın! Sanırım planlanmış bir toplantımız var. Ben Sarah Chen.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Good morning, Sarah. I\'m Alex — great to meet you.', quality: 'good', feedback: 'Professional and warm — exactly right for a first meeting.' },
@@ -1929,6 +2195,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-02',
       npc_message: 'Can I get you anything before we start — tea, coffee?',
+      npc_translation: `Başlamadan önce birşey ister misin — çay, kahve?`,
       npc_mood: 'happy',
       options: [
         { text: 'A coffee would be great, thank you.', quality: 'good', feedback: 'Polite and natural — "would be great" is a very natural construction.' },
@@ -1939,6 +2206,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-03',
       npc_message: 'So, let\'s get started. Could you walk us through your proposal?',
+      npc_translation: `Öyleyse başlayalım. Önerinizi bize anlatır mısın?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Of course. I\'ll start with an overview of the key points.', quality: 'good', feedback: 'Confident, professional opener — sets the right tone.' },
@@ -1949,6 +2217,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-04',
       npc_message: 'That\'s interesting. What\'s the timeline you\'re proposing?',
+      npc_translation: `İlginç. Önerdiğin zaman çizelgesi nedir?`,
       npc_mood: 'neutral',
       options: [
         { text: 'We\'re looking at a six-month rollout, starting in Q3.', quality: 'good', feedback: '"Looking at" and "rollout" are natural business vocabulary.' },
@@ -1959,6 +2228,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-05',
       npc_message: 'We\'d need to see some cost projections before we can commit.',
+      npc_translation: `Taahhüt vermeden önce bazı maliyet projeksiyonlarını görmemiz gerekir.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Absolutely — I can have those over to you by end of week.', quality: 'good', feedback: '"Have those over to you" is natural professional English.' },
@@ -1969,6 +2239,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-06',
       npc_message: 'Do you have any questions for us at this stage?',
+      npc_translation: `Bu aşamada biz için soruların var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Yes — what does your decision-making process look like from here?', quality: 'good', feedback: 'Excellent question — shows strategic thinking.' },
@@ -1979,6 +2250,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-07',
       npc_message: 'We have some concerns about the scalability of the solution.',
+      npc_translation: `Çözümün ölçeklenebilirliği konusunda bazı endişelerimiz var.`,
       npc_mood: 'neutral',
       options: [
         { text: 'That\'s a fair concern — let me address that directly.', quality: 'good', feedback: 'Acknowledging concerns before responding is strong meeting etiquette.' },
@@ -1989,6 +2261,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-08',
       npc_message: 'Could you share some references from similar projects?',
+      npc_translation: `Benzer projelerden bazı referanslar paylaşabilir misin?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Certainly — I\'ll include three case studies in my follow-up email.', quality: 'good', feedback: 'Specific and professional — committing to a follow-up is strong.' },
@@ -1999,6 +2272,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-09',
       npc_message: 'I think we\'ve covered the main points. Shall we wrap up?',
+      npc_translation: `Sanırım ana noktaları ele aldık. Bitirelim mi?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Yes — I\'ll send a summary of the action points this afternoon.', quality: 'good', feedback: 'Taking initiative to send a follow-up summary is excellent professional practice.' },
@@ -2009,6 +2283,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-10',
       npc_message: 'Thank you for coming in. We\'ll be in touch.',
+      npc_translation: `Geldiğin için teşekkür ederim. Sana dönüş yapacağız.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Thank you, Sarah. I look forward to hearing from you.', quality: 'good', feedback: '"Look forward to hearing from you" is the classic professional sign-off.' },
@@ -2019,6 +2294,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-11',
       npc_message: 'One last thing — are you available for a follow-up call next Tuesday?',
+      npc_translation: `Son bir şey — sonraki Salı günü bir takip görüşmesi için uygun musun?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Tuesday works for me — morning or afternoon?', quality: 'good', feedback: 'Confirms availability and moves the conversation forward efficiently.' },
@@ -2029,6 +2305,7 @@ const businessEn: ScenarioDialogue = {
     {
       id: 'business-en-12',
       npc_message: 'We\'ll send a calendar invite. Safe travels back.',
+      npc_translation: `Takvim daveti göndereceğiz. Güvenle dön.`,
       npc_mood: 'happy',
       options: [
         { text: 'Thank you — I\'ll keep an eye out for it. Have a great day!', quality: 'good', feedback: '"Keep an eye out for it" is natural and warm.' },
@@ -2049,6 +2326,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-01',
       npc_message: 'Hey! I don\'t think we\'ve met — I\'m Jamie.',
+      npc_translation: `Merhaba! Sanırım daha tanışmamışız — ben Jamie.`,
       npc_mood: 'happy',
       options: [
         { text: 'Hey Jamie! I\'m Alex — nice to meet you.', quality: 'good', feedback: 'Warm and natural — matching their casual energy is key.' },
@@ -2059,6 +2337,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-02',
       npc_message: 'How do you know the host?',
+      npc_translation: `Ev sahibini nasıl tanıyorsun?`,
       npc_mood: 'happy',
       options: [
         { text: 'We went to university together — how about you?', quality: 'good', feedback: 'Answering and returning the question is the natural social move.' },
@@ -2069,6 +2348,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-03',
       npc_message: 'What do you do for work?',
+      npc_translation: `İşte ne yapıyorsun?`,
       npc_mood: 'neutral',
       options: [
         { text: 'I\'m in marketing — what about you?', quality: 'good', feedback: '"I\'m in [field]" is the natural casual phrasing.' },
@@ -2079,6 +2359,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-04',
       npc_message: 'Nice! I\'m a freelance photographer. Do you take many photos?',
+      npc_translation: `Güzel! Ben serbest çalışan bir fotoğrafçıyım. Çok fotoğraf çeker misin?`,
       npc_mood: 'happy',
       options: [
         { text: 'Mostly on my phone — nothing as impressive as a professional though!', quality: 'good', feedback: 'Humble, relatable and naturally conversational.' },
@@ -2089,6 +2370,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-05',
       npc_message: 'Are you local or did you come from far?',
+      npc_translation: `Siz buradan mısınız yoksa uzaktan mı geldiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'I\'m local — born and raised here actually.', quality: 'good', feedback: '"Born and raised" is a natural idiom that sounds fluent.' },
@@ -2099,6 +2381,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-06',
       npc_message: 'Have you tried the food here? It\'s amazing.',
+      npc_translation: `Buradaki yemeği tattınız mı? Harika.`,
       npc_mood: 'happy',
       options: [
         { text: 'Not yet — what do you recommend?', quality: 'good', feedback: 'Asking for a recommendation invites more conversation naturally.' },
@@ -2109,6 +2392,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-07',
       npc_message: 'You have to try the bruschetta — seriously, it\'s incredible.',
+      npc_translation: `Brüşeta'yı denemelisiniz — cidden, inanılmaz.`,
       npc_mood: 'happy',
       options: [
         { text: 'Sold! I\'ll grab some now.', quality: 'good', feedback: '"Sold!" is a great casual expression — sounds natural and enthusiastic.' },
@@ -2119,6 +2403,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-08',
       npc_message: 'Are you staying for the whole evening?',
+      npc_translation: `Akşamın tamamında mı kalıyorsunuz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'I think so — I\'ve got nowhere to be!', quality: 'good', feedback: '"I\'ve got nowhere to be" is a great casual expression.' },
@@ -2129,6 +2414,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-09',
       npc_message: 'We should swap numbers — I know some good spots for photos if you\'re interested.',
+      npc_translation: `Numaramızı değişmeliyiz — ilgileniyorsanız fotoğraflar için bildiğim güzel yerler var.`,
       npc_mood: 'happy',
       options: [
         { text: 'Definitely! I\'d love that.', quality: 'good', feedback: '"I\'d love that" is warm and enthusiastic.' },
@@ -2139,6 +2425,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-10',
       npc_message: 'It was really nice talking to you!',
+      npc_translation: `Seninle konuşmak gerçekten hoştu!`,
       npc_mood: 'happy',
       options: [
         { text: 'You too! Let\'s definitely catch up again.', quality: 'good', feedback: '"Catch up" is a natural social expression — sounds like a local.' },
@@ -2149,6 +2436,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-11',
       npc_message: 'Have you been to any good events lately?',
+      npc_translation: `Son zamanlarda herhangi iyi etkinliğe gittiniz mi?`,
       npc_mood: 'happy',
       options: [
         { text: 'Actually yes — there was a great live music night last week.', quality: 'good', feedback: 'Specific and engaging — gives the conversation something to build on.' },
@@ -2159,6 +2447,7 @@ const socialEn: ScenarioDialogue = {
     {
       id: 'social-en-12',
       npc_message: 'You should come to our photography walk next Sunday if you\'re free.',
+      npc_translation: `Gelecek pazar fotoğrafçılık yürüyüşümüze gelmek isterseniz gelmelisiniz.`,
       npc_mood: 'happy',
       options: [
         { text: 'That sounds brilliant — count me in!', quality: 'good', feedback: '"Count me in!" is enthusiastic and very natural.' },
@@ -2179,6 +2468,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-01',
       npc_message: 'Excuse me — do you need any help?',
+      npc_translation: `Özür dilerim — yardıma ihtiyacınız var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Yes please — I\'m a bit lost.', quality: 'good', feedback: '"A bit lost" is the natural, understated British way to say this.' },
@@ -2189,6 +2479,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-02',
       npc_message: 'Are you OK? You look like you might need some help.',
+      npc_translation: `İyi misiniz? Biraz yardıma ihtiyacınız varmış gibi görünüyorsunuz.`,
       npc_mood: 'neutral',
       options: [
         { text: 'I\'m fine, thanks — I just need to find the nearest pharmacy.', quality: 'good', feedback: 'Clear, natural and gets straight to the point.' },
@@ -2199,6 +2490,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-03',
       npc_message: 'What seems to be the problem?',
+      npc_translation: `Problem nedir?`,
       npc_mood: 'neutral',
       options: [
         { text: 'I\'ve got a really bad headache — do you have anything for pain?', quality: 'good', feedback: '"I\'ve got" + "anything for pain" is natural pharmacy language.' },
@@ -2209,6 +2501,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-04',
       npc_message: 'Have you taken anything for it already?',
+      npc_translation: `Bunun için zaten bir şey aldınız mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'No, not yet — that\'s why I came in.', quality: 'good', feedback: 'Natural and explains the situation clearly.' },
@@ -2219,6 +2512,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-05',
       npc_message: 'I\'d recommend ibuprofen — are you allergic to anything?',
+      npc_translation: `İbuprofen öneriyorum — herhangi bir şeye alerjiniz var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Not that I know of.', quality: 'good', feedback: '"Not that I know of" is a perfectly natural way to say you have no known allergies.' },
@@ -2229,6 +2523,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-06',
       npc_message: 'That will be £4.50, please.',
+      npc_translation: `Bu 4.50 pound lütfen.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Here you go. Can I pay by card?', quality: 'good', feedback: '"Here you go" is natural — offering the card before they ask shows awareness.' },
@@ -2239,6 +2534,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-07',
       npc_message: 'Take two tablets with water, every four to six hours.',
+      npc_translation: `Her dört ila altı saatte bir su ile iki tablet alın.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Got it — two tablets, every four to six hours. Thanks.', quality: 'good', feedback: 'Repeating back instructions shows you understood — excellent in medical contexts.' },
@@ -2249,6 +2545,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-08',
       npc_message: 'If it doesn\'t improve, please see a doctor.',
+      npc_translation: `İyileşmezse, lütfen bir doktoru ziyaret edin.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Will do — thank you for the advice.', quality: 'good', feedback: '"Will do" is natural British English for "I will."' },
@@ -2259,6 +2556,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-09',
       npc_message: 'Do you need anything else today?',
+      npc_translation: `Bugün başka bir şey istiyorsunuz mu?`,
       npc_mood: 'neutral',
       options: [
         { text: 'I think that\'s everything — thanks so much!', quality: 'good', feedback: '"I think that\'s everything" is very natural.' },
@@ -2269,6 +2567,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-10',
       npc_message: 'I hope you feel better soon!',
+      npc_translation: `Çabuk iyileşmenizi umarım!`,
       npc_mood: 'happy',
       options: [
         { text: 'Thank you — I\'m sure I will with these!', quality: 'good', feedback: 'Warm and natural — acknowledges their kindness.' },
@@ -2279,6 +2578,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-11',
       npc_message: 'Excuse me, could you tell me where the nearest supermarket is?',
+      npc_translation: `Özür dilerim, en yakın süpermarketin nerede olduğunu söyleyebilir misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Of course — there\'s one just around the corner on the high street.', quality: 'good', feedback: '"Just around the corner" is a natural, helpful locator.' },
@@ -2289,6 +2589,7 @@ const survivalEn: ScenarioDialogue = {
     {
       id: 'survival-en-12',
       npc_message: 'Does anyone here speak English? I need help with my phone.',
+      npc_translation: `Burada İngilizce konuşan var mı? Telefonumla ilgili yardıma ihtiyacım var.`,
       npc_mood: 'neutral',
       options: [
         { text: 'I do — what\'s the issue? Maybe I can help.', quality: 'good', feedback: '"What\'s the issue?" is a natural, helpful opener.' },
@@ -2309,6 +2610,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-01',
       npc_message: 'Bom dia! O que vai ser?',
+      npc_translation: `Günaydın! Ne sipariş edersiniz?`,
       npc_mood: 'happy',
       options: [
         { text: 'Um café com leite, por favor.', quality: 'good', feedback: 'Perfeito — pedido natural e educado.' },
@@ -2319,6 +2621,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-02',
       npc_message: 'Prefere sentado ou para levar?',
+      npc_translation: `Oturarak mı yoksa dışarı mı alırsınız?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Para levar, por favor.', quality: 'good', feedback: 'Claro e natural.' },
@@ -2329,6 +2632,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-03',
       npc_message: 'Quer alguma coisa para comer?',
+      npc_translation: `Yemek için bir şey ister misiniz?`,
       npc_mood: 'happy',
       options: [
         { text: 'Não, obrigado — só o café.', quality: 'good', feedback: 'Recusa gentil e natural.' },
@@ -2339,6 +2643,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-04',
       npc_message: 'Vai querer açúcar?',
+      npc_translation: `Şeker ister misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sim, um sachê, por favor.', quality: 'good', feedback: '"Sachê" é o termo correto no Brasil; em Portugal, "saqueta".' },
@@ -2349,6 +2654,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-05',
       npc_message: 'Vai querer mais alguma coisa?',
+      npc_translation: `Başka bir şey ister misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Não, é isso mesmo. Obrigado!', quality: 'good', feedback: '"É isso mesmo" é natural e conclusivo.' },
@@ -2359,6 +2665,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-06',
       npc_message: 'São três reais e cinquenta. Como prefere pagar?',
+      npc_translation: `Üç real ve elli. Nasıl ödemeyi tercih edersiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'No cartão, por favor.', quality: 'good', feedback: 'Natural e direto.' },
@@ -2369,6 +2676,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-07',
       npc_message: 'Tem cartão fidelidade conosco?',
+      npc_translation: `Bizimle sadakat kartınız var mı?`,
       npc_mood: 'happy',
       options: [
         { text: 'Não, mas adoraria ter. Como funciona?', quality: 'good', feedback: 'Demonstra interesse e mantém a conversa fluindo.' },
@@ -2379,6 +2687,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-08',
       npc_message: 'O café fica pronto em um minutinho.',
+      npc_translation: `Kahveniz bir dakika içinde hazır olacak.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Perfeito, aguardo aqui.', quality: 'good', feedback: '"Aguardo aqui" é natural e confirma que vai esperar.' },
@@ -2389,6 +2698,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-09',
       npc_message: 'Aqui está o seu café!',
+      npc_translation: `İşte sizin kahveniz!`,
       npc_mood: 'happy',
       options: [
         { text: 'Muito obrigado!', quality: 'good', feedback: 'Agradecimento cálido e natural.' },
@@ -2399,6 +2709,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-10',
       npc_message: 'Bom café! Tenha um bom dia.',
+      npc_translation: `Afiyet olsun! İyi bir gün geçirin.`,
       npc_mood: 'happy',
       options: [
         { text: 'Obrigado, você também!', quality: 'good', feedback: 'Retribuir o desejo é o fecho perfeito.' },
@@ -2409,6 +2720,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-11',
       npc_message: 'Desculpe, acabou o leite de aveia. Quer leite normal?',
+      npc_translation: `Özür dilerim, yulaf sütü bitti. Normal süt ister misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Tudo bem, pode ser leite normal mesmo.', quality: 'good', feedback: 'Flexível e educado.' },
@@ -2419,6 +2731,7 @@ const cafePt: ScenarioDialogue = {
     {
       id: 'cafe-pt-12',
       npc_message: 'Temos uma promoção hoje — compre dois e leve três.',
+      npc_translation: `Bugün bir promosyonumuz var — iki alın, üç alın.`,
       npc_mood: 'happy',
       options: [
         { text: 'Que ótimo! Vou aproveitar então — me dá mais dois.', quality: 'good', feedback: '"Vou aproveitar" é natural e mostra entusiasmo.' },
@@ -2439,6 +2752,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-01',
       npc_message: 'Bom dia! Para onde o senhor vai hoje?',
+      npc_translation: `Günaydın! Bugün nereye gidiyorsunuz?`,
       npc_mood: 'happy',
       options: [
         { text: 'Vou para o Rio de Janeiro, por favor.', quality: 'good', feedback: 'Claro, educado e natural.' },
@@ -2449,6 +2763,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-02',
       npc_message: 'Janela ou corredor?',
+      npc_translation: `Pencere tarafı mı yoksa koridor tarafı mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Janela, por favor — adoro a vista.', quality: 'good', feedback: 'Natural com um toque pessoal que humaniza a conversa.' },
@@ -2459,6 +2774,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-03',
       npc_message: 'Tem bagagem para despachar?',
+      npc_translation: `Sevk ettirecek bagajınız var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sim, uma mala, por favor.', quality: 'good', feedback: 'Resposta clara e precisa.' },
@@ -2469,6 +2785,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-04',
       npc_message: 'O trem está na plataforma dois. Parte em dez minutos.',
+      npc_translation: `Tren iki numaralı platformda. On dakika içinde kalkıyor.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Obrigado! Fica longe daqui?', quality: 'good', feedback: 'Pergunta prática e natural.' },
@@ -2479,6 +2796,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-05',
       npc_message: 'Com licença, esse lugar está ocupado?',
+      npc_translation: `Özür dilerim, bu yer dolu mu?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Não, pode sentar à vontade.', quality: 'good', feedback: '"À vontade" é uma expressão calorosa e natural.' },
@@ -2489,6 +2807,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-06',
       npc_message: 'O fiscal vai passar para ver os bilhetes.',
+      npc_translation: `Kontrol memuru biletleri görmek için geçecek.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Tudo bem, tenho o meu aqui.', quality: 'good', feedback: 'Natural e confiante.' },
@@ -2499,6 +2818,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-07',
       npc_message: 'Lamento informar — o trem está atrasado 20 minutos.',
+      npc_translation: `Maalesef haber vermek isterim — tren 20 dakika geç.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Tudo bem, obrigado por avisar. Vou perder a conexão?', quality: 'good', feedback: 'Reação tranquila e pergunta prática — ótimo.' },
@@ -2509,6 +2829,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-08',
       npc_message: 'Próxima estação: Campinas. Portas abrindo à direita.',
+      npc_translation: `Sonraki istasyon: Campinas. Kapılar sağdan açılıyor.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Obrigado, é a minha parada!', quality: 'good', feedback: 'Natural e entusiasmado.' },
@@ -2519,6 +2840,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-09',
       npc_message: 'Bem-vindo! Posso ajudar com alguma informação?',
+      npc_translation: `Hoşgeldiniz! Herhangi bir bilgi konusunda yardımcı olabilir miyim?`,
       npc_mood: 'happy',
       options: [
         { text: 'Sim — estou procurando o centro histórico.', quality: 'good', feedback: '"Estou procurando" é a forma natural para indicar busca.' },
@@ -2529,6 +2851,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-10',
       npc_message: 'O centro fica a uns quinze minutos a pé, pela Avenida Principal.',
+      npc_translation: `Şehir merkezi yaklaşık on beş dakikalık yürüyüş mesafesinde, Ana Cadde'den geçerek bulunmaktadır.`,
       npc_mood: 'happy',
       options: [
         { text: 'Perfeito! Muito obrigado pela ajuda.', quality: 'good', feedback: '"Muito obrigado pela ajuda" é caloroso e natural.' },
@@ -2539,6 +2862,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-11',
       npc_message: 'Quer um mapa da cidade?',
+      npc_translation: `Şehrin haritasını ister misiniz?`,
       npc_mood: 'happy',
       options: [
         { text: 'Sim, por favor — seria muito útil!', quality: 'good', feedback: '"Seria muito útil" é natural e agradecido.' },
@@ -2549,6 +2873,7 @@ const travelPt: ScenarioDialogue = {
     {
       id: 'travel-pt-12',
       npc_message: 'Aproveite bem a cidade! Qualquer dúvida, estamos aqui.',
+      npc_translation: `Şehri iyi geçirin! Herhangi bir sorunuz varsa, buradayız.`,
       npc_mood: 'happy',
       options: [
         { text: 'Muito obrigado! Tenho certeza que vou adorar.', quality: 'good', feedback: '"Tenho certeza que vou adorar" é entusiasmado e natural.' },
@@ -2569,6 +2894,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-01',
       npc_message: 'Bom dia! Acredito que temos uma reunião marcada. Sou a Ana Souza.',
+      npc_translation: `Günaydın! İnanıyorum ki bizim belirlenmiş bir toplantımız var. Ben Ana Souza'yım.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Bom dia, Ana. Sou o Carlos — é um prazer.', quality: 'good', feedback: '"É um prazer" é o cumprimento profissional natural.' },
@@ -2579,6 +2905,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-02',
       npc_message: 'Posso oferecer um café ou água antes de começarmos?',
+      npc_translation: `Başlamadan önce size kahve veya su sunabilir miyim?`,
       npc_mood: 'happy',
       options: [
         { text: 'Um café seria ótimo, obrigado.', quality: 'good', feedback: 'Educado e natural.' },
@@ -2589,6 +2916,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-03',
       npc_message: 'Então, poderia nos apresentar sua proposta?',
+      npc_translation: `Peki, bize teklifinizi sunabilir misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Claro. Vou começar com um panorama geral dos pontos principais.', quality: 'good', feedback: '"Panorama geral" é vocabulário profissional adequado.' },
@@ -2599,6 +2927,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-04',
       npc_message: 'Interessante. Qual é o cronograma proposto?',
+      npc_translation: `İlginç. Önerilen zaman çizelgesi nedir?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Estimamos seis meses, com início no terceiro trimestre.', quality: 'good', feedback: '"Estimamos" e "terceiro trimestre" são vocabulário profissional natural.' },
@@ -2609,6 +2938,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-05',
       npc_message: 'Precisaríamos ver uma projeção de custos antes de qualquer comprometimento.',
+      npc_translation: `Herhangi bir taahhüttedesurmeden önce bir maliyet projeksiyonu görmemiz gerekirdi.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Com certeza — posso enviar até o final da semana.', quality: 'good', feedback: 'Comprometimento com prazo é profissional e concreto.' },
@@ -2619,6 +2949,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-06',
       npc_message: 'Tem alguma dúvida para nós neste momento?',
+      npc_translation: `Şu anda bizim için herhangi bir sorunuz var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sim — como é o processo de decisão de vocês a partir daqui?', quality: 'good', feedback: 'Pergunta estratégica — mostra preparo e interesse genuíno.' },
@@ -2629,6 +2960,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-07',
       npc_message: 'Temos algumas preocupações sobre a escalabilidade da solução.',
+      npc_translation: `Çözümün ölçeklenebilirliği konusunda bazı endişelerimiz var.`,
       npc_mood: 'neutral',
       options: [
         { text: 'É uma preocupação válida — deixe-me abordar isso diretamente.', quality: 'good', feedback: 'Reconhecer antes de responder é uma boa prática em reuniões.' },
@@ -2639,6 +2971,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-08',
       npc_message: 'Poderia compartilhar referências de projetos similares?',
+      npc_translation: `Benzer projelerin referanslarını paylaşabilir misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Claro — incluirei três estudos de caso no e-mail de acompanhamento.', quality: 'good', feedback: 'Específico e profissional — comprometer-se com estudos de caso é forte.' },
@@ -2649,6 +2982,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-09',
       npc_message: 'Acho que cobrimos os pontos principais. Podemos encerrar?',
+      npc_translation: `Sanırım ana noktaları kapsadık. Bitirebilir miyiz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sim — envio um resumo dos próximos passos ainda hoje.', quality: 'good', feedback: 'Tomar a iniciativa do follow-up é uma prática profissional excelente.' },
@@ -2659,6 +2993,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-10',
       npc_message: 'Obrigada pela visita. Entraremos em contato.',
+      npc_translation: `Ziyaretiniz için teşekkür ederim. İletişime geçeceğiz.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Obrigado, Ana. Fico no aguardo do retorno.', quality: 'good', feedback: '"Fico no aguardo do retorno" é o encerramento profissional natural.' },
@@ -2669,6 +3004,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-11',
       npc_message: 'Uma última coisa — você está disponível para uma call de acompanhamento na próxima terça?',
+      npc_translation: `Son bir şey — gelecek salı için bir takip çağrısına uygun musunuz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Terça funciona — manhã ou tarde?', quality: 'good', feedback: 'Confirma disponibilidade e move a conversa adiante com precisão.' },
@@ -2679,6 +3015,7 @@ const businessPt: ScenarioDialogue = {
     {
       id: 'business-pt-12',
       npc_message: 'Enviaremos o convite pelo calendário. Boa viagem de volta.',
+      npc_translation: `Takvim aracılığıyla davet göndereceğiz. Dönüş yolculuğu iyi olsun.`,
       npc_mood: 'happy',
       options: [
         { text: 'Obrigado — estarei de olho no convite. Tenha um ótimo dia!', quality: 'good', feedback: '"Estarei de olho" é natural e cálido.' },
@@ -2699,6 +3036,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-01',
       npc_message: 'Oi! Acho que a gente ainda não se conhece — sou a Lara.',
+      npc_translation: `Merhaba! Sanırım birbirimizi tanımıyoruz — ben Lara'yım.`,
       npc_mood: 'happy',
       options: [
         { text: 'Oi, Lara! Sou o Gui — que bom te conhecer!', quality: 'good', feedback: 'Cálido e natural — espelhar a energia da pessoa é chave.' },
@@ -2709,6 +3047,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-02',
       npc_message: 'Como você conhece o anfitrião?',
+      npc_translation: `Ev sahibini nasıl tanıyorsunuz?`,
       npc_mood: 'happy',
       options: [
         { text: 'A gente se conheceu na faculdade — e você?', quality: 'good', feedback: 'Resposta e contraperguntar flui naturalmente.' },
@@ -2719,6 +3058,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-03',
       npc_message: 'O que você faz da vida?',
+      npc_translation: `Hayatınızda ne yapıyorsunuz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Trabalho com marketing — e você?', quality: 'good', feedback: '"Trabalho com" é a forma natural em PT-BR.' },
@@ -2729,6 +3069,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-04',
       npc_message: 'Legal! Sou fotógrafa freelance. Você tira muitas fotos?',
+      npc_translation: `Harika! Freelance fotoğrafçıyım. Siz çok fazla fotoğraf çeker misiniz?`,
       npc_mood: 'happy',
       options: [
         { text: 'Só pelo celular — nada comparado a você!', quality: 'good', feedback: 'Humilde, relativo e conversa com naturalidade.' },
@@ -2739,6 +3080,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-05',
       npc_message: 'Você é daqui ou veio de longe?',
+      npc_translation: `Buradan mı geliyorsunuz yoksa uzaktan mı geldiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sou daqui mesmo — nasci e cresci aqui.', quality: 'good', feedback: '"Nasci e cresci" é uma expressão natural e fluente.' },
@@ -2749,6 +3091,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-06',
       npc_message: 'Você já provou a comida aqui? Está incrível!',
+      npc_translation: `Buradaki yemeği tatmış mısınız? İnanılmaz derecede lezzetli!`,
       npc_mood: 'happy',
       options: [
         { text: 'Ainda não — o que você recomenda?', quality: 'good', feedback: 'Perguntar por recomendação abre mais conversa naturalmente.' },
@@ -2759,6 +3102,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-07',
       npc_message: 'Você precisa provar a bruschetta — é de outro mundo!',
+      npc_translation: `Bruschetta'yı tatmanız gerekiyor — bambaşka bir şey!`,
       npc_mood: 'happy',
       options: [
         { text: 'Vendido! Vou pegar agora.', quality: 'good', feedback: '"Vendido!" é uma gíria natural e entusiasmada.' },
@@ -2769,6 +3113,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-08',
       npc_message: 'Você fica até mais tarde?',
+      npc_translation: `Daha sonra kalacak mısınız?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Pretendo — não tenho compromisso amanhã cedo!', quality: 'good', feedback: '"Pretendo" é natural e a justificativa humaniza a resposta.' },
@@ -2779,6 +3124,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-09',
       npc_message: 'A gente deveria trocar o número — conheço uns lugares ótimos para foto aqui.',
+      npc_translation: `Telefon numaramızı değişmeliyiz — burada fotoğrafçılık için harika yerler biliyorum.`,
       npc_mood: 'happy',
       options: [
         { text: 'Com certeza! Me passa o seu.', quality: 'good', feedback: '"Com certeza" é entusiasta e natural.' },
@@ -2789,6 +3135,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-10',
       npc_message: 'Foi ótimo conversar com você!',
+      npc_translation: `Seninle konuşmak harika oldu!`,
       npc_mood: 'happy',
       options: [
         { text: 'Igualmente! A gente se encontra em breve.', quality: 'good', feedback: '"Igualmente" é um fechamento cálido e natural.' },
@@ -2799,6 +3146,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-11',
       npc_message: 'Tem ido a algum evento legal ultimamente?',
+      npc_translation: `Son zamanlarda herhangi bir güzel etkinliğe katıldınız mı?`,
       npc_mood: 'happy',
       options: [
         { text: 'Sim! Fui a um show de música ao vivo semana passada — foi incrível.', quality: 'good', feedback: 'Específico e engajador — dá algo concreto para continuar a conversa.' },
@@ -2809,6 +3157,7 @@ const socialPt: ScenarioDialogue = {
     {
       id: 'social-pt-12',
       npc_message: 'Você deveria vir no nosso passeio fotográfico no próximo domingo se estiver livre.',
+      npc_translation: `Eğer müsait iseniz, gelecek pazar günü fotoğraf gezimize katılmalısınız.`,
       npc_mood: 'happy',
       options: [
         { text: 'Adoraria — conte comigo!', quality: 'good', feedback: '"Conte comigo" é entusiasta e muito natural.' },
@@ -2829,6 +3178,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-01',
       npc_message: 'Com licença — precisa de ajuda?',
+      npc_translation: `Affedersiniz — yardıma ihtiyacınız var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Sim, por favor — estou um pouco perdido.', quality: 'good', feedback: '"Estou um pouco perdido" é natural e não-alarmante.' },
@@ -2839,6 +3189,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-02',
       npc_message: 'Está bem? Parece que precisa de auxílio.',
+      npc_translation: `İyi misiniz? Yardıma ihtiyacınız varmış gibi görünüyor.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Estou bem, obrigado — preciso encontrar uma farmácia.', quality: 'good', feedback: 'Tranquilo e direto ao ponto.' },
@@ -2849,6 +3200,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-03',
       npc_message: 'O que está acontecendo?',
+      npc_translation: `Ne oluyor?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Estou com uma dor de cabeça forte — tem algo para dor?', quality: 'good', feedback: '"Tem algo para dor?" é a forma natural de perguntar numa farmácia.' },
@@ -2859,6 +3211,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-04',
       npc_message: 'Já tomou alguma coisa para isso?',
+      npc_translation: `Bunun için daha önce bir şey aldınız mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Ainda não — por isso vim aqui.', quality: 'good', feedback: 'Natural e explica a situação claramente.' },
@@ -2869,6 +3222,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-05',
       npc_message: 'Recomendo o ibuprofeno — tem alguma alergia?',
+      npc_translation: `İbuprofeni tavsiye ederim — herhangi bir alerji var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Não que eu saiba.', quality: 'good', feedback: '"Não que eu saiba" é natural e cobre a incerteza.' },
@@ -2879,6 +3233,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-06',
       npc_message: 'São R$12,50. Como prefere pagar?',
+      npc_translation: `12,50 R$. Nasıl ödemeyi tercih edersiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'No cartão, por favor.', quality: 'good', feedback: 'Natural e direto.' },
@@ -2889,6 +3244,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-07',
       npc_message: 'Tome dois comprimidos com água, a cada quatro horas.',
+      npc_translation: `İki hapı su ile, dört saatte bir alın.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Entendido — dois comprimidos a cada quatro horas. Obrigado.', quality: 'good', feedback: 'Repetir as instruções mostra que entendeu — ótimo em contextos médicos.' },
@@ -2899,6 +3255,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-08',
       npc_message: 'Se não melhorar, consulte um médico.',
+      npc_translation: `İyileşmezse, bir doktora danışın.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Certo — obrigado pelo conselho.', quality: 'good', feedback: 'Natural e grato.' },
@@ -2909,6 +3266,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-09',
       npc_message: 'Precisa de mais alguma coisa?',
+      npc_translation: `Başka bir şeye ihtiyacınız var mı?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Não, acho que é isso — muito obrigado!', quality: 'good', feedback: '"Acho que é isso" é natural e encerrativo.' },
@@ -2919,6 +3277,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-10',
       npc_message: 'Melhoras!',
+      npc_translation: `Geçmiş olsun!`,
       npc_mood: 'happy',
       options: [
         { text: 'Muito obrigado — tenho certeza que vou melhorar!', quality: 'good', feedback: 'Caloroso e natural — reconhece o desejo deles.' },
@@ -2929,6 +3288,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-11',
       npc_message: 'Com licença, poderia me dizer onde fica o supermercado mais próximo?',
+      npc_translation: `Affedersiniz, en yakın süpermarketi bana söyleyebilir misiniz?`,
       npc_mood: 'neutral',
       options: [
         { text: 'Claro — tem um logo ali na esquina.', quality: 'good', feedback: '"Logo ali na esquina" é uma localização natural e visual.' },
@@ -2939,6 +3299,7 @@ const survivalPt: ScenarioDialogue = {
     {
       id: 'survival-pt-12',
       npc_message: 'Alguém aqui fala português? Preciso de ajuda com meu celular.',
+      npc_translation: `Burada birisi Portekizce konuşuyor mu? Cep telefonum konusunda yardıma ihtiyacım var.`,
       npc_mood: 'neutral',
       options: [
         { text: 'Eu falo — qual é o problema? Talvez eu possa ajudar.', quality: 'good', feedback: '"Talvez eu possa ajudar" é natural e acolhedor.' },

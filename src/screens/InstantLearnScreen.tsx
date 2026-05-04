@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   kicker: { color: colors.accentWarm, fontSize: typography.size.xs, fontFamily: 'InterTight_600SemiBold', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
   title: { color: colors.inkPrimary, fontSize: 28, fontFamily: 'InterTight_600SemiBold' },
   subtitle: { color: colors.inkSecondary, fontSize: 15, lineHeight: 22, marginTop: 8 },
-  card: { backgroundColor: colors.bgMid, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: colors.hairlineStrong },
+  card: { backgroundColor: colors.bgMid, borderRadius: 20, padding: 18, borderWidth: 1.5, borderColor: colors.hairlineStrong },
   cardLabel: { color: colors.inkPrimary, fontSize: 15, fontFamily: 'InterTight_600SemiBold', marginBottom: 10 },
   input: { minHeight: 104, color: colors.inkPrimary, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   chipsWrap: { gap: 8, marginTop: 12 },

@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   title: { color: colors.inkPrimary, fontSize: typography.size.lg, fontWeight: typography.weight.black, marginLeft: spacing.md, flex: 1 },
   scoreMini: { color: colors.accentWarm, fontSize: typography.size.sm, fontWeight: typography.weight.bold },
 
-  setupCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline },
+  setupCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairlineStrong },
   setupTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginBottom: spacing.sm },
   setupSub: { color: colors.inkSecondary, fontSize: typography.size.sm, lineHeight: 20, marginBottom: spacing.lg },
   diffRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
@@ -577,12 +577,12 @@ const styles = StyleSheet.create({
   timerFrozen: { backgroundColor: 'rgba(95,124,168,0.5)' },
   timerText: { color: colors.inkTertiary, fontSize: typography.size.xs, marginBottom: spacing.md, textAlign: 'right' },
 
-  promptCard: { backgroundColor: colors.bgMid, borderRadius: 16, borderWidth: 1, borderColor: colors.hairline, padding: spacing.lg, marginBottom: spacing.md, alignItems: 'center' },
+  promptCard: { backgroundColor: colors.bgMid, borderRadius: 20, borderWidth: 1, borderColor: colors.hairlineStrong, padding: spacing.lg, marginBottom: spacing.md, alignItems: 'center' },
   promptLabel: { color: colors.inkTertiary, fontSize: typography.size.xs, letterSpacing: 1.2, fontWeight: typography.weight.bold },
   promptText: { color: colors.inkPrimary, fontSize: 30, fontWeight: typography.weight.black, marginTop: spacing.sm },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  option: { width: '48.5%', backgroundColor: colors.bgMid, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.hairline },
+  option: { width: '48.5%', backgroundColor: colors.bgMid, borderRadius: 18, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.hairlineStrong },
   optionIconPlate: {
     width: 58,
     height: 58,
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   feedbackBad: { color: colors.errorDs, fontWeight: typography.weight.bold },
   accText: { textAlign: 'center', color: colors.inkTertiary, fontSize: typography.size.xs, marginTop: spacing.xs },
 
-  resultCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline, alignItems: 'center' },
+  resultCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairlineStrong, alignItems: 'center' },
   resultEmoji: { fontSize: 54, marginBottom: spacing.sm },
   resultTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black },
   resultScore: { color: colors.accentWarm, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },

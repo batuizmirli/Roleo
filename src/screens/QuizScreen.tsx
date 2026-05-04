@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   options: { gap: 10, marginBottom: 16 },
   option: {
     backgroundColor: colors.bgMid,
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,8 +273,8 @@ const styles = StyleSheet.create({
 
   explanationBox: {
     backgroundColor: colors.bgMid,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 18,
+    padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: `${colors.accentWarm}30`,

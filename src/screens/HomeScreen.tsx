@@ -27,9 +27,10 @@ type Props = {
   onDebug?: () => void;
   onStartDailyMission?: () => void;
   onOpenProgress?: () => void;
+  onOpenJournal?: () => void;
 };
 
-export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission, onOpenProgress }: Props) {
+export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission, onOpenProgress, onOpenJournal }: Props) {
   const insets = useSafeAreaInsets();
   const t = useAppTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -154,7 +155,7 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
         <ImageBackground
           source={todaySceneBg ? { uri: todaySceneBg } : undefined}
           style={styles.sceneCard}
-          imageStyle={{ opacity: 0.4, borderRadius: 20 }}
+          imageStyle={{ opacity: 0.55, borderRadius: 20 }}
         >
           <LinearGradient
             colors={['rgba(40,30,22,0.60)', 'rgba(18,24,34,0.92)']}
@@ -188,6 +189,29 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
           <Feather name="arrow-right" size={16} color={colors.bgDeep} />
         </TouchableOpacity>
 
+        {/* Quick action grid */}
+        <View style={styles.quickGrid}>
+          {[
+            { icon: 'mic' as const, label: 'Sesli pratik', onPress: onStartDailyMission },
+            { icon: 'book-open' as const, label: 'Prova defteri', onPress: onOpenJournal },
+            { icon: 'zap' as const, label: 'Anlık öğren', onPress: undefined },
+            { icon: 'bar-chart-2' as const, label: 'Gelişimim', onPress: onOpenProgress },
+          ].map(({ icon, label, onPress }) => (
+            <TouchableOpacity
+              key={label}
+              style={styles.quickCard}
+              activeOpacity={0.75}
+              onPress={onPress}
+              disabled={!onPress}
+            >
+              <View style={styles.quickCardIcon}>
+                <Feather name={icon} size={16} color={colors.accentWarm} />
+              </View>
+              <Text style={styles.quickCardLabel}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Progress block */}
         <TouchableOpacity
           style={styles.progressBlock}
@@ -195,14 +219,21 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
           activeOpacity={0.7}
           disabled={!onOpenProgress}
         >
-          <View style={styles.progressBlockTop}>
-            <View style={styles.progressBlockLeft}>
-              <Text style={styles.progressLevelName}>{levelName}</Text>
-              <Text style={styles.progressLevelSub}>{xp} XP · Seviye {level}</Text>
+          {/* Stat row */}
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{xp} XP</Text>
+              <Text style={styles.statLabel}>Toplam</Text>
             </View>
-            <View style={styles.progressBlockRight}>
-              <Feather name="zap" size={11} color={colors.accentWarm} />
-              <Text style={styles.progressStreakText}>{t('home.streak', { count: streak })}</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{streak} gün</Text>
+              <Text style={styles.statLabel}>Seri</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>Sv. {level}</Text>
+              <Text style={styles.statLabel}>{levelName}</Text>
             </View>
           </View>
           <View style={styles.xpTrack}>
@@ -234,28 +265,33 @@ export default function HomeScreen({ onOpenAccount, onDebug, onStartDailyMission
 
         {/* Last scene session memory */}
         {lastSession && (
-          <View style={styles.lastSessionCard}>
+          <TouchableOpacity
+            style={styles.lastSessionCard}
+            onPress={onOpenJournal}
+            activeOpacity={onOpenJournal ? 0.75 : 1}
+            disabled={!onOpenJournal}
+          >
             <View style={styles.lastSessionHeader}>
-              <Text style={styles.lastSessionEyebrow}>SON PROVA</Text>
+              <Text style={styles.lastSessionEyebrow}>SON PROVADAN HATIRLADIM</Text>
               <Text style={styles.lastSessionScenario} numberOfLines={1}>
                 {lastSession.scenarioTitle}
-                {lastSession.npcPersona ? ` · ${lastSession.npcPersona}` : ''}
               </Text>
             </View>
-            {lastSession.bestLine ? (
-              <Text style={styles.lastSessionBestLine} numberOfLines={2}>
+            {lastSession.nextFocus ? (
+              <Text style={styles.lastSessionMemoryLine} numberOfLines={3}>
+                {lastSession.nextFocus}
+              </Text>
+            ) : lastSession.bestLine ? (
+              <Text style={styles.lastSessionMemoryLine} numberOfLines={2}>
                 "{lastSession.bestLine}"
               </Text>
             ) : null}
-            {lastSession.nextFocus ? (
-              <View style={styles.lastSessionFocusRow}>
-                <Feather name="arrow-right" size={11} color={colors.inkTertiary} />
-                <Text style={styles.lastSessionFocus} numberOfLines={2}>
-                  {lastSession.nextFocus}
-                </Text>
+            {onOpenJournal ? (
+              <View style={styles.lastSessionFooter}>
+                <Text style={styles.lastSessionJournalLink}>Prova defteri →</Text>
               </View>
             ) : null}
-          </View>
+          </TouchableOpacity>
         )}
 
         <View style={styles.plusMemoryCard}>
@@ -365,7 +401,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(232,181,118,0.18)',
     overflow: 'hidden',
     padding: 20,
+    minHeight: 210,
     backgroundColor: 'rgba(28,20,14,0.7)',
+    justifyContent: 'flex-end',
   },
   sceneCardGradient: {
     ...StyleSheet.absoluteFillObject,
@@ -428,6 +466,63 @@ const styles = StyleSheet.create({
     color: colors.bgDeep,
   },
 
+  // Quick action grid
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickCard: {
+    width: (SW - 48 - 10) / 2,
+    backgroundColor: colors.bgMid,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    padding: 14,
+    gap: 10,
+  },
+  quickCardIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(232,181,118,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickCardLabel: {
+    fontFamily: 'InterTight_500Medium',
+    fontSize: 13,
+    color: colors.inkSecondary,
+    letterSpacing: -0.1,
+  },
+
+  // Stat row inside progress block
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: {
+    fontFamily: 'InterTight_600SemiBold',
+    fontSize: 14,
+    color: colors.inkPrimary,
+    letterSpacing: -0.2,
+  },
+  statLabel: {
+    fontFamily: 'InterTight_400Regular',
+    fontSize: 10,
+    color: colors.inkTertiary,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.hairlineStrong,
+  },
+
   // Progress block
   progressBlock: {
     backgroundColor: colors.bgMid,
@@ -485,9 +580,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     backgroundColor: colors.bgMid,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     borderLeftWidth: 2,
     borderLeftColor: colors.accentWarmSoft,
     paddingHorizontal: 14,
@@ -534,9 +629,9 @@ const styles = StyleSheet.create({
   // Last session memory card
   lastSessionCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8,
@@ -554,36 +649,31 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.inkSecondary,
   },
-  lastSessionBestLine: {
-    fontFamily: 'Fraunces_300Light_Italic',
+  lastSessionMemoryLine: {
+    fontFamily: 'InterTight_400Regular',
     fontSize: 13,
-    color: colors.inkPrimary,
+    color: colors.inkSecondary,
     lineHeight: 19,
-    letterSpacing: -0.2,
   },
-  lastSessionFocusRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    paddingTop: 4,
+  lastSessionFooter: {
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
-  lastSessionFocus: {
-    flex: 1,
-    ...typography.body,
+  lastSessionJournalLink: {
+    fontFamily: 'InterTight_500Medium',
     fontSize: 11.5,
-    color: colors.inkTertiary,
-    lineHeight: 16,
+    color: colors.accentWarmSoft,
+    letterSpacing: 0.2,
   },
   plusMemoryCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
     backgroundColor: 'rgba(255,255,255,0.025)',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },

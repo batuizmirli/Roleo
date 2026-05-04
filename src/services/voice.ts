@@ -6,6 +6,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio';
+import { sendMessage } from './claude';
 import type { VoiceAttempt } from '../types';
 
 export type VoiceAttemptEvaluation = {
@@ -46,7 +47,56 @@ const keywordsFor = (targetText: string) =>
 type ActiveRecorder = InstanceType<typeof AudioModule.AudioRecorder>;
 
 const STT_ENDPOINT = process.env.EXPO_PUBLIC_STT_PROXY_URL;
+const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 let activeRecorder: ActiveRecorder | null = null;
+
+export const isSttConfigured = (): boolean => !!(STT_ENDPOINT || OPENAI_API_KEY);
+
+export const isVoiceRecordingActive = (): boolean => activeRecorder != null;
+let cachedVoiceId: string | null = null;
+
+const maleVoiceHints: Record<string, string[]> = {
+  en: ['daniel', 'thomas', 'aaron', 'fred', 'alex', 'male'],
+  es: ['jorge', 'diego', 'carlos', 'male'],
+  fr: ['thomas', 'nicolas', 'male'],
+  de: ['thomas', 'male'],
+  it: ['luca', 'male'],
+  pt: ['joao', 'male'],
+  tr: ['male'],
+};
+
+const highQualityVoiceHints = ['neural', 'premium', 'enhanced', 'natural', 'wavenet'];
+const friendlyVoiceHints = ['siri', 'ava', 'alloy', 'nova', 'aria', 'jenny', 'emma', 'mia', 'clara'];
+const energeticVoiceHints = ['expressive', 'energetic', 'cheerful', 'bright', 'lively'];
+const roboticVoiceHints = ['compact', 'classic', 'default', 'legacy'];
+
+const resolveNpcVoiceIdentifier = async (language: string): Promise<string | undefined> => {
+  try {
+    if (cachedVoiceId) return cachedVoiceId;
+    const locale = speechLang[language.slice(0, 2)] ?? language;
+    const voices = await Speech.getAvailableVoicesAsync();
+    const localeVoices = voices.filter(v => v.language?.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
+    if (!localeVoices.length) return undefined;
+
+    const maleHints = maleVoiceHints[language.slice(0, 2)] ?? ['male'];
+    const scoreVoice = (voice: Speech.Voice) => {
+      const bucket = `${voice.name ?? ''} ${voice.identifier ?? ''}`.toLowerCase();
+      let score = 0;
+      if (highQualityVoiceHints.some(h => bucket.includes(h))) score += 4;
+      if (friendlyVoiceHints.some(h => bucket.includes(h))) score += 3;
+      if (energeticVoiceHints.some(h => bucket.includes(h))) score += 2;
+      if (maleHints.some(h => bucket.includes(h))) score -= 1;
+      if (roboticVoiceHints.some(h => bucket.includes(h))) score -= 3;
+      return score;
+    };
+
+    const pick = [...localeVoices].sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
+    cachedVoiceId = pick.identifier ?? null;
+    return pick.identifier;
+  } catch {
+    return undefined;
+  }
+};
 
 const mimeForUri = (uri: string) => {
   const lower = uri.toLowerCase();
@@ -69,15 +119,34 @@ export const cleanupVoiceRecording = async (uri?: string): Promise<void> => {
 };
 
 export const speakNpcLine = async (text: string, language: string): Promise<void> => {
+  const cleanText = text.replace(/^["“]|["”]$/g, '');
+  const locale = speechLang[language.slice(0, 2)] ?? language;
+  const baseOptions = {
+    language: locale,
+    rate: 1.02,
+    pitch: 1.06,
+  } as const;
+
   try {
     await Speech.stop();
-    Speech.speak(text.replace(/^["“]|["”]$/g, ''), {
-      language: speechLang[language.slice(0, 2)] ?? language,
-      rate: 0.92,
-      pitch: 1,
-    });
+    const voice = await resolveNpcVoiceIdentifier(language);
+    try {
+      Speech.speak(cleanText, {
+        ...baseOptions,
+        voice,
+      });
+    } catch {
+      // Some devices expose voices that are not actually playable.
+      // Retry with system default so speech never goes silent.
+      cachedVoiceId = null;
+      Speech.speak(cleanText, baseOptions);
+    }
   } catch {
-    // TTS is optional; never block the text flow.
+    try {
+      Speech.speak(cleanText, baseOptions);
+    } catch {
+      // TTS is optional; never block the text flow.
+    }
   }
 };
 
@@ -148,35 +217,67 @@ export const stopVoiceRecording = async (): Promise<{ uri?: string }> => {
   }
 };
 
-export const transcribeVoice = async (uri: string, language: string): Promise<{ transcript: string; confidence?: number }> => {
-  if (!STT_ENDPOINT || !uri || uri.startsWith('mock-voice')) {
-    return { transcript: '', confidence: undefined };
-  }
+const buildSttFormData = (uri: string, language: string) => {
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    name: `roleo-voice-${Date.now().toString(36)}.m4a`,
+    type: mimeForUri(uri),
+  } as unknown as Blob);
+  formData.append('language', language);
+  return formData;
+};
+
+export const transcribeVoice = async (
+  uri: string,
+  language: string,
+  opts?: { deleteFile?: boolean },
+): Promise<{ transcript: string; confidence?: number }> => {
+  const deleteFile = opts?.deleteFile !== false;
+  console.log('[STT] uri:', uri, 'stt_endpoint:', STT_ENDPOINT, 'openai_key:', OPENAI_API_KEY ? 'SET' : 'MISSING');
+  if (!uri || uri.startsWith('mock-voice')) return { transcript: '', confidence: undefined };
 
   try {
-    const formData = new FormData();
-    formData.append('file', {
-      uri,
-      name: `roleo-voice-${Date.now().toString(36)}.m4a`,
-      type: mimeForUri(uri),
-    } as unknown as Blob);
-    formData.append('language', language);
+    if (STT_ENDPOINT) {
+      const response = await fetch(STT_ENDPOINT, {
+        method: 'POST',
+        body: buildSttFormData(uri, language),
+      });
+      if (!response.ok) return { transcript: '', confidence: undefined };
+      const data = await response.json();
+      return {
+        transcript: typeof data.transcript === 'string' ? data.transcript : '',
+        confidence: typeof data.confidence === 'number' ? data.confidence : undefined,
+      };
+    }
 
-    const response = await fetch(STT_ENDPOINT, {
-      method: 'POST',
-      body: formData,
-    });
+    if (OPENAI_API_KEY) {
+      const formData = buildSttFormData(uri, language);
+      formData.append('model', 'whisper-1');
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: formData,
+      });
+      console.log('[STT] OpenAI status:', response.status);
+      if (!response.ok) {
+        const err = await response.text();
+        console.log('[STT] OpenAI error:', err);
+        return { transcript: '', confidence: undefined };
+      }
+      const data = await response.json();
+      console.log('[STT] OpenAI result:', data);
+      return {
+        transcript: typeof data.text === 'string' ? data.text : '',
+        confidence: undefined,
+      };
+    }
 
-    if (!response.ok) return { transcript: '', confidence: undefined };
-    const data = await response.json();
-    return {
-      transcript: typeof data.transcript === 'string' ? data.transcript : '',
-      confidence: typeof data.confidence === 'number' ? data.confidence : undefined,
-    };
+    return { transcript: '', confidence: undefined };
   } catch {
     return { transcript: '', confidence: undefined };
   } finally {
-    await cleanupVoiceRecording(uri);
+    if (deleteFile) await cleanupVoiceRecording(uri);
   }
 };
 
@@ -206,6 +307,77 @@ export const evaluateVoiceAttempt = async (
   }
 
   return { confidence, feedback, meaningClear, missingKeywords };
+};
+
+type OptionForEval = { text: string; quality: string };
+
+export const claudeEvaluateVoice = async (
+  transcript: string,
+  options: OptionForEval[],
+  language: string,
+): Promise<{ quality: 'good' | 'ok' | 'awkward'; feedback: string } | null> => {
+  try {
+    const isTr = language.slice(0, 2) === 'tr';
+    const optionList = options.map((o, i) => `${i + 1}. [${o.quality}] "${o.text}"`).join('\n');
+    const feedbackLang = isTr ? 'Turkish' : language;
+    const prompt = `Language: ${language}. User said: "${transcript}"\n\nOptions:\n${optionList}\n\nWhich option best matches the meaning? Give a one-sentence feedback in ${feedbackLang}.\nReply JSON only: {"match":1,"quality":"good|ok|awkward","feedback":"..."}`;
+    const raw = await sendMessage(
+      [{ id: 'v1', role: 'user', content: prompt, timestamp: new Date() }],
+      'You are a language learning evaluator. Evaluate voice responses by meaning, not exact words. JSON only, no extra text.',
+      { maxTokens: 120, model: 'claude-haiku-4-5-20251001' },
+    );
+    const parsed = JSON.parse(raw.trim());
+    const q = parsed.quality;
+    if (q !== 'good' && q !== 'ok' && q !== 'awkward') return null;
+    return { quality: q, feedback: typeof parsed.feedback === 'string' ? parsed.feedback : '' };
+  } catch {
+    return null;
+  }
+};
+
+/** Scene reply: feedback must reference what the learner actually said, in dialogue context. */
+export const claudeEvaluateSceneVoice = async (
+  transcript: string,
+  npcLine: string,
+  sceneMission: string | undefined,
+  options: OptionForEval[],
+  language: string,
+): Promise<{ quality: 'good' | 'ok' | 'awkward'; feedback: string } | null> => {
+  try {
+    const isTr = language.slice(0, 2) === 'tr';
+    const feedbackInstruction = isTr
+      ? '3) feedback: ONE short sentence in Turkish.'
+      : `3) feedback: ONE short sentence in the learner's target language (match the dialogue language; language code ${language}). Do not use English unless the target language is English.`;
+    const optionList = options.map((o, i) => `${i + 1}. [${o.quality}] "${o.text}"`).join('\n');
+    const mission = sceneMission ?? 'natural conversation';
+    const prompt = `Target language code: ${language}.
+NPC just said (in the target language): "${npcLine}"
+Scene goal: ${mission}
+
+The learner spoke this (transcription, target language): "${transcript}"
+
+Reference lines (quality labels are hints only — the learner may paraphrase freely):
+${optionList}
+
+Task:
+1) Judge how well the learner's utterance fits as a reply to the NPC line in this situation — by meaning and social fit, not exact word match.
+2) quality: "good" = natural and appropriate, "ok" = understandable but stiff, vague, or slightly off-register, "awkward" = confusing, wrong intent, or would create friction in the scene.
+${feedbackInstruction}
+It MUST react to the learner's actual words (quote or paraphrase a fragment if helpful). Do not describe "options" or "choices". Sound like a calm rehearsal note, not a teacher score.
+
+Reply JSON only: {"quality":"good|ok|awkward","feedback":"..."}`;
+    const raw = await sendMessage(
+      [{ id: 'sv1', role: 'user', content: prompt, timestamp: new Date() }],
+      'You output valid JSON only. No markdown, no extra keys.',
+      { maxTokens: 180, model: 'claude-haiku-4-5-20251001' },
+    );
+    const parsed = JSON.parse(raw.trim());
+    const q = parsed.quality;
+    if (q !== 'good' && q !== 'ok' && q !== 'awkward') return null;
+    return { quality: q, feedback: typeof parsed.feedback === 'string' ? parsed.feedback : '' };
+  } catch {
+    return null;
+  }
 };
 
 export const createVoiceAttempt = (params: {

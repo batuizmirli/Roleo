@@ -358,7 +358,7 @@ function ScenarioCardPhoto({
       }}
     >
       <LinearGradient
-        colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.72)']}
+        colors={['rgba(10,14,20,0.02)', 'rgba(10,14,20,0.88)']}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.cardPhotoOverlay}>
@@ -465,18 +465,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   tabBtn: {
-    minWidth: 104,
-    borderRadius: 14,
+    minWidth: 96,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
     backgroundColor: colors.bgMid,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   tabBtnActive: {
     borderColor: colors.accentWarm,
-    backgroundColor: colors.bgSoft,
+    backgroundColor: 'rgba(232,181,118,0.12)',
   },
   tabText: {
     ...typography.bodyMedium,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     color: colors.accentWarm,
   },
   sceneList: {
-    gap: 10,
+    gap: 14,
   },
 
   groupWrap: { marginBottom: 28 },
@@ -569,17 +569,17 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.bgMid,
-    borderRadius: 18,
-    marginBottom: 10,
+    borderRadius: 20,
+    marginBottom: 0,
     borderWidth: 1,
-    borderColor: colors.hairline,
+    borderColor: colors.hairlineStrong,
     overflow: 'hidden',
   },
   cardDone: { borderColor: colors.hairlineStrong },
 
   cardPhoto: {
     width: '100%',
-    height: 130,
+    height: 180,
     justifyContent: 'flex-end',
   },
   cardPhotoOverlay: {

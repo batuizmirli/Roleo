@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   title: { color: colors.inkPrimary, fontSize: typography.size.lg, fontWeight: typography.weight.black, marginLeft: spacing.md, flex: 1 },
   scoreMini: { color: colors.accentWarm, fontWeight: typography.weight.bold },
 
-  card: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline },
+  card: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairlineStrong },
   cardTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginBottom: spacing.sm },
   cardSub: { color: colors.inkSecondary, fontSize: typography.size.sm, marginBottom: spacing.lg },
   diffRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
@@ -518,11 +518,11 @@ const styles = StyleSheet.create({
   timerBg: { height: 8, borderRadius: 99, backgroundColor: colors.bgMid, overflow: 'hidden', marginBottom: spacing.md },
   timerFill: { height: 8, borderRadius: 99, backgroundColor: colors.accentWarm },
 
-  sentenceCard: { minHeight: 170, backgroundColor: colors.bgMid, borderRadius: 18, borderWidth: 1, borderColor: colors.hairline, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
+  sentenceCard: { minHeight: 180, backgroundColor: colors.bgMid, borderRadius: 20, borderWidth: 1, borderColor: colors.hairlineStrong, padding: spacing.xl, justifyContent: 'center', marginBottom: spacing.md },
   sentenceText: { color: colors.inkPrimary, fontSize: 28, fontWeight: typography.weight.black, textAlign: 'center', lineHeight: 38 },
 
   buttonsRow: { flexDirection: 'row', gap: spacing.sm },
-  pickBtn: { flex: 1, borderRadius: 14, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1 },
+  pickBtn: { flex: 1, borderRadius: 18, paddingVertical: spacing.lg, alignItems: 'center', borderWidth: 1 },
   realBtn: { backgroundColor: colors.successDsSoft, borderColor: colors.successDs },
   fakeBtn: { backgroundColor: colors.errorDsSoft, borderColor: colors.errorDs },
   pickText: { color: colors.inkPrimary, fontSize: typography.size.md, fontFamily: 'InterTight_600SemiBold' },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   nextBtn: { marginTop: spacing.sm, backgroundColor: colors.accentWarm, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   nextBtnText: { color: colors.bgDeep, fontWeight: typography.weight.black, fontSize: typography.size.sm },
 
-  resultCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 18, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairline, alignItems: 'center' },
+  resultCard: { marginTop: spacing.xl, backgroundColor: colors.bgMid, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: colors.hairlineStrong, alignItems: 'center' },
   resultEmoji: { fontSize: 54 },
   resultTitle: { color: colors.inkPrimary, fontSize: typography.size.xl, fontWeight: typography.weight.black, marginTop: spacing.sm },
   resultScore: { color: colors.accentWarm, fontSize: 34, fontWeight: typography.weight.black, marginTop: spacing.sm },

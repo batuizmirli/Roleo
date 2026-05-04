@@ -117,7 +117,7 @@ export default function RunResultScreen({ results, onExit, onReplay, dailyRunBoa
         </View>
 
         <TouchableOpacity style={styles.btnPrimary} onPress={onExit}>
-          <Text style={styles.btnPrimaryText}>İlerlemeye dön →</Text>
+          <Text style={styles.btnPrimaryText}>Devam et →</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.btnSecondary} onPress={onReplay}>
           <Text style={styles.btnSecondaryText}>Bu anı tekrar çalış</Text>
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
   compareStrip: {
     width: '100%',
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginTop: 20,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 20,
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 18,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
@@ -217,8 +217,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 14,
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     borderLeftWidth: 3,
     borderColor: colors.hairlineStrong,
@@ -251,8 +251,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 16,
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     borderColor: `${colors.accentWarm}30`,
   },

@@ -273,7 +273,7 @@ export default function StageResultScreen({
           <Text style={styles.focusText}>{feedback.nextFocus}</Text>
           <View style={styles.savedRow}>
             <Feather name={saved ? 'check-circle' : 'circle'} size={14} color={saved ? colors.successDs : colors.inkTertiary} />
-            <Text style={styles.savedText}>{saved ? 'Provayı kaydet' : 'Prova kaydı hazırlanıyor'}</Text>
+            <Text style={styles.savedText}>{saved ? 'Prova kaydedildi' : 'Prova kaydı hazırlanıyor'}</Text>
           </View>
         </View>
 
@@ -638,15 +638,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.bgMid,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.hairline,
-    padding: 14,
+    borderColor: colors.hairlineStrong,
+    padding: 16,
   },
   toolIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: 'rgba(232,181,118,0.10)',
     alignItems: 'center',
     justifyContent: 'center',

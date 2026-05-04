@@ -41,6 +41,9 @@ import PronunciationScreen from './src/screens/PronunciationScreen';
 import ListeningScreen from './src/screens/ListeningScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import JournalScreen from './src/screens/JournalScreen';
+import StripeHomeScreen from './src/screens/StripeHomeScreen';
+import TravelHomeScreen from './src/screens/TravelHomeScreen';
 import FlashPickScreen from './src/screens/FlashPickScreen';
 import TrueOrFakeScreen from './src/screens/TrueOrFakeScreen';
 import RunResultScreen from './src/screens/RunResultScreen';
@@ -48,7 +51,7 @@ import ScenarioPrepModal from './src/components/ScenarioPrepModal';
 import RoleoPlusPaywall from './src/components/RoleoPlusPaywall';
 import { ModuleResult, UserProfile } from './src/types';
 import { getFirstSessionScenario, getTodaysMissionScenario, getPersonalizedScenario, scenarios } from './src/data/scenarios';
-import { getProgress } from './src/services/progress';
+import { getProgress, completeStage } from './src/services/progress';
 import { getDailyRunSnapshot, saveDailyRunSnapshot, type DailyRunSnapshot } from './src/services/runHook';
 import { saveSceneSession } from './src/services/sessionMemory';
 import {
@@ -89,8 +92,11 @@ type Screen =
   | 'true-or-fake'
   | 'progress'
   | 'account'
+  | 'journal'
   | 'listening'
-  | 'debug';
+  | 'debug'
+  | 'stripe-home'
+  | 'travel-home';
 
 export default function App() {
   type RunState = 'idle' | 'briefing' | 'flash' | 'truefake' | 'scene' | 'complete';
@@ -465,8 +471,15 @@ export default function App() {
       const profileRaw = await AsyncStorage.getItem('userProfile');
       const profile = profileRaw ? JSON.parse(profileRaw) : null;
       const flowPath = result.flowPath ?? 'smooth';
+      const xpBase = runScenario.xpReward ?? 20;
+      const xpBonus = result.accuracy >= 0.7 ? 8 : result.accuracy >= 0.4 ? 4 : 0;
+      const comboBonus = Math.min(12, (result.comboMax ?? 0) * 3);
+      const runXp = Math.max(8, xpBase + xpBonus + comboBonus);
+      const userLevel: 'beginner' | 'intermediate' | 'advanced' =
+        result.accuracy >= 0.7 ? 'advanced' : result.accuracy >= 0.4 ? 'intermediate' : 'beginner';
+      const sessionId = `daily-run-${runScenario.id}-${Date.now().toString(36)}`;
       await saveSceneSession({
-        sessionId: `daily-run-${runScenario.id}-${Date.now().toString(36)}`,
+        sessionId,
         timestamp: new Date().toISOString(),
         source: 'daily_run',
         scenarioId: runScenario.id,
@@ -474,14 +487,14 @@ export default function App() {
         stageType: runScenario.stageType ?? 'social',
         language: profile?.language?.code ?? runScenario.language,
         npcPersona: 'Daily Run',
-        difficulty: result.accuracy >= 0.7 ? 'advanced' : result.accuracy >= 0.4 ? 'intermediate' : 'beginner',
+        difficulty: userLevel,
         userGoal: profile?.goalDescription ?? undefined,
         identityGoal: profile?.identity?.goal ?? undefined,
         selectedChoices: [],
         score: {
           accuracy: result.accuracy,
           comboMax: result.comboMax ?? 0,
-          xpEarned: 0,
+          xpEarned: runXp,
           flowPath,
           goodTurns: Math.round(result.accuracy * 6),
           awkwardTurns: flowPath === 'friction' ? 1 : 0,
@@ -496,6 +509,22 @@ export default function App() {
           ? 'Bir sonraki provada aynı sahnede daha yumuşak geçiş kur.'
           : 'Bir sonraki provada aynı sakin ritmi koru.',
         dramaticBeat: 'Daily run içinde tamamlanan sahne provası',
+      });
+      await completeStage({
+        resultId: sessionId,
+        scenarioId: runScenario.id,
+        scenarioTitle: runScenario.title,
+        stageType: runScenario.stageType ?? 'social',
+        userLevel,
+        userMessageCount: Math.round(result.accuracy * 6),
+        xpEarned: runXp,
+        sceneAccuracy: result.accuracy,
+        comboMax: result.comboMax ?? 0,
+        flowPath,
+        goodTurns: Math.round(result.accuracy * 6),
+        awkwardTurns: flowPath === 'friction' ? 1 : 0,
+        timedOutTurns: 0,
+        nativePhraseHighlight: result.nativePhrase,
       });
     }
     await recordSceneRehearsalUse();
@@ -780,6 +809,7 @@ export default function App() {
                 progressReturnRef.current = 'home';
                 goTo('progress');
               }}
+              onOpenJournal={() => goTo('journal')}
             />
           )}
           {screen === 'learn-hub' && (
@@ -1013,6 +1043,9 @@ export default function App() {
     if (screen === 'quiz') return <QuizScreen onBack={() => backTo('stage-result')} scenarioTitle={stageResult?.scenarioTitle} stageType={stageResult?.stageType} />;
     if (screen === 'stories') return <QuotesScreen onBack={() => backTo(toolReturnScreenRef.current)} />;
     if (screen === 'progress') return <ProgressScreen onBack={() => backTo(progressReturnRef.current)} />;
+    if (screen === 'journal') return <JournalScreen onBack={() => backTo('home')} />;
+    if (screen === 'stripe-home') return <StripeHomeScreen onBack={() => backTo('home')} />;
+    if (screen === 'travel-home') return <TravelHomeScreen onBack={() => backTo('home')} />;
     if (screen === 'debug') return <DebugPanelScreen onBack={() => backTo('home')} />;
 
     return null;

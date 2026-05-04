@@ -235,10 +235,10 @@ const styles = StyleSheet.create({
 
   npcCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(232,181,118,0.15)',
-    padding: 16,
+    borderColor: 'rgba(232,181,118,0.18)',
+    padding: 18,
     gap: 12,
   },
   npcText: {
@@ -281,10 +281,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.bgMid,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.hairline,
-    padding: 12,
+    borderColor: colors.hairlineStrong,
+    padding: 14,
     marginBottom: 8,
   },
   phraseTexts: { flex: 1, marginRight: 10 },
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
 
   tipCard: {
     backgroundColor: colors.bgMid,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(232,181,118,0.2)',
     padding: 16,
